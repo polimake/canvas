@@ -1,0 +1,24 @@
+/* canvas2 overrides for Excalidraw chrome — scoped to our editor wrapper
+   ([data-canvas2]) so they can't leak to other Excalidraw instances. */
+
+/* Keep the hamburger (main) menu in its default top-left spot, but stack it
+   above the rest of the chrome. It's the first child of `.App-menu_top__left`
+   and already has an inline `position: relative`, so a z-index applies. */
+[data-canvas2] .App-menu_top__left > div:first-child {
+  z-index: 99999;
+}
+
+/* Hide Excalidraw's bottom-right Help ("Ayuda") button. */
+[data-canvas2] .help-icon {
+  display: none !important;
+}
+
+/* Remove the AI "Generate" section (incl. "Mermaid to Excalidraw") from the
+   toolbar's extra-tools dropdown. `aiEnabled={false}` already drops the AI
+   text-to-diagram trigger + magic-frame, but the "Generate" header and the
+   Mermaid item are rendered unconditionally. In that dropdown the Generate
+   section is everything after the Laser tool, so hide the Laser item's
+   following siblings. */
+[data-canvas2] .App-toolbar__extra-tools-dropdown [data-testid="toolbar-laser"] ~ * {
+  display: none !important;
+}
