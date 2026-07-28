@@ -7,7 +7,8 @@
   "module": "./src/index.ts",
   "types": "./src/index.ts",
   "sideEffects": [
-    "*.css"
+    "*.css",
+    "src/excal.ts"
   ],
   "exports": {
     ".": "./src/index.ts"
