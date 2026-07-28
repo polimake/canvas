@@ -3,7 +3,9 @@ import { excalMock, fakeApi, frame, member } from './helpers';
 
 vi.mock('../src/excal', () => excalMock);
 
-const { setPageBackgroundColor, getPageBackground } = await import('../src/background.js');
+const { setPageBackgroundColor, getPageBackground, ensurePagePapers } = await import(
+  '../src/background.js'
+);
 
 const isBg = (e: any) => e.customData?.c2 === 'pageBackground';
 
@@ -47,6 +49,23 @@ describe('page background', () => {
     setPageBackgroundColor(api as any, 'p1', null);
     expect(api.getSceneElements().filter(isBg)).toHaveLength(0);
     expect(getPageBackground(api as any, 'p1')).toBeNull();
+  });
+
+  it('ensurePagePapers gives paperless legacy pages a white sheet, once', () => {
+    const { api } = fakeApi([
+      frame('p1', 0, 0, 500, 500),
+      frame('p2', 500, 0, 500, 500),
+    ]);
+    setPageBackgroundColor(api as any, 'p1', '#d0ebff');
+    ensurePagePapers(api as any);
+    const bgs = api.getSceneElements().filter(isBg);
+    expect(bgs).toHaveLength(2);
+    // The page that already had a background keeps its color.
+    expect(getPageBackground(api as any, 'p1')).toBe('#d0ebff');
+    expect(getPageBackground(api as any, 'p2')).toBe('#ffffff');
+    // Idempotent.
+    ensurePagePapers(api as any);
+    expect(api.getSceneElements().filter(isBg)).toHaveLength(2);
   });
 
   it('does nothing for an unknown page', () => {

@@ -16,15 +16,27 @@ const {
   isPageLocked,
 } = await import('../src/pages.js');
 
-const GAP = 160;
+// Pages sit FLUSH against each other (Canva-style contiguous sheets).
+const GAP = 0;
 
 describe('pages on frames', () => {
-  it('addPage appends to the right with the requested size', () => {
+  it('addPage appends flush to the right with the requested size and a paper sheet', () => {
     const { api, get } = fakeApi([frame('p1', 0, 0, 1000, 800)]);
     const id = addPage(api as any, { width: 1080, height: 1920 });
     const added = get().find((e) => e.id === id);
     expect(added).toMatchObject({ type: 'frame', x: 1000 + GAP, width: 1080, height: 1920 });
     expect(listPages(api as any).map((p) => p.id)).toEqual(['p1', id]);
+    // Every new page ships with a locked, sharp-cornered white paper rect.
+    const paper = get().find((e) => e.frameId === id && e.customData?.c2 === 'pageBackground');
+    expect(paper).toMatchObject({
+      x: 1000 + GAP,
+      width: 1080,
+      height: 1920,
+      locked: true,
+      backgroundColor: '#ffffff',
+      roughness: 0,
+      roundness: null,
+    });
   });
 
   it('deletePage removes the page and its members but refuses the last page', () => {
@@ -85,6 +97,16 @@ describe('pages on frames', () => {
     // Text scales fontSize by k too.
     const t1 = els.find((e: any) => e.id === 't1');
     expect(t1.fontSize).toBe(20);
+  });
+
+  it('resizePage always stretches the paper sheet to the exact new bounds', () => {
+    const { api } = fakeApi([
+      frame('p1', 0, 0, 1000, 1000),
+      { ...member('bg', 'p1', 0, 0, 1000, 1000), locked: true, customData: { c2: 'pageBackground' } },
+    ]);
+    resizePage(api as any, 'p1', { width: 500, height: 1000 });
+    const bg = api.getSceneElements().find((e: any) => e.id === 'bg');
+    expect(bg).toMatchObject({ x: 0, y: 0, width: 500, height: 1000 });
   });
 
   it('resizePage without scaleContent keeps member geometry', () => {

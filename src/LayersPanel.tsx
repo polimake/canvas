@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react';
 import {
   CaptureUpdateAction,
   type ExcalidrawImperativeAPI,
@@ -11,7 +11,32 @@ import { PANEL_FONT, palette } from './theme';
 import { reorderPageMembers } from './zorder';
 import { setAsBackground, extendToPage } from './imageOps';
 import { renamePage } from './pages';
-import { PAGE_ALIGNMENTS, alignToPage } from './align';
+import { isPageBackground } from './background';
+import { PAGE_ALIGNMENTS, alignToPage, type PageAlignment } from './align';
+import {
+  AlignBottomIcon,
+  AlignCenterHIcon,
+  AlignCenterVIcon,
+  AlignLeftIcon,
+  AlignRightIcon,
+  AlignTopIcon,
+  ArrowIcon,
+  CircleIcon,
+  CoverIcon,
+  DiamondIcon,
+  DrawIcon,
+  EyeIcon,
+  EyeOffIcon,
+  FrameIcon,
+  ImageIcon,
+  LineIcon,
+  LockIcon,
+  SquareIcon,
+  StretchIcon,
+  TextIcon,
+  TrashIcon,
+  UnlockIcon,
+} from './icons';
 
 export interface LayersPanelProps {
   api: ExcalidrawImperativeAPI;
@@ -19,16 +44,16 @@ export interface LayersPanelProps {
   theme?: 'light' | 'dark';
 }
 
-const TYPE_GLYPH: Record<string, string> = {
-  image: '🖼',
-  text: 'T',
-  rectangle: '▭',
-  ellipse: '◯',
-  diamond: '◇',
-  line: '╱',
-  arrow: '➔',
-  freedraw: '✎',
-  frame: '▢',
+const TYPE_ICON: Record<string, ComponentType> = {
+  image: ImageIcon,
+  text: TextIcon,
+  rectangle: SquareIcon,
+  ellipse: CircleIcon,
+  diamond: DiamondIcon,
+  line: LineIcon,
+  arrow: ArrowIcon,
+  freedraw: DrawIcon,
+  frame: FrameIcon,
 };
 
 const TYPE_NAME: Record<string, string> = {
@@ -41,8 +66,18 @@ const TYPE_NAME: Record<string, string> = {
   freedraw: 'Trazo',
 };
 
-function glyph(type: string): string {
-  return TYPE_GLYPH[type] ?? '◻';
+const ALIGN_ICON: Record<PageAlignment, ComponentType> = {
+  left: AlignLeftIcon,
+  centerX: AlignCenterHIcon,
+  right: AlignRightIcon,
+  top: AlignTopIcon,
+  centerY: AlignCenterVIcon,
+  bottom: AlignBottomIcon,
+};
+
+function typeIcon(type: string): ReactNode {
+  const Icon = TYPE_ICON[type] ?? SquareIcon;
+  return <Icon />;
 }
 
 function displayName(el: SceneElement): string {
@@ -57,7 +92,7 @@ function displayName(el: SceneElement): string {
 function sceneSignature(api: ExcalidrawImperativeAPI, pageId: string | null): string {
   if (!pageId) return '';
   const els = api.getSceneElements();
-  const members = els.filter((e) => e.frameId === pageId);
+  const members = els.filter((e) => e.frameId === pageId && !isPageBackground(e));
   const sel = api.getAppState().selectedElementIds;
   const selKeys = Object.keys(sel)
     .filter((k) => sel[k])
@@ -102,7 +137,8 @@ export function LayersPanel({ api, activePageId, theme = 'light' }: LayersPanelP
 
   const els = api.getSceneElements();
   const frame = els.find((e) => e.id === activePageId);
-  const members = els.filter((e) => e.frameId === activePageId);
+  // The page's paper sheet is chrome (managed by the Fondo menu), not a layer.
+  const members = els.filter((e) => e.frameId === activePageId && !isPageBackground(e));
   // Array order is ascending z (bottom→top); reverse for top-first display.
   const rows = [...members].reverse();
   const selected = api.getAppState().selectedElementIds;
@@ -157,7 +193,7 @@ export function LayersPanel({ api, activePageId, theme = 'light' }: LayersPanelP
     });
   };
 
-  const iconBtn = (label: string, onClick: () => void, node: string, danger = false) => (
+  const iconBtn = (label: string, onClick: () => void, node: ReactNode, danger = false) => (
     <button
       type="button"
       aria-label={label}
@@ -169,9 +205,10 @@ export function LayersPanel({ api, activePageId, theme = 'light' }: LayersPanelP
       style={{
         all: 'unset',
         cursor: 'pointer',
-        fontSize: 13,
+        display: 'inline-flex',
+        alignItems: 'center',
         lineHeight: 1,
-        padding: '3px 4px',
+        padding: '3px 3px',
         borderRadius: 4,
         color: danger ? '#e03131' : 'inherit',
         opacity: 0.8,
@@ -216,25 +253,29 @@ export function LayersPanel({ api, activePageId, theme = 'light' }: LayersPanelP
         {/* Align the current selection to the PAGE (Excalidraw's native align
             needs 2+ elements; to-artboard alignment is our overlay). */}
         <span style={{ display: 'inline-flex', gap: 2 }}>
-          {PAGE_ALIGNMENTS.map((a) => (
-            <button
-              key={a.key}
-              type="button"
-              title={a.label}
-              onClick={() => alignToPage(api, activePageId, a.key)}
-              style={{
-                all: 'unset',
-                cursor: 'pointer',
-                fontSize: 12,
-                lineHeight: 1,
-                padding: '2px 3px',
-                borderRadius: 4,
-                opacity: 0.8,
-              }}
-            >
-              {a.glyph}
-            </button>
-          ))}
+          {PAGE_ALIGNMENTS.map((a) => {
+            const Icon = ALIGN_ICON[a.key];
+            return (
+              <button
+                key={a.key}
+                type="button"
+                title={a.label}
+                onClick={() => alignToPage(api, activePageId, a.key)}
+                style={{
+                  all: 'unset',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  lineHeight: 1,
+                  padding: '2px 3px',
+                  borderRadius: 4,
+                  opacity: 0.8,
+                }}
+              >
+                <Icon />
+              </button>
+            );
+          })}
         </span>
       </div>
 
@@ -270,8 +311,8 @@ export function LayersPanel({ api, activePageId, theme = 'light' }: LayersPanelP
                 opacity: hidden ? 0.5 : 1,
               }}
             >
-              <span style={{ width: 16, textAlign: 'center', fontSize: 13 }}>
-                {glyph(el.type)}
+              <span style={{ width: 16, display: 'inline-flex', justifyContent: 'center' }}>
+                {typeIcon(el.type)}
               </span>
               <span
                 style={{
@@ -287,21 +328,21 @@ export function LayersPanel({ api, activePageId, theme = 'light' }: LayersPanelP
               </span>
 
               {el.type === 'image' &&
-                iconBtn('Usar como fondo', () => setAsBackground(api, el.id, activePageId), '⤢')}
+                iconBtn('Usar como fondo', () => setAsBackground(api, el.id, activePageId), <CoverIcon />)}
               {el.type === 'image' &&
-                iconBtn('Extender a la página', () => extendToPage(api, el.id, activePageId), '⛶')}
+                iconBtn('Extender a la página', () => extendToPage(api, el.id, activePageId), <StretchIcon />)}
 
               {iconBtn(
                 hidden ? 'Mostrar' : 'Ocultar',
                 () => toggleVisibility(el),
-                hidden ? '🚫' : '👁',
+                hidden ? <EyeOffIcon /> : <EyeIcon />,
               )}
               {iconBtn(
                 el.locked ? 'Desbloquear' : 'Bloquear',
                 () => patch(el.id, { locked: !el.locked }),
-                el.locked ? '🔒' : '🔓',
+                el.locked ? <LockIcon /> : <UnlockIcon />,
               )}
-              {iconBtn('Eliminar', () => remove(el.id), '🗑', true)}
+              {iconBtn('Eliminar', () => remove(el.id), <TrashIcon />, true)}
             </div>
           );
         })}
@@ -326,7 +367,9 @@ export function LayersPanel({ api, activePageId, theme = 'light' }: LayersPanelP
           cursor: 'default',
         }}
       >
-        <span style={{ width: 16, textAlign: 'center' }}>▢</span>
+        <span style={{ width: 16, display: 'inline-flex', justifyContent: 'center' }}>
+          <FrameIcon />
+        </span>
         <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {frame && frame.type === 'frame' ? frame.name ?? 'Página' : 'Página'}
         </span>

@@ -80,6 +80,19 @@ overlay · ◐ partial · ✗ roadmap — not built yet
 | Read-only / comment mode | ✔ native | `viewMode` prop already wired |
 | Templates + AI slot-fill | ✗ roadmap | frames with named elements as slots; pairs with the studio-mcp design tools |
 
+## Visual pass (same day, later still)
+
+- All chrome glyphs/emojis replaced with an inline SVG icon set (`icons.tsx`,
+  no icon-library dependency, currentColor strokes).
+- Pages sit **flush against each other** (`PAGE_GAP = 0`), Canva-style.
+- Pages are **straight-edged**: Excalidraw draws frame outlines with rounded
+  corners and no public radius knob, so the native outline is disabled
+  (`frameRendering.outline: false`) and every page carries a locked,
+  sharp-cornered white "paper" rect (roughness 0, hairline border) as its
+  visual. The paper auto-creates on new pages, stretches exactly on resize,
+  is hidden from the layers list, and `ensurePagePapers` migrates legacy
+  scenes (which also get re-packed flush on load).
+
 ## Hardening pass (same day, later)
 
 - `src/excal.ts` adapter created; all 12 modules rewired through it (duplicated

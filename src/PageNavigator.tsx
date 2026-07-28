@@ -20,6 +20,20 @@ import { exportScenePng, exportSceneSvg, exportScenePdf, downloadBlob } from './
 import { TEXT_PRESETS, insertTextPreset } from './text';
 import { getPageBackground, setPageBackgroundColor } from './background';
 import { PANEL_FONT, palette } from './theme';
+import {
+  CaretDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  DuplicateIcon,
+  ExportIcon,
+  FillIcon,
+  LockIcon,
+  PencilIcon,
+  PlusIcon,
+  TextIcon,
+  TrashIcon,
+  UnlockIcon,
+} from './icons';
 
 export interface PageNavigatorProps {
   api: ExcalidrawImperativeAPI;
@@ -221,7 +235,7 @@ export function PageNavigator({
     }
   };
 
-  const iconBtn = (label: string, onClick: () => void, glyph: string) => (
+  const iconBtn = (label: string, onClick: () => void, icon: ReactNode) => (
     <button
       type="button"
       aria-label={label}
@@ -233,17 +247,32 @@ export function PageNavigator({
       style={{
         all: 'unset',
         cursor: 'pointer',
-        fontSize: 12,
+        display: 'inline-flex',
+        alignItems: 'center',
         lineHeight: 1,
-        padding: '2px 4px',
+        padding: '2px 3px',
         borderRadius: 4,
         color: 'inherit',
         opacity: 0.85,
       }}
     >
-      {glyph}
+      {icon}
     </button>
   );
+
+  const pillStyle: CSSProperties = {
+    all: 'unset',
+    cursor: 'pointer',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 5,
+    padding: '4px 10px',
+    borderRadius: 8,
+    fontSize: 12,
+    fontWeight: 600,
+    color: c.sub,
+    whiteSpace: 'nowrap',
+  };
 
   return (
     <div
@@ -256,7 +285,7 @@ export function PageNavigator({
         display: 'flex',
         alignItems: 'center',
         gap: 4,
-        maxWidth: 'min(760px, 92%)',
+        maxWidth: 'min(920px, 94%)',
         padding: 6,
         borderRadius: 12,
         background: c.bg,
@@ -313,21 +342,21 @@ export function PageNavigator({
               {page.name}
             </span>
             {isActive && (
-              <span style={{ display: 'inline-flex', marginLeft: 2 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 1, marginLeft: 2 }}>
                 {page.index > 0 &&
-                  iconBtn('Mover a la izquierda', () => movePage(api, page.id, -1), '◀')}
+                  iconBtn('Mover a la izquierda', () => movePage(api, page.id, -1), <ChevronLeftIcon />)}
                 {page.index < pages.length - 1 &&
-                  iconBtn('Mover a la derecha', () => movePage(api, page.id, 1), '▶')}
-                {iconBtn('Duplicar página', () => onDuplicate(page.id), '⧉')}
-                {iconBtn('Renombrar página', () => onRename(page), '✎')}
+                  iconBtn('Mover a la derecha', () => movePage(api, page.id, 1), <ChevronRightIcon />)}
+                {iconBtn('Duplicar página', () => onDuplicate(page.id), <DuplicateIcon />)}
+                {iconBtn('Renombrar página', () => onRename(page), <PencilIcon />)}
                 {iconBtn(
                   page.locked ? 'Desbloquear página' : 'Bloquear página',
                   () => setPageLocked(api, page.id, !page.locked),
-                  page.locked ? '🔒' : '🔓',
+                  page.locked ? <LockIcon /> : <UnlockIcon />,
                 )}
                 {pages.length > 1 &&
                   !page.locked &&
-                  iconBtn('Eliminar página', () => onDelete(page), '🗑')}
+                  iconBtn('Eliminar página', () => onDelete(page), <TrashIcon />)}
               </span>
             )}
           </div>
@@ -338,22 +367,10 @@ export function PageNavigator({
         type="button"
         onClick={onAdd}
         title="Agregar página"
-        style={{
-          all: 'unset',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 4,
-          padding: '4px 10px',
-          borderRadius: 8,
-          fontSize: 12,
-          fontWeight: 600,
-          color: c.sub,
-          border: `1px dashed ${c.border}`,
-          whiteSpace: 'nowrap',
-        }}
+        style={{ ...pillStyle, border: `1px dashed ${c.border}` }}
       >
-        + Página
+        <PlusIcon />
+        Página
       </button>
       </div>
 
@@ -366,52 +383,30 @@ export function PageNavigator({
           type="button"
           title="Insertar texto"
           onClick={() => setOpenMenu(openMenu === 'text' ? null : 'text')}
-          style={{
-            all: 'unset',
-            cursor: 'pointer',
-            padding: '4px 10px',
-            borderRadius: 8,
-            fontSize: 12,
-            fontWeight: 600,
-            color: c.sub,
-            whiteSpace: 'nowrap',
-          }}
+          style={pillStyle}
         >
-          ＋T ▾
+          <TextIcon />
+          Texto
+          <CaretDownIcon />
         </button>
         <button
           type="button"
           title="Fondo de la página"
           onClick={() => setOpenMenu(openMenu === 'bg' ? null : 'bg')}
-          style={{
-            all: 'unset',
-            cursor: 'pointer',
-            padding: '4px 10px',
-            borderRadius: 8,
-            fontSize: 12,
-            fontWeight: 600,
-            color: c.sub,
-            whiteSpace: 'nowrap',
-          }}
+          style={pillStyle}
         >
-          Fondo ▾
+          <FillIcon />
+          Fondo
+          <CaretDownIcon />
         </button>
         <button
           type="button"
           title="Tamaño de la página"
           onClick={() => setOpenMenu(openMenu === 'size' ? null : 'size')}
-          style={{
-            all: 'unset',
-            cursor: 'pointer',
-            padding: '4px 10px',
-            borderRadius: 8,
-            fontSize: 12,
-            fontWeight: 600,
-            color: c.sub,
-            whiteSpace: 'nowrap',
-          }}
+          style={pillStyle}
         >
-          {activePage ? `${activePage.width}×${activePage.height}` : 'Tamaño'} ▾
+          {activePage ? `${activePage.width}×${activePage.height}` : 'Tamaño'}
+          <CaretDownIcon />
         </button>
         <button
           type="button"
@@ -419,18 +414,14 @@ export function PageNavigator({
           onClick={() => setOpenMenu(openMenu === 'export' ? null : 'export')}
           disabled={exporting}
           style={{
-            all: 'unset',
+            ...pillStyle,
             cursor: exporting ? 'wait' : 'pointer',
-            padding: '4px 10px',
-            borderRadius: 8,
-            fontSize: 12,
-            fontWeight: 600,
-            color: c.sub,
-            whiteSpace: 'nowrap',
             opacity: exporting ? 0.5 : 1,
           }}
         >
-          {exporting ? 'Exportando…' : 'Exportar ▾'}
+          <ExportIcon />
+          {exporting ? 'Exportando…' : 'Exportar'}
+          <CaretDownIcon />
         </button>
 
         {openMenu === 'text' && (

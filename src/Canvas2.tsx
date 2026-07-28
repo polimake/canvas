@@ -9,7 +9,8 @@ import {
 } from './excal';
 import { PageNavigator } from './PageNavigator';
 import { LayersPanel } from './LayersPanel';
-import { addPage, createBlankScene, goToPage, listPages, type PageSize } from './pages';
+import { addPage, createBlankScene, goToPage, listPages, relayoutPages, type PageSize } from './pages';
+import { ensurePagePapers } from './background';
 
 /**
  * A serializable snapshot of the canvas. Same shape Excalidraw accepts as
@@ -114,6 +115,11 @@ export function Canvas2Editor({
         // Object snapping on by default — the analogue of the Canva clone's
         // alignment guidelines. A stored scene's own appState still wins.
         objectsSnapModeEnabled: true,
+        // Excalidraw draws frame outlines with ROUNDED corners (no public
+        // radius knob). Pages must read as straight-edged sheets, so the
+        // native outline is off and each page's locked "paper" rect (sharp
+        // corners, hairline border) is the page's visual instead.
+        frameRendering: { enabled: true, clip: true, name: true, outline: false },
         ...(base?.appState ?? {}),
       },
     } as Canvas2Scene;
@@ -137,6 +143,10 @@ export function Canvas2Editor({
       const existing = listPages(api);
       if (existing.length > 0) {
         clearInterval(timer);
+        // Legacy-scene migration: give paperless pages their sheet and pack
+        // pages flush together (older scenes were laid out with a gap).
+        ensurePagePapers(api);
+        relayoutPages(api);
         setActivePageId((current) => {
           if (current) return current;
           goToPage(api, existing[0].id);

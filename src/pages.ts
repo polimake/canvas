@@ -5,6 +5,7 @@ import {
   type SceneElement,
   type SceneElements,
 } from './excal';
+import { buildPageBackground, isPageBackground } from './background';
 
 /**
  * "Pages" / artboards on top of Excalidraw's infinite canvas.
@@ -50,8 +51,12 @@ export const PAGE_SIZE_PRESETS: PageSizePreset[] = [
   { key: 'default', label: 'Lienzo clásico', width: 1640, height: 924 },
 ];
 
-/** Horizontal gap between consecutive page frames, in scene units. */
-const PAGE_GAP = 160;
+/** Pages sit flush against each other (Canva-style contiguous sheets); the
+ *  hairline border of each page's paper rect is the only separator. */
+const PAGE_GAP = 0;
+
+/** Default paper color for a new page. */
+const PAPER_COLOR = '#ffffff';
 
 function createId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -82,10 +87,11 @@ function nextPageX(api: ExcalidrawImperativeAPI): number {
 export function createBlankScene(
   pageSize: PageSize = DEFAULT_PAGE_SIZE,
 ): { elements: SceneElements } {
+  const id = createId();
   const skeleton: Parameters<typeof convertToExcalidrawElements>[0] = [
     {
       type: 'frame',
-      id: createId(),
+      id,
       name: 'Página 1',
       x: 0,
       y: 0,
@@ -94,9 +100,13 @@ export function createBlankScene(
       children: [],
     },
   ];
-  return {
-    elements: convertToExcalidrawElements(skeleton, { regenerateIds: false }) as SceneElements,
-  };
+  const frame = convertToExcalidrawElements(skeleton, { regenerateIds: false });
+  const paper = buildPageBackground(
+    id,
+    { x: 0, y: 0, width: pageSize.width, height: pageSize.height },
+    PAPER_COLOR,
+  );
+  return { elements: [...frame, ...paper] as SceneElements };
 }
 
 /** Snapshot of the current pages, ordered left → right. */
@@ -124,12 +134,13 @@ export function addPage(
 ): string {
   const id = createId();
   const count = getFrames(api).length;
+  const x = nextPageX(api);
   const skeleton: Parameters<typeof convertToExcalidrawElements>[0] = [
     {
       type: 'frame',
       id,
       name: `Página ${count + 1}`,
-      x: nextPageX(api),
+      x,
       y: 0,
       width: pageSize.width,
       height: pageSize.height,
@@ -137,8 +148,13 @@ export function addPage(
     },
   ];
   const created = convertToExcalidrawElements(skeleton, { regenerateIds: false });
+  const paper = buildPageBackground(
+    id,
+    { x, y: 0, width: pageSize.width, height: pageSize.height },
+    PAPER_COLOR,
+  );
   api.updateScene({
-    elements: [...api.getSceneElements(), ...created] as SceneElements,
+    elements: [...api.getSceneElements(), ...created, ...paper] as SceneElements,
     captureUpdate: CaptureUpdateAction.IMMEDIATELY,
   });
   return id;
@@ -300,7 +316,13 @@ export function resizePage(
     if (e.id === pageId && e.type === 'frame') {
       return { ...e, width: size.width, height: size.height };
     }
-    if (!scaleContent || e.frameId !== pageId) return e;
+    if (e.frameId !== pageId) return e;
+    // The paper sheet always stretches to the exact new bounds (a uniform
+    // scale would leave uncovered strips when the aspect ratio changes).
+    if (isPageBackground(e)) {
+      return { ...e, x: frame.x, y: frame.y, width: size.width, height: size.height };
+    }
+    if (!scaleContent) return e;
 
     const cx = frame.x + (e.x + e.width / 2 - frame.x) * sx;
     const cy = frame.y + (e.y + e.height / 2 - frame.y) * sy;
