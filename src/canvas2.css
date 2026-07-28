@@ -8,6 +8,20 @@
   z-index: 99999;
 }
 
+/* Hamburger dropdown: Excalidraw right-aligns the 320px panel to its 41px
+   trigger (`right: 0`), so it opens LEFTWARD — off the canvas and underneath
+   the studio shell's fixed sidebar, whose stacking context paints above the
+   editor. Anchor it to the trigger's LEFT edge instead so it opens rightward,
+   fully inside the canvas, and give it a z-index above every canvas2 overlay
+   (page strip = 100, layers panel = 4, popups = 120). Scoped to the top-left
+   main menu only — other dropdowns (extra tools, sidebar) keep their layout.
+   Mobile keeps Excalidraw's full-width variant. */
+[data-canvas2] .App-menu_top__left .dropdown-menu:not(.dropdown-menu--mobile) {
+  left: 0;
+  right: auto;
+  z-index: 99999;
+}
+
 /* Hide Excalidraw's bottom-right Help ("Ayuda") button. */
 [data-canvas2] .help-icon {
   display: none !important;
