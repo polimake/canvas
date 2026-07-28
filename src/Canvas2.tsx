@@ -1,16 +1,15 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Excalidraw } from '@excalidraw/excalidraw';
-import '@excalidraw/excalidraw/index.css';
 import './canvas2.css';
-import type {
-  ExcalidrawImperativeAPI,
-  ExcalidrawInitialDataState,
-} from '@excalidraw/excalidraw/types';
+import {
+  Excalidraw,
+  type ExcalidrawImperativeAPI,
+  type ExcalidrawInitialDataState,
+} from './excal';
 import { PageNavigator } from './PageNavigator';
 import { LayersPanel } from './LayersPanel';
-import { addPage, goToPage, listPages, type PageSize } from './pages';
+import { addPage, createBlankScene, goToPage, listPages, type PageSize } from './pages';
 
 /**
  * A serializable snapshot of the canvas. Same shape Excalidraw accepts as
@@ -103,22 +102,60 @@ export function Canvas2Editor({
   const [activePageId, setActivePageId] = useState<string | null>(null);
   const didInitPages = useRef(false);
 
+  // In pages mode with NO host scene, the first artboard ships INSIDE
+  // initialData — creating it post-mount raced Excalidraw's own hydration,
+  // which replaced the scene and wiped the injected page.
+  const [initialData] = useState<Canvas2Scene | null>(() => {
+    const base: Canvas2Scene | null =
+      initialScene ?? (pages ? (createBlankScene(pageSize) as Canvas2Scene) : null);
+    return {
+      ...(base ?? {}),
+      appState: {
+        // Object snapping on by default — the analogue of the Canva clone's
+        // alignment guidelines. A stored scene's own appState still wins.
+        objectsSnapModeEnabled: true,
+        ...(base?.appState ?? {}),
+      },
+    } as Canvas2Scene;
+  });
+
   const emitScene = useDebouncedCallback((scene: Canvas2Scene) => {
     onSceneChange?.(scene);
   }, changeDebounceMs);
 
-  // In pages mode, ensure the scene starts with at least one artboard.
+  // In pages mode, ensure the scene ends up with at least one artboard and an
+  // active page. Hydration of `initialData` is asynchronous relative to the
+  // imperative-API callback, so poll briefly until the scene settles before
+  // deciding a legacy (frameless) scene needs a page injected.
   useEffect(() => {
     if (!pages || !api || didInitPages.current) return;
     didInitPages.current = true;
-    const existing = listPages(api);
-    if (existing.length === 0) {
-      const id = addPage(api, pageSize);
-      goToPage(api, id);
-      setActivePageId(id);
-    } else {
-      setActivePageId(existing[0].id);
-    }
+
+    let tries = 0;
+    const timer = setInterval(() => {
+      tries += 1;
+      const existing = listPages(api);
+      if (existing.length > 0) {
+        clearInterval(timer);
+        setActivePageId((current) => {
+          if (current) return current;
+          goToPage(api, existing[0].id);
+          return existing[0].id;
+        });
+        return;
+      }
+      // Scene hydrated with content but no frames (legacy infinite-canvas
+      // scene), or genuinely empty and stable: give it its first artboard.
+      const settled = tries >= 5 && api.getSceneElements().length === 0;
+      const legacy = api.getSceneElements().length > 0;
+      if (settled || legacy || tries >= 20) {
+        clearInterval(timer);
+        const id = addPage(api, pageSize);
+        goToPage(api, id);
+        setActivePageId(id);
+      }
+    }, 100);
+    return () => clearInterval(timer);
   }, [pages, api, pageSize]);
 
   return (
@@ -128,7 +165,7 @@ export function Canvas2Editor({
       style={{ position: 'relative', width: '100%', height: '100%' }}
     >
       <Excalidraw
-        initialData={initialScene ?? null}
+        initialData={initialData}
         viewModeEnabled={viewMode}
         langCode={langCode}
         aiEnabled={false}

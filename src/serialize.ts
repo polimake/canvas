@@ -1,5 +1,4 @@
-import { serializeAsJSON } from '@excalidraw/excalidraw';
-import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
+import { serializeAsJSON, type ExcalidrawImperativeAPI } from './excal';
 import type { Canvas2Scene } from './Canvas2';
 
 /**

@@ -1,5 +1,10 @@
-import { convertToExcalidrawElements, CaptureUpdateAction } from '@excalidraw/excalidraw';
-import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
+import {
+  convertToExcalidrawElements,
+  CaptureUpdateAction,
+  type ExcalidrawImperativeAPI,
+  type FrameElement,
+  type SceneElements,
+} from './excal';
 
 /**
  * Programmatic image insertion — the seam media integrations plug into.
@@ -12,10 +17,6 @@ import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
  * Excalidraw stores image bytes as a dataURL in its files map (no remote-URL
  * elements), so a URL source is fetched and inlined.
  */
-
-type SceneElement = ReturnType<ExcalidrawImperativeAPI['getSceneElements']>[number];
-type FrameElement = Extract<SceneElement, { type: 'frame' }>;
-type SceneElements = Parameters<ExcalidrawImperativeAPI['updateScene']>[0]['elements'];
 
 export interface InsertImageOptions {
   /** Place the image onto this page (frame). Defaults to the first page. */

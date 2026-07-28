@@ -1,5 +1,10 @@
-import { CaptureUpdateAction } from '@excalidraw/excalidraw';
-import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
+import {
+  CaptureUpdateAction,
+  type ExcalidrawImperativeAPI,
+  type FrameElement,
+  type SceneElement,
+  type SceneElements,
+} from './excal';
 import { reorderMembersInArray } from './zorder';
 
 /**
@@ -7,10 +12,6 @@ import { reorderMembersInArray } from './zorder';
  * opacity ARE native (double-click an image to crop), so only the two
  * polimake-style "fill the page" actions live here.
  */
-
-type SceneElement = ReturnType<ExcalidrawImperativeAPI['getSceneElements']>[number];
-type FrameElement = Extract<SceneElement, { type: 'frame' }>;
-type SceneElements = Parameters<ExcalidrawImperativeAPI['updateScene']>[0]['elements'];
 
 function frameFor(
   els: readonly SceneElement[],

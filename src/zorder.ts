@@ -1,4 +1,4 @@
-import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
+import type { ExcalidrawImperativeAPI, SceneElement, SceneElements } from './excal';
 
 /**
  * Z-order primitives, shared by the LayersPanel (drag reorder) and image ops
@@ -14,9 +14,6 @@ import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
  * rewrites the slots occupied by one page's members, leaving every other page /
  * frame untouched.
  */
-
-type SceneElement = ReturnType<ExcalidrawImperativeAPI['getSceneElements']>[number];
-type SceneElements = Parameters<ExcalidrawImperativeAPI['updateScene']>[0]['elements'];
 
 /**
  * Reorder a page's member elements within a caller-owned elements array.

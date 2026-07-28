@@ -1,5 +1,10 @@
-import { convertToExcalidrawElements, CaptureUpdateAction } from '@excalidraw/excalidraw';
-import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
+import {
+  convertToExcalidrawElements,
+  CaptureUpdateAction,
+  type ExcalidrawImperativeAPI,
+  type SceneElement,
+  type SceneElements,
+} from './excal';
 
 /**
  * "Pages" / artboards on top of Excalidraw's infinite canvas.
@@ -21,16 +26,32 @@ export interface PageInfo {
   id: string;
   name: string;
   index: number;
+  width: number;
+  height: number;
+  locked: boolean;
 }
 
 /** Matches polimake-canvas's default ROOT boxSize (pagesSlice). */
 export const DEFAULT_PAGE_SIZE: PageSize = { width: 1640, height: 924 };
 
+/** Named artboard sizes offered by the size menu (social-first, like Canva). */
+export interface PageSizePreset extends PageSize {
+  key: string;
+  label: string;
+}
+
+export const PAGE_SIZE_PRESETS: PageSizePreset[] = [
+  { key: 'ig-post', label: 'Post 4:5', width: 1080, height: 1350 },
+  { key: 'square', label: 'Cuadrado 1:1', width: 1080, height: 1080 },
+  { key: 'story', label: 'Story / Reel 9:16', width: 1080, height: 1920 },
+  { key: 'landscape', label: 'Horizontal 16:9', width: 1920, height: 1080 },
+  { key: 'yt-thumb', label: 'Miniatura YouTube', width: 1280, height: 720 },
+  { key: 'a4', label: 'A4', width: 794, height: 1123 },
+  { key: 'default', label: 'Lienzo clásico', width: 1640, height: 924 },
+];
+
 /** Horizontal gap between consecutive page frames, in scene units. */
 const PAGE_GAP = 160;
-
-type SceneElement = ReturnType<ExcalidrawImperativeAPI['getSceneElements']>[number];
-type SceneElements = Parameters<ExcalidrawImperativeAPI['updateScene']>[0]['elements'];
 
 function createId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -84,7 +105,16 @@ export function listPages(api: ExcalidrawImperativeAPI): PageInfo[] {
     id: f.id,
     name: f.name ?? `Página ${index + 1}`,
     index,
+    width: Math.round(f.width),
+    height: Math.round(f.height),
+    locked: Boolean(f.locked),
   }));
+}
+
+/** Current size of one page (frame), or null if it doesn't exist. */
+export function getPageSize(api: ExcalidrawImperativeAPI, pageId: string): PageSize | null {
+  const frame = getFrames(api).find((f) => f.id === pageId);
+  return frame ? { width: Math.round(frame.width), height: Math.round(frame.height) } : null;
 }
 
 /** Append a new blank page; returns its frame id. */
@@ -148,6 +178,155 @@ export function deletePage(api: ExcalidrawImperativeAPI, pageId: string): void {
     elements: remaining as SceneElements,
     captureUpdate: CaptureUpdateAction.IMMEDIATELY,
   });
+}
+
+/**
+ * Re-pack pages left → right with the standard gap, preserving order and each
+ * page's own y. Members travel with their frame. Run after any operation that
+ * changes a frame's width (resize) so pages never overlap.
+ */
+export function relayoutPages(api: ExcalidrawImperativeAPI): void {
+  const elements = api.getSceneElements();
+  const frames = getFrames(api);
+  if (frames.length < 2) return;
+
+  const shiftByFrame = new Map<string, number>();
+  let cursor = frames[0].x;
+  for (const frame of frames) {
+    const dx = cursor - frame.x;
+    if (Math.abs(dx) > 0.01) shiftByFrame.set(frame.id, dx);
+    cursor += frame.width + PAGE_GAP;
+  }
+  if (shiftByFrame.size === 0) return;
+
+  const next = elements.map((e) => {
+    const dx =
+      e.type === 'frame'
+        ? shiftByFrame.get(e.id)
+        : e.frameId
+          ? shiftByFrame.get(e.frameId)
+          : undefined;
+    return dx ? { ...e, x: e.x + dx } : e;
+  });
+  api.updateScene({
+    elements: next as SceneElements,
+    captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+  });
+}
+
+/** Whether a page (its frame) is locked. */
+export function isPageLocked(api: ExcalidrawImperativeAPI, pageId: string): boolean {
+  const frame = getFrames(api).find((f) => f.id === pageId);
+  return Boolean(frame?.locked);
+}
+
+/**
+ * Lock or unlock a page — the canvas2 analogue of the clone's lockPage: the
+ * frame AND every member element get the flag, so nothing on the page can be
+ * moved/edited until unlocked.
+ */
+export function setPageLocked(
+  api: ExcalidrawImperativeAPI,
+  pageId: string,
+  locked: boolean,
+): void {
+  const next = api.getSceneElements().map((e) =>
+    e.id === pageId || e.frameId === pageId ? { ...e, locked } : e,
+  );
+  api.updateScene({
+    elements: next as SceneElements,
+    captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+  });
+}
+
+/**
+ * Move a page one slot left (-1) or right (+1) in the strip — the canvas2
+ * analogue of the Canva clone's movePageUp/Down. Implemented by nudging the
+ * frame's sort key past its neighbour and re-packing, so members travel along.
+ */
+export function movePage(
+  api: ExcalidrawImperativeAPI,
+  pageId: string,
+  direction: -1 | 1,
+): void {
+  const frames = getFrames(api);
+  const idx = frames.findIndex((f) => f.id === pageId);
+  const neighbour = frames[idx + direction];
+  if (idx < 0 || !neighbour) return;
+
+  const moved = frames[idx];
+  const targetX = direction === 1 ? neighbour.x + 1 : neighbour.x - 1;
+  const dx = targetX - moved.x;
+  const next = api.getSceneElements().map((e) => {
+    if (e.id === pageId || e.frameId === pageId) return { ...e, x: e.x + dx };
+    return e;
+  });
+  api.updateScene({
+    elements: next as SceneElements,
+    captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+  });
+  relayoutPages(api);
+}
+
+/**
+ * Change a page's size — the canvas2 analogue of the Canva clone's resize.
+ *
+ * With `scaleContent` (default), members keep their RELATIVE layout: each
+ * element's center is remapped proportionally into the new bounds and its size
+ * (and font size) scales uniformly by min(sx, sy) — proportional reflow without
+ * distorting images or text. With `scaleContent: false` content stays anchored
+ * to the page's top-left corner (overflow just clips at the frame edge).
+ * Pages to the right are re-packed so nothing overlaps.
+ */
+export function resizePage(
+  api: ExcalidrawImperativeAPI,
+  pageId: string,
+  size: PageSize,
+  opts: { scaleContent?: boolean } = {},
+): void {
+  const scaleContent = opts.scaleContent ?? true;
+  const elements = api.getSceneElements();
+  const frame = elements.find(
+    (e): e is Extract<SceneElement, { type: 'frame' }> =>
+      e.id === pageId && e.type === 'frame',
+  );
+  if (!frame || size.width <= 0 || size.height <= 0) return;
+
+  const sx = size.width / frame.width;
+  const sy = size.height / frame.height;
+  const k = Math.min(sx, sy);
+
+  const next = elements.map((e) => {
+    if (e.id === pageId && e.type === 'frame') {
+      return { ...e, width: size.width, height: size.height };
+    }
+    if (!scaleContent || e.frameId !== pageId) return e;
+
+    const cx = frame.x + (e.x + e.width / 2 - frame.x) * sx;
+    const cy = frame.y + (e.y + e.height / 2 - frame.y) * sy;
+    const width = Math.max(1, e.width * k);
+    const height = Math.max(1, e.height * k);
+    const scaled: Record<string, unknown> = {
+      ...e,
+      x: cx - width / 2,
+      y: cy - height / 2,
+      width,
+      height,
+    };
+    if (e.type === 'text') {
+      const text = e as SceneElement & { fontSize?: number };
+      if (typeof text.fontSize === 'number') {
+        scaled.fontSize = Math.max(4, text.fontSize * k);
+      }
+    }
+    return scaled as SceneElement;
+  });
+
+  api.updateScene({
+    elements: next as SceneElements,
+    captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+  });
+  relayoutPages(api);
 }
 
 /**

@@ -6,15 +6,24 @@ export { PageNavigator } from './PageNavigator';
 export type { PageNavigatorProps } from './PageNavigator';
 export {
   DEFAULT_PAGE_SIZE,
+  PAGE_SIZE_PRESETS,
   createBlankScene,
   listPages,
+  getPageSize,
   addPage,
   deletePage,
   renamePage,
   duplicatePage,
+  resizePage,
+  relayoutPages,
+  movePage,
+  isPageLocked,
+  setPageLocked,
   goToPage,
 } from './pages';
-export type { PageInfo, PageSize } from './pages';
+export type { PageInfo, PageSize, PageSizePreset } from './pages';
+export { PAGE_ALIGNMENTS, alignToPage } from './align';
+export type { PageAlignment } from './align';
 
 // ─── Layers panel + image ops ─────────────────────────────────────────────────
 export { LayersPanel } from './LayersPanel';
@@ -33,6 +42,7 @@ export {
   exportSceneSvg,
   exportScenePdf,
   captureThumbnail,
+  downloadBlob,
 } from './export';
 export type { ExportOptions } from './export';
 
@@ -43,3 +53,8 @@ export {
   insertImageFromUrl,
 } from './media';
 export type { InsertImageOptions } from './media';
+
+// ─── Text presets + page background ───────────────────────────────────────────
+export { TEXT_PRESETS, insertTextPreset } from './text';
+export type { TextPreset, TextPresetKey } from './text';
+export { getPageBackground, setPageBackgroundColor } from './background';

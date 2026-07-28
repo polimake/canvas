@@ -1,15 +1,17 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { CaptureUpdateAction } from '@excalidraw/excalidraw';
-import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
+import {
+  CaptureUpdateAction,
+  type ExcalidrawImperativeAPI,
+  type SceneElement,
+  type SceneElements,
+} from './excal';
 import { PANEL_FONT, palette } from './theme';
 import { reorderPageMembers } from './zorder';
 import { setAsBackground, extendToPage } from './imageOps';
 import { renamePage } from './pages';
-
-type SceneElement = ReturnType<ExcalidrawImperativeAPI['getSceneElements']>[number];
-type SceneElements = Parameters<ExcalidrawImperativeAPI['updateScene']>[0]['elements'];
+import { PAGE_ALIGNMENTS, alignToPage } from './align';
 
 export interface LayersPanelProps {
   api: ExcalidrawImperativeAPI;
@@ -201,6 +203,8 @@ export function LayersPanel({ api, activePageId, theme = 'light' }: LayersPanelP
     >
       <div
         style={{
+          display: 'flex',
+          alignItems: 'center',
           padding: '8px 12px',
           fontSize: 12,
           fontWeight: 600,
@@ -208,7 +212,30 @@ export function LayersPanel({ api, activePageId, theme = 'light' }: LayersPanelP
           borderBottom: `1px solid ${c.border}`,
         }}
       >
-        Capas
+        <span style={{ flex: 1 }}>Capas</span>
+        {/* Align the current selection to the PAGE (Excalidraw's native align
+            needs 2+ elements; to-artboard alignment is our overlay). */}
+        <span style={{ display: 'inline-flex', gap: 2 }}>
+          {PAGE_ALIGNMENTS.map((a) => (
+            <button
+              key={a.key}
+              type="button"
+              title={a.label}
+              onClick={() => alignToPage(api, activePageId, a.key)}
+              style={{
+                all: 'unset',
+                cursor: 'pointer',
+                fontSize: 12,
+                lineHeight: 1,
+                padding: '2px 3px',
+                borderRadius: 4,
+                opacity: 0.8,
+              }}
+            >
+              {a.glyph}
+            </button>
+          ))}
+        </span>
       </div>
 
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 4 }}>
