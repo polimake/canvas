@@ -1,9 +1,5 @@
-import {
-  CaptureUpdateAction,
-  type ExcalidrawImperativeAPI,
-  type FrameElement,
-  type SceneElements,
-} from './excal';
+import { type ExcalidrawImperativeAPI, type FrameElement, type SceneElement } from './excal';
+import { commitElements, patchElement } from './mutate';
 
 /**
  * Align elements to their PAGE — the canvas2 analogue of the Canva clone's
@@ -70,13 +66,10 @@ export function alignToPage(
   const next = elements.map((e) => {
     if (!targets.has(e.id) || e.frameId !== pageId || e.locked) return e;
     moved += 1;
-    return { ...e, ...alignedPosition(frame, e, alignment) };
+    return patchElement(e, alignedPosition(frame, e, alignment) as Partial<SceneElement>);
   });
   if (moved === 0) return 0;
 
-  api.updateScene({
-    elements: next as SceneElements,
-    captureUpdate: CaptureUpdateAction.IMMEDIATELY,
-  });
+  commitElements(api, next);
   return moved;
 }

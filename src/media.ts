@@ -1,10 +1,10 @@
 import {
   convertToExcalidrawElements,
-  CaptureUpdateAction,
   type ExcalidrawImperativeAPI,
   type FrameElement,
-  type SceneElements,
+  type SceneElement,
 } from './excal';
+import { commitElements } from './mutate';
 
 /**
  * Programmatic image insertion — the seam media integrations plug into.
@@ -93,10 +93,10 @@ export function insertImageDataURL(
     target ? { ...el, frameId: target.id } : el,
   );
 
-  api.updateScene({
-    elements: [...api.getSceneElements(), ...created] as SceneElements,
-    captureUpdate: CaptureUpdateAction.IMMEDIATELY,
-  });
+  commitElements(api, [
+    ...api.getSceneElements(),
+    ...(created as unknown as readonly SceneElement[]),
+  ]);
   return fileId;
 }
 

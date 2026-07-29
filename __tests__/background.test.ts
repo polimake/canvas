@@ -34,13 +34,25 @@ describe('page background', () => {
     expect(getPageBackground(api as any, 'p1')).toBe('#d0ebff');
   });
 
-  it('re-applying replaces the previous background instead of stacking', () => {
+  it('re-applying PATCHES the paper in place — same element id, bumped version', () => {
     const { api } = fakeApi([frame('p1', 0, 0, 500, 500)]);
-    setPageBackgroundColor(api as any, 'p1', '#ffffff');
-    setPageBackgroundColor(api as any, 'p1', '#1e1e1e');
+    const firstId = setPageBackgroundColor(api as any, 'p1', '#ffffff');
+    const secondId = setPageBackgroundColor(api as any, 'p1', '#1e1e1e');
+    expect(secondId).toBe(firstId);
     const bgs = api.getSceneElements().filter(isBg);
     expect(bgs).toHaveLength(1);
     expect(bgs[0].backgroundColor).toBe('#1e1e1e');
+    expect(bgs[0].version).toBeGreaterThan(0);
+  });
+
+  it("same-color re-apply is a no-op; 'transient' capture maps to EVENTUALLY", () => {
+    const { api, commits } = fakeApi([frame('p1', 0, 0, 500, 500)]);
+    setPageBackgroundColor(api as any, 'p1', '#ffffff');
+    const before = commits.length;
+    setPageBackgroundColor(api as any, 'p1', '#ffffff');
+    expect(commits.length).toBe(before); // no commit at all
+    setPageBackgroundColor(api as any, 'p1', '#d0ebff', { capture: 'transient' });
+    expect(commits[commits.length - 1].captureUpdate).toBe('EVENTUALLY');
   });
 
   it('null removes the background', () => {
@@ -51,13 +63,18 @@ describe('page background', () => {
     expect(getPageBackground(api as any, 'p1')).toBeNull();
   });
 
-  it('ensurePagePapers gives paperless legacy pages a white sheet, once', () => {
-    const { api } = fakeApi([
+  it('ensurePagePapers migrates ALL paperless pages in ONE history-invisible commit', () => {
+    const { api, commits } = fakeApi([
       frame('p1', 0, 0, 500, 500),
       frame('p2', 500, 0, 500, 500),
     ]);
     setPageBackgroundColor(api as any, 'p1', '#d0ebff');
+    const before = commits.length;
     ensurePagePapers(api as any);
+    // One batched commit, invisible to undo (first Ctrl+Z after opening a
+    // legacy scene must not delete a page's paper).
+    expect(commits.length).toBe(before + 1);
+    expect(commits[commits.length - 1].captureUpdate).toBe('NEVER');
     const bgs = api.getSceneElements().filter(isBg);
     expect(bgs).toHaveLength(2);
     // The page that already had a background keeps its color.

@@ -1,10 +1,10 @@
 import {
   convertToExcalidrawElements,
-  CaptureUpdateAction,
   type ExcalidrawImperativeAPI,
   type SceneElement,
   type SceneElements,
 } from './excal';
+import { asSceneElements, commitElements, patchElement, type CaptureMode } from './mutate';
 import { buildPageBackground, isPageBackground } from './background';
 
 /**
@@ -16,6 +16,10 @@ import { buildPageBackground, isPageBackground } from './background';
  * to that page, and a frame clips + exports to its own bounds. This is a *soft*
  * boundary (the canvas stays pannable) — the realistic mapping discussed in the
  * plan.
+ *
+ * Every compound operation here commits EXACTLY ONE scene update (one undo
+ * entry) via mutate.ts — building the final array with pure helpers
+ * (packPagesInArray / renumberPagesInArray) instead of chaining updates.
  */
 
 export interface PageSize {
@@ -32,8 +36,8 @@ export interface PageInfo {
   locked: boolean;
 }
 
-/** Matches polimake-canvas's default ROOT boxSize (pagesSlice). */
-export const DEFAULT_PAGE_SIZE: PageSize = { width: 1640, height: 924 };
+/** Social-first default (IG feed 4:5) — new documents are made to publish. */
+export const DEFAULT_PAGE_SIZE: PageSize = { width: 1080, height: 1350 };
 
 /** Named artboard sizes offered by the size menu (social-first, like Canva). */
 export interface PageSizePreset extends PageSize {
@@ -58,6 +62,8 @@ const PAGE_GAP = 0;
 /** Default paper color for a new page. */
 const PAPER_COLOR = '#ffffff';
 
+const DEFAULT_NAME_RE = /^Página \d+$/;
+
 function createId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
@@ -65,18 +71,74 @@ function createId(): string {
   return `pg_${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
 }
 
-function getFrames(api: ExcalidrawImperativeAPI) {
-  return api
-    .getSceneElements()
-    .filter((e): e is Extract<SceneElement, { type: 'frame' }> => e.type === 'frame')
+type FrameElement = Extract<SceneElement, { type: 'frame' }>;
+
+function framesInArray(elements: readonly SceneElement[]): FrameElement[] {
+  return elements
+    .filter((e): e is FrameElement => e.type === 'frame')
     .slice()
     .sort((a, b) => a.x - b.x);
 }
 
-function nextPageX(api: ExcalidrawImperativeAPI): number {
-  const frames = getFrames(api);
-  if (frames.length === 0) return 0;
-  return Math.max(...frames.map((f) => f.x + f.width)) + PAGE_GAP;
+function getFrames(api: ExcalidrawImperativeAPI): FrameElement[] {
+  return framesInArray(api.getSceneElements());
+}
+
+/**
+ * PURE: re-pack pages flush left → right, preserving `order` (default:
+ * current x order) and anchoring the strip at the current leftmost x.
+ * Members travel with their frame. Returns the SAME array reference when
+ * nothing moves.
+ */
+export function packPagesInArray(
+  elements: readonly SceneElement[],
+  orderedFrameIds?: string[],
+): readonly SceneElement[] {
+  const byX = framesInArray(elements);
+  if (byX.length < 2) return elements;
+  const order = orderedFrameIds
+    ? orderedFrameIds
+        .map((id) => byX.find((f) => f.id === id))
+        .filter((f): f is FrameElement => Boolean(f))
+    : byX;
+  if (order.length === 0) return elements;
+
+  const shiftByFrame = new Map<string, number>();
+  let cursor = Math.min(...order.map((f) => f.x));
+  for (const frame of order) {
+    const dx = cursor - frame.x;
+    if (Math.abs(dx) > 0.01) shiftByFrame.set(frame.id, dx);
+    cursor += frame.width + PAGE_GAP;
+  }
+  if (shiftByFrame.size === 0) return elements;
+
+  return elements.map((e) => {
+    const dx =
+      e.type === 'frame'
+        ? shiftByFrame.get(e.id)
+        : e.frameId
+          ? shiftByFrame.get(e.frameId)
+          : undefined;
+    return dx ? patchElement(e, { x: e.x + dx }) : e;
+  });
+}
+
+/**
+ * PURE: give default-named pages ("Página N") their positional number, in
+ * `orderedFrameIds` order. Custom names (incl. "(copia)") are left alone.
+ */
+export function renumberPagesInArray(
+  elements: readonly SceneElement[],
+  orderedFrameIds: string[],
+): readonly SceneElement[] {
+  const nameById = new Map(orderedFrameIds.map((id, i) => [id, `Página ${i + 1}`]));
+  return elements.map((e) => {
+    if (e.type !== 'frame') return e;
+    const target = nameById.get(e.id);
+    const current = (e as FrameElement).name ?? '';
+    if (!target || target === current || !DEFAULT_NAME_RE.test(current)) return e;
+    return patchElement(e, { name: target } as Partial<SceneElement>);
+  });
 }
 
 /**
@@ -106,7 +168,9 @@ export function createBlankScene(
     { x: 0, y: 0, width: pageSize.width, height: pageSize.height },
     PAPER_COLOR,
   );
-  return { elements: [...frame, ...paper] as SceneElements };
+  return {
+    elements: asSceneElements([...(frame as readonly SceneElement[]), ...paper]),
+  };
 }
 
 /** Snapshot of the current pages, ordered left → right. */
@@ -127,36 +191,57 @@ export function getPageSize(api: ExcalidrawImperativeAPI, pageId: string): PageS
   return frame ? { width: Math.round(frame.width), height: Math.round(frame.height) } : null;
 }
 
-/** Append a new blank page; returns its frame id. */
+/**
+ * Add a blank page. With `afterPageId` the page is inserted right after that
+ * page (pages to the right shift over); otherwise it is appended at the end.
+ * One undo entry; returns the new frame id.
+ */
 export function addPage(
   api: ExcalidrawImperativeAPI,
   pageSize: PageSize = DEFAULT_PAGE_SIZE,
+  opts: { afterPageId?: string; capture?: CaptureMode } = {},
 ): string {
+  const elements = api.getSceneElements();
+  const frames = framesInArray(elements);
+  const source = opts.afterPageId
+    ? frames.find((f) => f.id === opts.afterPageId)
+    : undefined;
+
   const id = createId();
-  const count = getFrames(api).length;
-  const x = nextPageX(api);
+  const x = source
+    ? source.x + source.width
+    : frames.length
+      ? Math.max(...frames.map((f) => f.x + f.width)) + PAGE_GAP
+      : 0;
+  const y = source ? source.y : 0;
+
+  const order = frames.map((f) => f.id);
+  const insertAt = source ? order.indexOf(source.id) + 1 : order.length;
+  order.splice(insertAt, 0, id);
+
   const skeleton: Parameters<typeof convertToExcalidrawElements>[0] = [
     {
       type: 'frame',
       id,
-      name: `Página ${count + 1}`,
+      name: `Página ${insertAt + 1}`,
       x,
-      y: 0,
+      y,
       width: pageSize.width,
       height: pageSize.height,
       children: [],
     },
   ];
   const created = convertToExcalidrawElements(skeleton, { regenerateIds: false });
-  const paper = buildPageBackground(
-    id,
-    { x, y: 0, width: pageSize.width, height: pageSize.height },
-    PAPER_COLOR,
-  );
-  api.updateScene({
-    elements: [...api.getSceneElements(), ...created, ...paper] as SceneElements,
-    captureUpdate: CaptureUpdateAction.IMMEDIATELY,
-  });
+  const paper = buildPageBackground(id, { x, y, width: pageSize.width, height: pageSize.height }, PAPER_COLOR);
+
+  let combined: readonly SceneElement[] = [
+    ...elements,
+    ...(created as readonly SceneElement[]),
+    ...paper,
+  ];
+  combined = packPagesInArray(combined, order);
+  combined = renumberPagesInArray(combined, order);
+  commitElements(api, combined, opts.capture ?? 'undoable');
   return id;
 }
 
@@ -175,59 +260,42 @@ export function renamePage(
 ): void {
   const next = api
     .getSceneElements()
-    .map((e) => (e.id === pageId && e.type === 'frame' ? { ...e, name } : e));
-  api.updateScene({
-    elements: next as SceneElements,
-    captureUpdate: CaptureUpdateAction.IMMEDIATELY,
-  });
+    .map((e) =>
+      e.id === pageId && e.type === 'frame'
+        ? patchElement(e, { name } as Partial<SceneElement>)
+        : e,
+    );
+  commitElements(api, next);
 }
 
 /**
- * Delete a page and everything inside it. Refuses to delete the last remaining
- * page so the editor always has at least one artboard.
+ * Delete a page and everything inside it, re-packing and renumbering the
+ * survivors in the same (single) undo entry. Refuses to delete the last page.
  */
 export function deletePage(api: ExcalidrawImperativeAPI, pageId: string): void {
   const elements = api.getSceneElements();
-  if (getFrames(api).length <= 1) return;
-  const remaining = elements.filter((e) => e.id !== pageId && e.frameId !== pageId);
-  api.updateScene({
-    elements: remaining as SceneElements,
-    captureUpdate: CaptureUpdateAction.IMMEDIATELY,
-  });
+  if (framesInArray(elements).length <= 1) return;
+  let remaining: readonly SceneElement[] = elements.filter(
+    (e) => e.id !== pageId && e.frameId !== pageId,
+  );
+  const order = framesInArray(remaining).map((f) => f.id);
+  remaining = packPagesInArray(remaining, order);
+  remaining = renumberPagesInArray(remaining, order);
+  commitElements(api, remaining);
 }
 
 /**
- * Re-pack pages left → right with the standard gap, preserving order and each
- * page's own y. Members travel with their frame. Run after any operation that
- * changes a frame's width (resize) so pages never overlap.
+ * Re-pack the live scene flush left → right (see packPagesInArray). `capture`
+ * defaults to undoable; load-time migrations pass 'never'.
  */
-export function relayoutPages(api: ExcalidrawImperativeAPI): void {
+export function relayoutPages(
+  api: ExcalidrawImperativeAPI,
+  capture: CaptureMode = 'undoable',
+): void {
   const elements = api.getSceneElements();
-  const frames = getFrames(api);
-  if (frames.length < 2) return;
-
-  const shiftByFrame = new Map<string, number>();
-  let cursor = frames[0].x;
-  for (const frame of frames) {
-    const dx = cursor - frame.x;
-    if (Math.abs(dx) > 0.01) shiftByFrame.set(frame.id, dx);
-    cursor += frame.width + PAGE_GAP;
-  }
-  if (shiftByFrame.size === 0) return;
-
-  const next = elements.map((e) => {
-    const dx =
-      e.type === 'frame'
-        ? shiftByFrame.get(e.id)
-        : e.frameId
-          ? shiftByFrame.get(e.frameId)
-          : undefined;
-    return dx ? { ...e, x: e.x + dx } : e;
-  });
-  api.updateScene({
-    elements: next as SceneElements,
-    captureUpdate: CaptureUpdateAction.IMMEDIATELY,
-  });
+  const packed = packPagesInArray(elements);
+  if (packed === elements) return;
+  commitElements(api, packed, capture);
 }
 
 /** Whether a page (its frame) is locked. */
@@ -246,42 +314,33 @@ export function setPageLocked(
   pageId: string,
   locked: boolean,
 ): void {
-  const next = api.getSceneElements().map((e) =>
-    e.id === pageId || e.frameId === pageId ? { ...e, locked } : e,
-  );
-  api.updateScene({
-    elements: next as SceneElements,
-    captureUpdate: CaptureUpdateAction.IMMEDIATELY,
-  });
+  const next = api
+    .getSceneElements()
+    .map((e) =>
+      e.id === pageId || e.frameId === pageId ? patchElement(e, { locked }) : e,
+    );
+  commitElements(api, next);
 }
 
 /**
- * Move a page one slot left (-1) or right (+1) in the strip — the canvas2
- * analogue of the Canva clone's movePageUp/Down. Implemented by nudging the
- * frame's sort key past its neighbour and re-packing, so members travel along.
+ * Move a page one slot left (-1) or right (+1) in the strip — one undo entry.
  */
 export function movePage(
   api: ExcalidrawImperativeAPI,
   pageId: string,
   direction: -1 | 1,
 ): void {
-  const frames = getFrames(api);
+  const elements = api.getSceneElements();
+  const frames = framesInArray(elements);
   const idx = frames.findIndex((f) => f.id === pageId);
-  const neighbour = frames[idx + direction];
-  if (idx < 0 || !neighbour) return;
+  if (idx < 0 || !frames[idx + direction]) return;
 
-  const moved = frames[idx];
-  const targetX = direction === 1 ? neighbour.x + 1 : neighbour.x - 1;
-  const dx = targetX - moved.x;
-  const next = api.getSceneElements().map((e) => {
-    if (e.id === pageId || e.frameId === pageId) return { ...e, x: e.x + dx };
-    return e;
-  });
-  api.updateScene({
-    elements: next as SceneElements,
-    captureUpdate: CaptureUpdateAction.IMMEDIATELY,
-  });
-  relayoutPages(api);
+  const order = frames.map((f) => f.id);
+  [order[idx], order[idx + direction]] = [order[idx + direction], order[idx]];
+
+  let next = packPagesInArray(elements, order);
+  next = renumberPagesInArray(next, order);
+  commitElements(api, next);
 }
 
 /**
@@ -292,7 +351,7 @@ export function movePage(
  * (and font size) scales uniformly by min(sx, sy) — proportional reflow without
  * distorting images or text. With `scaleContent: false` content stays anchored
  * to the page's top-left corner (overflow just clips at the frame edge).
- * Pages to the right are re-packed so nothing overlaps.
+ * Pages to the right are re-packed in the SAME single undo entry.
  */
 export function resizePage(
   api: ExcalidrawImperativeAPI,
@@ -303,8 +362,7 @@ export function resizePage(
   const scaleContent = opts.scaleContent ?? true;
   const elements = api.getSceneElements();
   const frame = elements.find(
-    (e): e is Extract<SceneElement, { type: 'frame' }> =>
-      e.id === pageId && e.type === 'frame',
+    (e): e is FrameElement => e.id === pageId && e.type === 'frame',
   );
   if (!frame || size.width <= 0 || size.height <= 0) return;
 
@@ -312,15 +370,20 @@ export function resizePage(
   const sy = size.height / frame.height;
   const k = Math.min(sx, sy);
 
-  const next = elements.map((e) => {
+  const resized = elements.map((e) => {
     if (e.id === pageId && e.type === 'frame') {
-      return { ...e, width: size.width, height: size.height };
+      return patchElement(e, { width: size.width, height: size.height });
     }
     if (e.frameId !== pageId) return e;
     // The paper sheet always stretches to the exact new bounds (a uniform
     // scale would leave uncovered strips when the aspect ratio changes).
     if (isPageBackground(e)) {
-      return { ...e, x: frame.x, y: frame.y, width: size.width, height: size.height };
+      return patchElement(e, {
+        x: frame.x,
+        y: frame.y,
+        width: size.width,
+        height: size.height,
+      });
     }
     if (!scaleContent) return e;
 
@@ -328,8 +391,7 @@ export function resizePage(
     const cy = frame.y + (e.y + e.height / 2 - frame.y) * sy;
     const width = Math.max(1, e.width * k);
     const height = Math.max(1, e.height * k);
-    const scaled: Record<string, unknown> = {
-      ...e,
+    const updates: Record<string, unknown> = {
       x: cx - width / 2,
       y: cy - height / 2,
       width,
@@ -338,25 +400,22 @@ export function resizePage(
     if (e.type === 'text') {
       const text = e as SceneElement & { fontSize?: number };
       if (typeof text.fontSize === 'number') {
-        scaled.fontSize = Math.max(4, text.fontSize * k);
+        updates.fontSize = Math.max(4, text.fontSize * k);
       }
     }
-    return scaled as SceneElement;
+    return patchElement(e, updates as Partial<SceneElement>);
   });
 
-  api.updateScene({
-    elements: next as SceneElements,
-    captureUpdate: CaptureUpdateAction.IMMEDIATELY,
-  });
-  relayoutPages(api);
+  commitElements(api, packPagesInArray(resized));
 }
 
 /**
- * Duplicate a page and its contents to a new artboard on the right.
+ * Duplicate a page and its contents, inserting the copy right AFTER the
+ * source (pages to the right shift over) — one undo entry.
  *
- * Clones the frame + its member elements with fresh ids, shifting them and
- * remapping intra-page references (frameId, container/binding ids, groupIds).
- * Cross-page bindings are an accepted v1 limitation.
+ * Clones the frame + its member elements with fresh ids, remapping intra-page
+ * references (frameId, container/binding ids, groupIds). Cross-page bindings
+ * are an accepted v1 limitation.
  */
 export function duplicatePage(
   api: ExcalidrawImperativeAPI,
@@ -364,14 +423,13 @@ export function duplicatePage(
 ): string | null {
   const elements = api.getSceneElements();
   const source = elements.find(
-    (e): e is Extract<SceneElement, { type: 'frame' }> =>
-      e.id === pageId && e.type === 'frame',
+    (e): e is FrameElement => e.id === pageId && e.type === 'frame',
   );
   if (!source) return null;
 
   const members = elements.filter((e) => e.frameId === pageId);
   const group = [source, ...members];
-  const dx = nextPageX(api) - source.x;
+  const dx = source.width + PAGE_GAP;
 
   const idMap = new Map<string, string>();
   for (const e of group) idMap.set(e.id, createId());
@@ -382,7 +440,12 @@ export function duplicatePage(
     const clone: Record<string, unknown> = JSON.parse(JSON.stringify(e));
     clone.id = idMap.get(e.id);
     clone.x = (clone.x as number) + dx;
+    // Fresh identity for the store: bumped version, new nonce, and NO
+    // inherited fractional index (updateScene re-derives it from array order).
+    clone.version = ((clone.version as number) ?? 0) + 1;
     clone.versionNonce = Math.floor(Math.random() * 2 ** 31);
+    clone.updated = Date.now();
+    delete clone.index;
 
     if (typeof clone.frameId === 'string' && idMap.has(clone.frameId)) {
       clone.frameId = idMap.get(clone.frameId);
@@ -410,12 +473,16 @@ export function duplicatePage(
     if (clone.type === 'frame') {
       clone.name = `${source.name ?? 'Página'} (copia)`;
     }
-    return clone;
+    return clone as unknown as SceneElement;
   });
 
-  api.updateScene({
-    elements: [...elements, ...clones] as SceneElements,
-    captureUpdate: CaptureUpdateAction.IMMEDIATELY,
-  });
-  return idMap.get(pageId) ?? null;
+  const cloneId = idMap.get(pageId)!;
+  const order = framesInArray(elements).map((f) => f.id);
+  order.splice(order.indexOf(pageId) + 1, 0, cloneId);
+
+  let combined: readonly SceneElement[] = [...elements, ...clones];
+  combined = packPagesInArray(combined, order);
+  combined = renumberPagesInArray(combined, order);
+  commitElements(api, combined);
+  return cloneId;
 }

@@ -1,10 +1,9 @@
 import {
-  CaptureUpdateAction,
   type ExcalidrawImperativeAPI,
   type FrameElement,
   type SceneElement,
-  type SceneElements,
 } from './excal';
+import { commitElements, patchElement } from './mutate';
 import { reorderMembersInArray } from './zorder';
 
 /**
@@ -52,13 +51,20 @@ function fitToPage(
 
   const updated = els.map((e) =>
     e.id === elementId
-      ? { ...e, x, y, width, height, frameId: frame.id, ...(lock ? { locked: true } : {}) }
+      ? patchElement(e, {
+          x,
+          y,
+          width,
+          height,
+          frameId: frame.id,
+          ...(lock ? { locked: true } : {}),
+        } as Partial<SceneElement>)
       : e,
   ) as readonly SceneElement[];
 
   // Apply geometry + send-to-back in a single updateScene (one undo step).
   const reordered = reorderMembersInArray(updated, frame.id, [elementId]);
-  api.updateScene({ elements: reordered as SceneElements, captureUpdate: CaptureUpdateAction.IMMEDIATELY });
+  commitElements(api, reordered);
 }
 
 /** Cover-fit the image to its page and send it behind siblings. */

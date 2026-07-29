@@ -1,4 +1,3 @@
-import { jsPDF } from 'jspdf';
 import {
   exportToBlob,
   exportToCanvas,
@@ -123,35 +122,54 @@ export function downloadBlob(blob: Blob, filename: string): void {
 /**
  * Export every page to a multi-page PDF (one artboard per PDF page). Falls back
  * to a single page when there are no frames. Mirrors polimake's PDF export.
+ *
+ * jspdf is imported lazily (it's ~340KB min and PDF export is rare — Next
+ * splits it out of the editor chunk), and each page is embedded as JPEG:
+ * jsPDF passes JPEG bytes through (DCTDecode) instead of re-deflating PNG,
+ * which keeps memory bounded on photo-heavy multi-page decks. Opacity is
+ * guaranteed by the page paper + `exportBackground: true`.
  */
 export async function exportScenePdf(
   api: ExcalidrawImperativeAPI,
   opts?: { background?: boolean; scale?: number },
 ): Promise<Blob> {
+  const { jsPDF } = await import('jspdf');
   const elements = api.getSceneElements();
   const files = api.getFiles();
   const appState = exportAppState(api, opts);
   const targets: (FrameElement | null)[] = frames(api).length ? frames(api) : [null];
 
-  let doc: jsPDF | null = null;
+  let doc: InstanceType<typeof jsPDF> | null = null;
+  const failures: string[] = [];
   for (const frame of targets) {
-    const canvas = await exportToCanvas({
-      elements,
-      appState,
-      files,
-      exportingFrame: frame,
-      getDimensions: dimensions(opts),
-    });
-    const w = canvas.width;
-    const h = canvas.height;
-    const orientation = w >= h ? 'landscape' : 'portrait';
-    if (!doc) {
-      doc = new jsPDF({ orientation, unit: 'px', format: [w, h], hotfixes: ['px_scaling'] });
-    } else {
-      doc.addPage([w, h], orientation);
+    try {
+      const canvas = await exportToCanvas({
+        elements,
+        appState,
+        files,
+        exportingFrame: frame,
+        getDimensions: dimensions(opts),
+      });
+      const w = canvas.width;
+      const h = canvas.height;
+      const orientation = w >= h ? 'landscape' : 'portrait';
+      if (!doc) {
+        doc = new jsPDF({ orientation, unit: 'px', format: [w, h], hotfixes: ['px_scaling'] });
+      } else {
+        doc.addPage([w, h], orientation);
+      }
+      doc.addImage(canvas, 'JPEG', 0, 0, w, h);
+    } catch (err) {
+      // One giant/broken page must not sink the whole document.
+      failures.push(frame?.name ?? 'page');
+      console.error('[canvas2] PDF page export failed', frame?.name, err);
     }
-    doc.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, w, h);
   }
 
-  return (doc ?? new jsPDF()).output('blob');
+  if (!doc) {
+    throw new Error(
+      failures.length ? `No se pudo exportar ninguna página (${failures.join(', ')})` : 'Nada que exportar',
+    );
+  }
+  return doc.output('blob');
 }

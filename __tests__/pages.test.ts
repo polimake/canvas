@@ -10,6 +10,7 @@ const {
   deletePage,
   duplicatePage,
   movePage,
+  renamePage,
   resizePage,
   relayoutPages,
   setPageLocked,
@@ -155,5 +156,79 @@ describe('pages on frames', () => {
   it('getPageSize rounds live frame dimensions', () => {
     const { api } = fakeApi([frame('p1', 0, 0, 1080.4, 1919.6)]);
     expect(getPageSize(api as any, 'p1')).toEqual({ width: 1080, height: 1920 });
+  });
+});
+
+describe('single-undo + ordering guarantees', () => {
+  it('addPage with afterPageId inserts between pages, shifts the rest, renumbers — one commit', () => {
+    const { api, commits } = fakeApi([
+      frame('a', 0, 0, 500, 500, { name: 'Página 1' }),
+      frame('b', 500, 0, 500, 500, { name: 'Página 2' }),
+      member('mb', 'b', 600, 10, 20, 20),
+    ]);
+    const id = addPage(api as any, { width: 300, height: 300 }, { afterPageId: 'a' });
+    expect(commits).toHaveLength(1);
+    const pagesNow = listPages(api as any);
+    expect(pagesNow.map((p) => p.id)).toEqual(['a', id, 'b']);
+    expect(pagesNow.map((p) => p.name)).toEqual(['Página 1', 'Página 2', 'Página 3']);
+    const b = api.getSceneElements().find((e: any) => e.id === 'b');
+    expect(b.x).toBe(800); // shifted by the inserted page's width
+    const mb = api.getSceneElements().find((e: any) => e.id === 'mb');
+    expect(mb.x - b.x).toBe(100); // member offset preserved
+  });
+
+  it("addPage capture 'never' is invisible to history (init-created first page)", () => {
+    const { api, commits } = fakeApi([]);
+    addPage(api as any, { width: 100, height: 100 }, { capture: 'never' });
+    expect(commits).toHaveLength(1);
+    expect(commits[0].captureUpdate).toBe('NEVER');
+  });
+
+  it('duplicatePage inserts the copy right AFTER the source — one commit', () => {
+    const { api, commits } = fakeApi([
+      frame('a', 0, 0, 500, 500, { name: 'Página 1' }),
+      frame('b', 500, 0, 400, 500, { name: 'Página 2' }),
+    ]);
+    const copy = duplicatePage(api as any, 'a');
+    expect(commits).toHaveLength(1);
+    const order = listPages(api as any);
+    expect(order.map((p) => p.id)).toEqual(['a', copy, 'b']);
+    expect(order[1].name).toBe('Página 1 (copia)');
+    // The default-named page after the insertion point renumbers to its slot.
+    expect(order[2].name).toBe('Página 3');
+    const b = api.getSceneElements().find((e: any) => e.id === 'b');
+    expect(b.x).toBe(1000);
+    // Clones carry no inherited fractional index.
+    const clone = api.getSceneElements().find((e: any) => e.id === copy);
+    expect('index' in clone).toBe(false);
+  });
+
+  it('movePage and resizePage are exactly one commit each (single undo entry)', () => {
+    const { api, commits } = fakeApi([
+      frame('a', 0, 0, 500, 500),
+      frame('b', 500, 0, 500, 500),
+    ]);
+    movePage(api as any, 'b', -1);
+    expect(commits).toHaveLength(1);
+    resizePage(api as any, 'b', { width: 800, height: 500 });
+    expect(commits).toHaveLength(2);
+  });
+
+  it('deletePage renumbers surviving default-named pages (custom names untouched)', () => {
+    const { api } = fakeApi([
+      frame('a', 0, 0, 500, 500, { name: 'Página 1' }),
+      frame('b', 500, 0, 500, 500, { name: 'Página 2' }),
+      frame('c', 1000, 0, 500, 500, { name: 'Portada' }),
+    ]);
+    deletePage(api as any, 'a');
+    expect(listPages(api as any).map((p) => p.name)).toEqual(['Página 1', 'Portada']);
+  });
+
+  it('element patches bump version so the history store can diff them', () => {
+    const { api } = fakeApi([frame('a', 0, 0, 500, 500, { name: 'Página 1' })]);
+    renamePage(api as any, 'a', 'Portada');
+    const f = api.getSceneElements().find((e: any) => e.id === 'a');
+    expect(f.name).toBe('Portada');
+    expect(f.version).toBe(1);
   });
 });

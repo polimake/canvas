@@ -25,6 +25,12 @@ export {
   exportToCanvas,
   exportToSvg,
   serializeAsJSON,
+  // Excalidraw's own immutable element patch — bumps version/versionNonce so
+  // the history store actually records the change (see src/mutate.ts).
+  newElementWith,
+  // Live-scene helpers used by emission hygiene and viewport-following.
+  getNonDeletedElements,
+  getVisibleSceneBounds,
 } from '@excalidraw/excalidraw';
 
 // ─── Types (public entry) ─────────────────────────────────────────────────────

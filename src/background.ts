@@ -1,19 +1,18 @@
 import {
   convertToExcalidrawElements,
-  CaptureUpdateAction,
   type ExcalidrawImperativeAPI,
   type FrameElement,
   type SceneElement,
-  type SceneElements,
 } from './excal';
+import { commitElements, patchElement, type CaptureMode } from './mutate';
 import { reorderMembersInArray } from './zorder';
 
 /**
  * Per-page background color — Canva-clone parity. Excalidraw frames have no
  * fill of their own, so the background is a locked, full-bleed rectangle sent
  * to the back of the page. It is tagged through the PUBLIC `customData` field
- * (round-tripped verbatim by Excalidraw), so re-applying a color replaces the
- * existing background instead of stacking rectangles.
+ * (round-tripped verbatim by Excalidraw), so re-applying a color PATCHES the
+ * existing background in place (stable element id) instead of rebuilding it.
  */
 
 const BG_MARKER = 'pageBackground';
@@ -61,18 +60,33 @@ export function buildPageBackground(
 
 /**
  * One-time migration for scenes created before pages had paper sheets: every
- * frame without a background rect gets a white one (otherwise, with the native
- * frame outline disabled, a legacy page would be invisible).
+ * frame without a background rect gets a white one, in a SINGLE commit that is
+ * invisible to undo by default (capture 'never') — otherwise the first Ctrl+Z
+ * after opening a legacy scene would delete a page's paper.
  */
-export function ensurePagePapers(api: ExcalidrawImperativeAPI): void {
+export function ensurePagePapers(
+  api: ExcalidrawImperativeAPI,
+  capture: CaptureMode = 'never',
+): void {
   const elements = api.getSceneElements();
   const frames = elements.filter((e): e is FrameElement => e.type === 'frame');
   const withPaper = new Set(
     elements.filter((e) => e.frameId && isPageBackground(e)).map((e) => e.frameId as string),
   );
-  for (const frame of frames) {
-    if (!withPaper.has(frame.id)) setPageBackgroundColor(api, frame.id, '#ffffff');
+  const missing = frames.filter((f) => !withPaper.has(f.id));
+  if (missing.length === 0) return;
+
+  let combined: readonly SceneElement[] = [...elements];
+  const inserted: Array<{ pageId: string; paperId: string }> = [];
+  for (const frame of missing) {
+    const paper = buildPageBackground(frame.id, frame, '#ffffff');
+    combined = [...combined, ...paper];
+    if (paper[0]) inserted.push({ pageId: frame.id, paperId: paper[0].id });
   }
+  for (const { pageId, paperId } of inserted) {
+    combined = reorderMembersInArray(combined, pageId, [paperId]);
+  }
+  commitElements(api, combined, capture);
 }
 
 /** Current background color of a page, or null if it has none. */
@@ -88,37 +102,51 @@ export function getPageBackground(
 
 /**
  * Set (or replace) a page's background color. Pass `null` to remove it.
+ * Re-coloring PATCHES the existing paper in place — same element id, one
+ * history-visible change. `capture: 'transient'` is for live previews (the
+ * color-input drag); the final pick commits 'undoable'.
  * Returns the background element id, or null when removing.
  */
 export function setPageBackgroundColor(
   api: ExcalidrawImperativeAPI,
   pageId: string,
   color: string | null,
+  opts: { capture?: CaptureMode } = {},
 ): string | null {
+  const capture = opts.capture ?? 'undoable';
   const elements = api.getSceneElements();
   const frame = elements.find(
     (e): e is FrameElement => e.id === pageId && e.type === 'frame',
   );
   if (!frame) return null;
 
-  const withoutOld = elements.filter((e) => !(e.frameId === pageId && isPageBackground(e)));
+  const existing = elements.find((e) => e.frameId === pageId && isPageBackground(e));
 
   if (!color) {
-    api.updateScene({
-      elements: withoutOld as SceneElements,
-      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
-    });
+    if (!existing) return null;
+    commitElements(api, elements.filter((e) => e !== existing), capture);
     return null;
+  }
+
+  if (existing) {
+    if ((existing as { backgroundColor?: string }).backgroundColor === color) {
+      return existing.id;
+    }
+    const next = elements.map((e) =>
+      e === existing
+        ? patchElement(e, { backgroundColor: color } as Partial<SceneElement>)
+        : e,
+    );
+    commitElements(api, next, capture);
+    return existing.id;
   }
 
   const created = buildPageBackground(pageId, frame, color);
   const id = created[0]?.id ?? null;
-
-  const appended = [...withoutOld, ...created] as readonly SceneElement[];
-  const reordered = id ? reorderMembersInArray(appended, pageId, [id]) : (appended as SceneElements);
-  api.updateScene({
-    elements: reordered as SceneElements,
-    captureUpdate: CaptureUpdateAction.IMMEDIATELY,
-  });
+  const appended: readonly SceneElement[] = [...elements, ...created];
+  const reordered = id
+    ? reorderMembersInArray(appended, pageId, [id])
+    : appended;
+  commitElements(api, reordered, capture);
   return id;
 }

@@ -5,8 +5,8 @@ import {
   CaptureUpdateAction,
   type ExcalidrawImperativeAPI,
   type SceneElement,
-  type SceneElements,
 } from './excal';
+import { commitElements, patchElement } from './mutate';
 import { PANEL_FONT, palette } from './theme';
 import { reorderPageMembers } from './zorder';
 import { setAsBackground, extendToPage } from './imageOps';
@@ -42,6 +42,8 @@ export interface LayersPanelProps {
   api: ExcalidrawImperativeAPI;
   activePageId: string | null;
   theme?: 'light' | 'dark';
+  /** Read-only mode: rows become click-to-select only, no mutations. */
+  viewMode?: boolean;
 }
 
 const TYPE_ICON: Record<string, ComponentType> = {
@@ -99,8 +101,10 @@ function sceneSignature(api: ExcalidrawImperativeAPI, pageId: string | null): st
     .join(',');
   const frame = els.find((e) => e.id === pageId);
   const frameName = frame && frame.type === 'frame' ? frame.name ?? '' : '';
+  // `version` bumps on every real element change (mutate.ts discipline), so
+  // text edits / renames / restyles refresh the row labels too.
   return (
-    members.map((e) => `${e.id}:${e.locked ? 1 : 0}:${e.opacity}`).join('|') +
+    members.map((e) => `${e.id}:${e.version}:${e.locked ? 1 : 0}:${e.opacity}`).join('|') +
     '#' +
     selKeys +
     '#' +
@@ -114,21 +118,40 @@ function sceneSignature(api: ExcalidrawImperativeAPI, pageId: string | null): st
  * visibility / lock / delete, plus image "Fondo"/"Extender" actions. Excalidraw
  * has no per-element hidden flag, so visibility is emulated with `opacity: 0`.
  */
-export function LayersPanel({ api, activePageId, theme = 'light' }: LayersPanelProps) {
+export function LayersPanel({ api, activePageId, theme = 'light', viewMode = false }: LayersPanelProps) {
   const c = palette[theme];
   const [, setTick] = useState(0);
   const sigRef = useRef('');
   const dragId = useRef<string | null>(null);
   const priorOpacity = useRef(new Map<string, number>());
+  const lastSceneRef = useRef<{ elements: unknown; selection: unknown }>({
+    elements: null,
+    selection: null,
+  });
+  // Inline rename for the page footer (replaces window.prompt).
+  const [renamingPage, setRenamingPage] = useState<string | null>(null);
 
   useEffect(() => {
     const refresh = () => {
+      // Cheap reference gate first: the elements array is stable across
+      // viewport-only ticks, so most onChange calls bail before the O(n)
+      // signature walk.
+      const elements = api.getSceneElements();
+      const selection = api.getAppState().selectedElementIds;
+      if (
+        elements === lastSceneRef.current.elements &&
+        selection === lastSceneRef.current.selection
+      ) {
+        return;
+      }
+      lastSceneRef.current = { elements, selection };
       const next = sceneSignature(api, activePageId);
       if (next !== sigRef.current) {
         sigRef.current = next;
         setTick((t) => t + 1);
       }
     };
+    lastSceneRef.current = { elements: null, selection: null };
     refresh();
     return api.onChange(refresh);
   }, [api, activePageId]);
@@ -143,22 +166,18 @@ export function LayersPanel({ api, activePageId, theme = 'light' }: LayersPanelP
   const rows = [...members].reverse();
   const selected = api.getAppState().selectedElementIds;
 
-  const patch = (id: string, changes: Record<string, unknown>) => {
-    const next = api.getSceneElements().map((e) => (e.id === id ? { ...e, ...changes } : e));
-    api.updateScene({
-      elements: next as SceneElements,
-      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
-    });
+  const patch = (id: string, changes: Partial<SceneElement>) => {
+    const next = api
+      .getSceneElements()
+      .map((e) => (e.id === id ? patchElement(e, changes) : e));
+    commitElements(api, next);
   };
 
   const remove = (id: string) => {
     const next = api
       .getSceneElements()
       .filter((e) => e.id !== id && (e as { containerId?: string }).containerId !== id);
-    api.updateScene({
-      elements: next as SceneElements,
-      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
-    });
+    commitElements(api, next);
   };
 
   const selectOnCanvas = (id: string) => {
@@ -187,10 +206,7 @@ export function LayersPanel({ api, activePageId, theme = 'light' }: LayersPanelP
     if (from < 0 || to < 0) return;
     topFirst.splice(to, 0, topFirst.splice(from, 1)[0]);
     const bottomFirst = [...topFirst].reverse();
-    api.updateScene({
-      elements: reorderPageMembers(api, activePageId, bottomFirst),
-      captureUpdate: CaptureUpdateAction.IMMEDIATELY,
-    });
+    commitElements(api, reorderPageMembers(api, activePageId, bottomFirst));
   };
 
   const iconBtn = (label: string, onClick: () => void, node: ReactNode, danger = false) => (
@@ -252,6 +268,7 @@ export function LayersPanel({ api, activePageId, theme = 'light' }: LayersPanelP
         <span style={{ flex: 1 }}>Capas</span>
         {/* Align the current selection to the PAGE (Excalidraw's native align
             needs 2+ elements; to-artboard alignment is our overlay). */}
+        {!viewMode && (
         <span style={{ display: 'inline-flex', gap: 2 }}>
           {PAGE_ALIGNMENTS.map((a) => {
             const Icon = ALIGN_ICON[a.key];
@@ -277,6 +294,7 @@ export function LayersPanel({ api, activePageId, theme = 'light' }: LayersPanelP
             );
           })}
         </span>
+        )}
       </div>
 
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 4 }}>
@@ -292,12 +310,14 @@ export function LayersPanel({ api, activePageId, theme = 'light' }: LayersPanelP
           return (
             <div
               key={el.id}
-              draggable
+              draggable={!viewMode}
               onDragStart={() => {
-                dragId.current = el.id;
+                if (!viewMode) dragId.current = el.id;
               }}
               onDragOver={(e) => e.preventDefault()}
-              onDrop={() => handleDrop(el.id)}
+              onDrop={() => {
+                if (!viewMode) handleDrop(el.id);
+              }}
               onClick={() => selectOnCanvas(el.id)}
               style={{
                 display: 'flex',
@@ -327,35 +347,38 @@ export function LayersPanel({ api, activePageId, theme = 'light' }: LayersPanelP
                 {displayName(el)}
               </span>
 
-              {el.type === 'image' &&
-                iconBtn('Usar como fondo', () => setAsBackground(api, el.id, activePageId), <CoverIcon />)}
-              {el.type === 'image' &&
-                iconBtn('Extender a la página', () => extendToPage(api, el.id, activePageId), <StretchIcon />)}
+              {!viewMode && (
+                <>
+                  {el.type === 'image' &&
+                    iconBtn('Usar como fondo', () => setAsBackground(api, el.id, activePageId), <CoverIcon />)}
+                  {el.type === 'image' &&
+                    iconBtn('Extender a la página', () => extendToPage(api, el.id, activePageId), <StretchIcon />)}
 
-              {iconBtn(
-                hidden ? 'Mostrar' : 'Ocultar',
-                () => toggleVisibility(el),
-                hidden ? <EyeOffIcon /> : <EyeIcon />,
+                  {iconBtn(
+                    hidden ? 'Mostrar' : 'Ocultar',
+                    () => toggleVisibility(el),
+                    hidden ? <EyeOffIcon /> : <EyeIcon />,
+                  )}
+                  {iconBtn(
+                    el.locked ? 'Desbloquear' : 'Bloquear',
+                    () => patch(el.id, { locked: !el.locked } as Partial<SceneElement>),
+                    el.locked ? <LockIcon /> : <UnlockIcon />,
+                  )}
+                  {iconBtn('Eliminar', () => remove(el.id), <TrashIcon />, true)}
+                </>
               )}
-              {iconBtn(
-                el.locked ? 'Desbloquear' : 'Bloquear',
-                () => patch(el.id, { locked: !el.locked }),
-                el.locked ? <LockIcon /> : <UnlockIcon />,
-              )}
-              {iconBtn('Eliminar', () => remove(el.id), <TrashIcon />, true)}
             </div>
           );
         })}
       </div>
 
-      {/* Root / page row */}
+      {/* Root / page row — double-click to rename inline */}
       <div
         onDoubleClick={() => {
-          if (!frame || frame.type !== 'frame') return;
-          const name = window.prompt('Nombre de la página', frame.name ?? '');
-          if (name && name.trim()) renamePage(api, activePageId, name.trim());
+          if (viewMode || !frame || frame.type !== 'frame') return;
+          setRenamingPage(frame.name ?? '');
         }}
-        title="Doble clic para renombrar la página"
+        title={viewMode ? undefined : 'Doble clic para renombrar la página'}
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -370,9 +393,39 @@ export function LayersPanel({ api, activePageId, theme = 'light' }: LayersPanelP
         <span style={{ width: 16, display: 'inline-flex', justifyContent: 'center' }}>
           <FrameIcon />
         </span>
-        <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {frame && frame.type === 'frame' ? frame.name ?? 'Página' : 'Página'}
-        </span>
+        {renamingPage !== null ? (
+          <input
+            autoFocus
+            value={renamingPage}
+            onChange={(e) => setRenamingPage(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                if (renamingPage.trim()) renamePage(api, activePageId, renamingPage.trim());
+                setRenamingPage(null);
+              }
+              if (e.key === 'Escape') setRenamingPage(null);
+            }}
+            onBlur={() => {
+              if (renamingPage.trim()) renamePage(api, activePageId, renamingPage.trim());
+              setRenamingPage(null);
+            }}
+            style={{
+              flex: 1,
+              minWidth: 0,
+              padding: '2px 6px',
+              borderRadius: 6,
+              border: `1px solid ${c.border}`,
+              background: 'transparent',
+              color: c.fg,
+              fontSize: 12,
+              fontFamily: PANEL_FONT,
+            }}
+          />
+        ) : (
+          <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {frame && frame.type === 'frame' ? frame.name ?? 'Página' : 'Página'}
+          </span>
+        )}
       </div>
     </div>
   );

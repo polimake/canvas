@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import type { ExcalidrawImperativeAPI } from './excal';
 import {
   type PageInfo,
@@ -39,6 +39,8 @@ export interface PageNavigatorProps {
   api: ExcalidrawImperativeAPI;
   pageSize?: PageSize;
   theme?: 'light' | 'dark';
+  /** Read-only mode: chips + export stay, every mutating control is hidden. */
+  viewMode?: boolean;
   /** Controlled active page id. When provided, the strip reflects it instead of
    *  its own local state (so it can stay in sync with the LayersPanel). */
   activeId?: string | null;
@@ -55,6 +57,9 @@ function pagesSignature(pages: PageInfo[]): string {
 function safeFilename(name: string): string {
   return (name || 'diseño').replace(/[\\/:*?"<>|]+/g, '_').slice(0, 80);
 }
+
+const SIZE_MIN = 100;
+const SIZE_MAX = 8000;
 
 /** Upward popup anchored to the strip; closes via the transparent backdrop. */
 function PopupMenu({
@@ -81,7 +86,7 @@ function PopupMenu({
           right: 0,
           zIndex: 120,
           minWidth: 220,
-          maxHeight: 320,
+          maxHeight: 340,
           overflowY: 'auto',
           padding: 6,
           borderRadius: 10,
@@ -122,6 +127,7 @@ export function PageNavigator({
   api,
   pageSize,
   theme = 'light',
+  viewMode = false,
   activeId: controlledActiveId,
   onActiveChange,
 }: PageNavigatorProps) {
@@ -136,22 +142,51 @@ export function PageNavigator({
   const [openMenu, setOpenMenu] = useState<'size' | 'export' | 'text' | 'bg' | null>(null);
   const [scaleContent, setScaleContent] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState(false);
+  // Inline rename (replaces window.prompt): the chip being renamed + its draft.
+  const [renaming, setRenaming] = useState<{ id: string; value: string } | null>(null);
+  // Two-step delete (replaces window.confirm): the armed page id.
+  const [armedDelete, setArmedDelete] = useState<string | null>(null);
+  // Custom-size form state (replaces the window.prompt regex).
+  const [customW, setCustomW] = useState('');
+  const [customH, setCustomH] = useState('');
+  const chipRefs = useRef(new Map<string, HTMLDivElement>());
+  const lastElementsRef = useRef<unknown>(null);
 
   // Curated swatches for the page-background menu; the color input covers the rest.
   const BG_SWATCHES = ['#ffffff', '#f8f9fa', '#fff9db', '#ffe3e3', '#d3f9d8', '#d0ebff', '#1e1e1e'];
 
-  // Keep the strip in sync with the scene. onChange fires frequently, so only
-  // re-render when the page set (ids/names) actually changes.
+  // Keep the strip in sync with the scene. onChange fires on every commit
+  // (including viewport ticks), so gate first on the elements-array REFERENCE
+  // (stable across viewport-only ticks) and only then compare signatures.
   useEffect(() => {
-    const refresh = () =>
+    const refresh = () => {
+      const elements = api.getSceneElements();
+      if (elements === lastElementsRef.current) return;
+      lastElementsRef.current = elements;
       setPages((prev) => {
         const next = listPages(api);
         return pagesSignature(prev) === pagesSignature(next) ? prev : next;
       });
+    };
+    lastElementsRef.current = null;
     refresh();
     const unsubscribe = api.onChange(refresh);
     return unsubscribe;
   }, [api]);
+
+  // Auto-scroll the active chip into view (the strip scrolls with many pages).
+  useEffect(() => {
+    if (!activeId) return;
+    chipRefs.current.get(activeId)?.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+  }, [activeId]);
+
+  // Auto-disarm the two-step delete.
+  useEffect(() => {
+    if (!armedDelete) return;
+    const t = setTimeout(() => setArmedDelete(null), 2500);
+    return () => clearTimeout(t);
+  }, [armedDelete]);
 
   const select = (id: string) => {
     setLocalActiveId(id);
@@ -160,12 +195,12 @@ export function PageNavigator({
   };
 
   const onAdd = () => {
-    // New pages inherit the active page's size (falling back to the host prop),
-    // so a story-sized document keeps producing story-sized pages.
+    // New pages inherit the active page's size (falling back to the host prop)
+    // and are inserted right AFTER the active page.
     const size: PageSize | undefined = activePage
       ? { width: activePage.width, height: activePage.height }
       : pageSize;
-    const id = addPage(api, size);
+    const id = addPage(api, size, { afterPageId: activeId ?? undefined });
     select(id);
   };
 
@@ -176,19 +211,27 @@ export function PageNavigator({
     goToPage(api, activeId);
   };
 
-  const onResizeCustom = () => {
-    const current = activePage ? `${activePage.width}x${activePage.height}` : '1080x1350';
-    const raw = window.prompt('Tamaño personalizado (ancho x alto)', current);
-    if (!raw) return;
-    const match = /^\s*(\d{2,5})\s*[x×,]\s*(\d{2,5})\s*$/i.exec(raw);
-    if (!match) return;
-    onResize({ width: Number(match[1]), height: Number(match[2]) });
+  const applyCustomSize = () => {
+    const width = Number.parseInt(customW, 10);
+    const height = Number.parseInt(customH, 10);
+    if (!Number.isInteger(width) || !Number.isInteger(height)) return;
+    if (width < SIZE_MIN || width > SIZE_MAX || height < SIZE_MIN || height > SIZE_MAX) return;
+    onResize({ width, height });
   };
+  const customValid = (() => {
+    const w = Number.parseInt(customW, 10);
+    const h = Number.parseInt(customH, 10);
+    return (
+      Number.isInteger(w) && Number.isInteger(h) &&
+      w >= SIZE_MIN && w <= SIZE_MAX && h >= SIZE_MIN && h <= SIZE_MAX
+    );
+  })();
 
   const runExport = async (kind: 'png' | 'png-all' | 'svg' | 'pdf') => {
     if (exporting) return;
     setOpenMenu(null);
     setExporting(true);
+    setExportError(false);
     try {
       const base = safeFilename(activePage?.name ?? 'diseño');
       if (kind === 'png') {
@@ -207,10 +250,12 @@ export function PageNavigator({
         });
         downloadBlob(blob, `${base}.svg`);
       } else {
-        downloadBlob(await exportScenePdf(api), 'diseño.pdf');
+        downloadBlob(await exportScenePdf(api), `${safeFilename(pages[0]?.name ?? 'diseño')}.pdf`);
       }
     } catch (err) {
       console.error('[canvas2] export failed', err);
+      setExportError(true);
+      setTimeout(() => setExportError(false), 4000);
     } finally {
       setExporting(false);
     }
@@ -221,21 +266,25 @@ export function PageNavigator({
     if (newId) select(newId);
   };
 
-  const onRename = (page: PageInfo) => {
-    const name = window.prompt('Nombre de la página', page.name);
-    if (name && name.trim()) renamePage(api, page.id, name.trim());
+  const startRename = (page: PageInfo) => setRenaming({ id: page.id, value: page.name });
+  const commitRename = () => {
+    if (renaming && renaming.value.trim()) renamePage(api, renaming.id, renaming.value.trim());
+    setRenaming(null);
   };
 
   const onDelete = (page: PageInfo) => {
     if (pages.length <= 1) return;
-    if (window.confirm(`¿Eliminar "${page.name}" y su contenido?`)) {
-      deletePage(api, page.id);
-      const fallback = pages.find((p) => p.id !== page.id);
-      if (fallback) select(fallback.id);
+    if (armedDelete !== page.id) {
+      setArmedDelete(page.id);
+      return;
     }
+    setArmedDelete(null);
+    deletePage(api, page.id);
+    const fallback = pages.find((p) => p.id !== page.id);
+    if (fallback) select(fallback.id);
   };
 
-  const iconBtn = (label: string, onClick: () => void, icon: ReactNode) => (
+  const iconBtn = (label: string, onClick: () => void, icon: ReactNode, danger = false) => (
     <button
       type="button"
       aria-label={label}
@@ -252,7 +301,7 @@ export function PageNavigator({
         lineHeight: 1,
         padding: '2px 3px',
         borderRadius: 4,
-        color: 'inherit',
+        color: danger ? '#e03131' : 'inherit',
         opacity: 0.85,
       }}
     >
@@ -272,6 +321,17 @@ export function PageNavigator({
     fontWeight: 600,
     color: c.sub,
     whiteSpace: 'nowrap',
+  };
+
+  const inputStyle: CSSProperties = {
+    width: 64,
+    padding: '4px 6px',
+    borderRadius: 6,
+    border: `1px solid ${c.border}`,
+    background: 'transparent',
+    color: c.fg,
+    fontSize: 12,
+    fontFamily: PANEL_FONT,
   };
 
   return (
@@ -306,9 +366,14 @@ export function PageNavigator({
       >
       {pages.map((page) => {
         const isActive = page.id === activeId;
+        const isRenaming = renaming?.id === page.id;
         return (
           <div
             key={page.id}
+            ref={(el) => {
+              if (el) chipRefs.current.set(page.id, el);
+              else chipRefs.current.delete(page.id);
+            }}
             role="button"
             tabIndex={0}
             onClick={() => select(page.id)}
@@ -332,53 +397,100 @@ export function PageNavigator({
               color: isActive ? c.activeFg : c.fg,
             }}
           >
-            <span
-              onDoubleClick={(e) => {
-                e.stopPropagation();
-                onRename(page);
-              }}
-              style={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }}
-            >
-              {page.name}
-            </span>
-            {isActive && (
+            {isRenaming ? (
+              <input
+                autoFocus
+                value={renaming.value}
+                onClick={(e) => e.stopPropagation()}
+                onChange={(e) => setRenaming({ id: page.id, value: e.target.value })}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === 'Enter') commitRename();
+                  if (e.key === 'Escape') setRenaming(null);
+                }}
+                onBlur={commitRename}
+                style={{ ...inputStyle, width: 100, color: isActive ? c.activeFg : c.fg }}
+              />
+            ) : (
+              <span
+                onDoubleClick={(e) => {
+                  if (viewMode) return;
+                  e.stopPropagation();
+                  startRename(page);
+                }}
+                style={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }}
+              >
+                {page.name}
+              </span>
+            )}
+            {isActive && !viewMode && !isRenaming && (
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 1, marginLeft: 2 }}>
                 {page.index > 0 &&
                   iconBtn('Mover a la izquierda', () => movePage(api, page.id, -1), <ChevronLeftIcon />)}
                 {page.index < pages.length - 1 &&
                   iconBtn('Mover a la derecha', () => movePage(api, page.id, 1), <ChevronRightIcon />)}
                 {iconBtn('Duplicar página', () => onDuplicate(page.id), <DuplicateIcon />)}
-                {iconBtn('Renombrar página', () => onRename(page), <PencilIcon />)}
+                {iconBtn('Renombrar página', () => startRename(page), <PencilIcon />)}
                 {iconBtn(
                   page.locked ? 'Desbloquear página' : 'Bloquear página',
                   () => setPageLocked(api, page.id, !page.locked),
                   page.locked ? <LockIcon /> : <UnlockIcon />,
                 )}
-                {pages.length > 1 &&
-                  !page.locked &&
-                  iconBtn('Eliminar página', () => onDelete(page), <TrashIcon />)}
+                {pages.length > 1 && !page.locked && (
+                  armedDelete === page.id ? (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(page);
+                      }}
+                      style={{
+                        all: 'unset',
+                        cursor: 'pointer',
+                        padding: '2px 6px',
+                        borderRadius: 4,
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: '#fff',
+                        background: '#e03131',
+                      }}
+                    >
+                      ¿Eliminar?
+                    </button>
+                  ) : (
+                    iconBtn('Eliminar página', () => onDelete(page), <TrashIcon />, true)
+                  )
+                )}
               </span>
             )}
           </div>
         );
       })}
 
-      <button
-        type="button"
-        onClick={onAdd}
-        title="Agregar página"
-        style={{ ...pillStyle, border: `1px dashed ${c.border}` }}
-      >
-        <PlusIcon />
-        Página
-      </button>
+      {!viewMode && (
+        <button
+          type="button"
+          onClick={onAdd}
+          title="Agregar página después de la actual"
+          style={{ ...pillStyle, border: `1px dashed ${c.border}` }}
+        >
+          <PlusIcon />
+          Página
+        </button>
+      )}
       </div>
+
+      <span style={{ fontSize: 11, color: c.sub, whiteSpace: 'nowrap', padding: '0 2px' }}>
+        {activePage ? activePage.index + 1 : 1}/{pages.length}
+      </span>
 
       <div style={{ width: 1, alignSelf: 'stretch', background: c.border, margin: '0 2px' }} />
 
       {/* Insert / size / export controls for the ACTIVE page. Rendered outside
           the scrollable strip so their upward popups are never clipped. */}
       <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 4 }}>
+        {!viewMode && (
+          <>
         <button
           type="button"
           title="Insertar texto"
@@ -402,12 +514,18 @@ export function PageNavigator({
         <button
           type="button"
           title="Tamaño de la página"
-          onClick={() => setOpenMenu(openMenu === 'size' ? null : 'size')}
+          onClick={() => {
+            setCustomW(String(activePage?.width ?? ''));
+            setCustomH(String(activePage?.height ?? ''));
+            setOpenMenu(openMenu === 'size' ? null : 'size');
+          }}
           style={pillStyle}
         >
           {activePage ? `${activePage.width}×${activePage.height}` : 'Tamaño'}
           <CaretDownIcon />
         </button>
+          </>
+        )}
         <button
           type="button"
           title="Exportar"
@@ -417,10 +535,11 @@ export function PageNavigator({
             ...pillStyle,
             cursor: exporting ? 'wait' : 'pointer',
             opacity: exporting ? 0.5 : 1,
+            ...(exportError ? { color: '#e03131' } : {}),
           }}
         >
           <ExportIcon />
-          {exporting ? 'Exportando…' : 'Exportar'}
+          {exporting ? 'Exportando…' : exportError ? 'Error al exportar' : 'Exportar'}
           <CaretDownIcon />
         </button>
 
@@ -491,6 +610,13 @@ export function PageNavigator({
                 type="color"
                 value={(activeId && getPageBackground(api, activeId)) || '#ffffff'}
                 onChange={(e) => {
+                  // Live preview while dragging the picker: folded into the
+                  // final undoable commit (capture 'transient').
+                  if (activeId) {
+                    setPageBackgroundColor(api, activeId, e.target.value, { capture: 'transient' });
+                  }
+                }}
+                onBlur={(e) => {
                   if (activeId) setPageBackgroundColor(api, activeId, e.target.value);
                 }}
                 style={{ marginLeft: 'auto', width: 28, height: 22, border: 'none', background: 'none', cursor: 'pointer' }}
@@ -526,13 +652,58 @@ export function PageNavigator({
                 </button>
               );
             })}
-            <button
-              type="button"
-              onClick={onResizeCustom}
-              style={{ all: 'unset', ...menuRowStyle(false, c.active) }}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '8px 10px 4px',
+                borderTop: `1px solid ${c.border}`,
+                marginTop: 4,
+              }}
             >
-              <span style={{ color: c.fg }}>Personalizado…</span>
-            </button>
+              <input
+                value={customW}
+                onChange={(e) => setCustomW(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && applyCustomSize()}
+                inputMode="numeric"
+                aria-label="Ancho"
+                placeholder="Ancho"
+                style={inputStyle}
+              />
+              <span style={{ color: c.sub, fontSize: 12 }}>×</span>
+              <input
+                value={customH}
+                onChange={(e) => setCustomH(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && applyCustomSize()}
+                inputMode="numeric"
+                aria-label="Alto"
+                placeholder="Alto"
+                style={inputStyle}
+              />
+              <button
+                type="button"
+                onClick={applyCustomSize}
+                disabled={!customValid}
+                style={{
+                  all: 'unset',
+                  cursor: customValid ? 'pointer' : 'default',
+                  padding: '4px 10px',
+                  borderRadius: 6,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: customValid ? c.activeFg : c.sub,
+                  background: customValid ? c.active : 'transparent',
+                  border: `1px solid ${c.border}`,
+                  opacity: customValid ? 1 : 0.6,
+                }}
+              >
+                Aplicar
+              </button>
+            </div>
+            <div style={{ padding: '2px 10px 4px', fontSize: 11, color: c.sub }}>
+              {SIZE_MIN}–{SIZE_MAX}px
+            </div>
             <label
               style={{
                 display: 'flex',

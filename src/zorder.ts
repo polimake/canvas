@@ -1,4 +1,4 @@
-import type { ExcalidrawImperativeAPI, SceneElement, SceneElements } from './excal';
+import type { ExcalidrawImperativeAPI, SceneElement } from './excal';
 
 /**
  * Z-order primitives, shared by the LayersPanel (drag reorder) and image ops
@@ -26,7 +26,7 @@ export function reorderMembersInArray(
   els: readonly SceneElement[],
   pageId: string,
   orderedMemberIdsBottomFirst: string[],
-): SceneElements {
+): readonly SceneElement[] {
   const memberSlots: number[] = [];
   const byId = new Map<string, SceneElement>();
   els.forEach((e, i) => {
@@ -35,7 +35,7 @@ export function reorderMembersInArray(
       byId.set(e.id, e);
     }
   });
-  if (memberSlots.length === 0) return els as SceneElements;
+  if (memberSlots.length === 0) return els;
 
   const ordered: SceneElement[] = [];
   const seen = new Set<string>();
@@ -59,7 +59,7 @@ export function reorderMembersInArray(
   memberSlots.forEach((slot, k) => {
     next[slot] = ordered[k];
   });
-  return next as SceneElements;
+  return next;
 }
 
 /** Same as {@link reorderMembersInArray} but reads the live scene from the api. */
@@ -67,7 +67,7 @@ export function reorderPageMembers(
   api: ExcalidrawImperativeAPI,
   pageId: string,
   orderedMemberIdsBottomFirst: string[],
-): SceneElements {
+): readonly SceneElement[] {
   return reorderMembersInArray(
     api.getSceneElements(),
     pageId,
@@ -80,7 +80,7 @@ export function sendMemberToBack(
   api: ExcalidrawImperativeAPI,
   elementId: string,
   pageId: string,
-): SceneElements {
+): readonly SceneElement[] {
   const currentBottomFirst = api
     .getSceneElements()
     .filter((e) => e.frameId === pageId)

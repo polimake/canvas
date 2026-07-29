@@ -16,12 +16,24 @@ export {
   duplicatePage,
   resizePage,
   relayoutPages,
+  packPagesInArray,
+  renumberPagesInArray,
   movePage,
   isPageLocked,
   setPageLocked,
   goToPage,
 } from './pages';
 export type { PageInfo, PageSize, PageSizePreset } from './pages';
+export { patchElement, commitElements } from './mutate';
+
+// ─── Export: hidratación de imágenes remotas ─────────────────────────────────
+export { hydrateFilesForExport, withHydratedFiles } from './exportHydrate';
+export type { MediaFetcher, HydrateResult } from './exportHydrate';
+
+// ─── Conversión desde el editor legacy ───────────────────────────────────────
+export { legacyToScene, parseLegacyText } from './legacy';
+export type { ConversionReport, ConversionTier, ConversionNote, LegacyScene } from './legacy';
+export type { CaptureMode } from './mutate';
 export { PAGE_ALIGNMENTS, alignToPage } from './align';
 export type { PageAlignment } from './align';
 
@@ -55,6 +67,11 @@ export {
 export type { InsertImageOptions } from './media';
 
 // ─── Text presets + page background ───────────────────────────────────────────
-export { TEXT_PRESETS, insertTextPreset } from './text';
+export { TEXT_PRESETS, insertTextPreset, contrastTextColor } from './text';
 export type { TextPreset, TextPresetKey } from './text';
-export { getPageBackground, setPageBackgroundColor } from './background';
+export {
+  getPageBackground,
+  setPageBackgroundColor,
+  ensurePagePapers,
+  isPageBackground,
+} from './background';
