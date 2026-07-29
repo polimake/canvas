@@ -51,6 +51,21 @@ export interface Canvas2EditorProps {
   /** Receives the imperative API once mounted (updateScene, exportToBlob, …).
    *  This is canvas2's analogue of `onRegisterEditorApi`. */
   onReady?: (api: ExcalidrawImperativeAPI) => void;
+  /**
+   * Excalidraw's own "save as image" dialog. Defaults to `true`.
+   *
+   * Set it to `false` when the scene can hold images by REMOTE URL (migrated
+   * designs do — the URL lives in `files[id].dataURL`). Excalidraw loads them
+   * with `new Image()` and no `crossOrigin`, which taints the canvas: its
+   * dialog then dies with `SecurityError: Tainted canvases may not be exported`
+   * while it renders the preview, before the user can do anything.
+   *
+   * The host's own export (see `withHydratedFiles` in exportHydrate.ts) swaps
+   * those URLs for dataURLs first, so it is unaffected — but it cannot fix a
+   * dialog it doesn't own. Hence the switch: whoever supplies remote images
+   * also supplies the export path.
+   */
+  nativeImageExport?: boolean;
   /** Debounce window for `onSceneChange`, in ms. Defaults to 400. */
   changeDebounceMs?: number;
   /** Enable the fixed-size multi-page artboard model (frames-as-pages) and show
@@ -101,6 +116,7 @@ export function Canvas2Editor({
   theme,
   langCode = 'es-ES',
   onReady,
+  nativeImageExport = true,
   changeDebounceMs = 400,
   pages = false,
   pageSize,
@@ -258,6 +274,7 @@ export function Canvas2Editor({
         viewModeEnabled={viewMode}
         langCode={langCode}
         aiEnabled={false}
+        UIOptions={{ canvasActions: { saveAsImage: nativeImageExport } }}
         {...(theme ? { theme } : {})}
         excalidrawAPI={(instance) => {
           apiRef.current = instance;

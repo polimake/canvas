@@ -26,6 +26,20 @@ export interface ExportOptions {
   maxWidthOrHeight?: number;
   /** Render with the dark theme. Defaults to false. */
   darkMode?: boolean;
+  /**
+   * Mapa de ficheros a usar EN LUGAR del de la escena viva.
+   *
+   * Existe para exportar imágenes que en la escena son URLs remotas: cargadas
+   * por Excalidraw sin `crossOrigin`, contaminan el canvas y `toBlob()` muere
+   * con SecurityError. `buildHydratedFiles()` (exportHydrate.ts) devuelve el
+   * mismo mapa con los bytes inlineados, y se pasa por aquí.
+   *
+   * Se sustituye en la llamada al exportador —que es puro y recibe los ficheros
+   * explícitamente— en vez de mutar la escena: `api.addFiles()` IGNORA los ids
+   * que ya existen (`addMissingFiles` hace `continue`), así que por esa vía no
+   * se puede reemplazar nada.
+   */
+  files?: Parameters<typeof exportToBlob>[0]['files'];
 }
 
 /** Scale hook for Excalidraw's exporters (appState.exportScale is inert). */
@@ -67,7 +81,7 @@ export function exportScenePng(
   return exportToBlob({
     elements: api.getSceneElements(),
     appState: exportAppState(api, opts),
-    files: api.getFiles(),
+    files: opts?.files ?? api.getFiles(),
     exportingFrame: findFrame(api, opts?.pageId),
     ...(opts?.maxWidthOrHeight
       ? { maxWidthOrHeight: opts.maxWidthOrHeight }
@@ -84,7 +98,7 @@ export function exportSceneSvg(
   return exportToSvg({
     elements: api.getSceneElements(),
     appState: exportAppState(api, opts),
-    files: api.getFiles(),
+    files: opts?.files ?? api.getFiles(),
     exportingFrame: findFrame(api, opts?.pageId),
   });
 }

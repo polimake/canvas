@@ -27,8 +27,8 @@ export type { PageInfo, PageSize, PageSizePreset } from './pages';
 export { patchElement, commitElements } from './mutate';
 
 // ─── Export: hidratación de imágenes remotas ─────────────────────────────────
-export { hydrateFilesForExport, withHydratedFiles } from './exportHydrate';
-export type { MediaFetcher, HydrateResult } from './exportHydrate';
+export { buildHydratedFiles } from './exportHydrate';
+export type { MediaFetcher, HydratedFiles } from './exportHydrate';
 
 // ─── Conversión desde el editor legacy ───────────────────────────────────────
 export { legacyToScene, parseLegacyText } from './legacy';

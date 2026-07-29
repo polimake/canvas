@@ -13,9 +13,16 @@ import type { ExcalidrawImperativeAPI } from './excal';
  *                      `toDataURL` lanza `SecurityError`.
  *   con crossOrigin  → ni carga: el CDN no manda `Access-Control-Allow-Origin`.
  *
- * La salida es traer los bytes desde nuestro propio origen y sustituir la URL
- * por un dataURL SOLO durante el export, restaurándola después. La escena
- * persistida nunca cambia: `restore()` devuelve el mapa original.
+ * La salida es traer los bytes desde nuestro propio origen y construir un mapa
+ * de ficheros PARALELO con los bytes inlineados, que se pasa al exportador.
+ *
+ * IMPORTANTE — por qué se devuelve un mapa nuevo en vez de mutar la escena:
+ * `api.addFiles()` delega en `addMissingFiles()`, que hace `continue` con todo
+ * id que ya exista. Intentar reemplazar un fichero por esa vía es un NO-OP
+ * silencioso: la escena se queda con la URL remota y el export sigue muriendo
+ * con SecurityError. Los exportadores de Excalidraw (`exportToBlob`,
+ * `exportToSvg`) reciben `files` explícitamente y son puros, así que aceptan
+ * este mapa sin que la escena viva se entere.
  *
  * El `fetcher` lo inyecta el host (en studio, el proxy del worker), de modo que
  * este módulo no sabe nada de rutas ni de autenticación.
@@ -23,13 +30,20 @@ import type { ExcalidrawImperativeAPI } from './excal';
 
 export type MediaFetcher = (url: string) => Promise<Blob>;
 
-export interface HydrateResult {
-  /** Cuántas imágenes se convirtieron a dataURL. */
+/** Forma mínima de una entrada del mapa de ficheros de Excalidraw. */
+interface FileEntry {
+  id: string;
+  dataURL: string;
+  mimeType: string;
+}
+
+export interface HydratedFiles {
+  /** Mapa listo para `ExportOptions.files`. */
+  files: Record<string, FileEntry>;
+  /** Cuántas imágenes se inlinearon. */
   hydrated: number;
-  /** URLs que no se pudieron traer (se dejan como estaban). */
+  /** URLs que no se pudieron traer. Se quedan como estaban ⇒ contaminarían. */
   failed: string[];
-  /** Restaura el mapa de ficheros original. Idempotente. */
-  restore: () => void;
 }
 
 /**
@@ -53,79 +67,34 @@ function needsHydration(value: unknown): value is string {
 }
 
 /**
- * Sustituye las URLs remotas del mapa de ficheros por dataURLs. Devuelve un
- * `restore()` que hay que llamar SIEMPRE (en un `finally`), incluso si el
- * export falla, o la escena se quedaría con base64 y al guardarla engordaría.
+ * Construye un mapa de ficheros con las URLs remotas convertidas a dataURL.
+ * No toca la escena. Las que fallen se dejan tal cual y se listan en `failed`,
+ * para que quien llame decida si avisa o aborta — exportar con una de ellas
+ * dentro volverá a contaminar el canvas.
  */
-export async function hydrateFilesForExport(
+export async function buildHydratedFiles(
   api: ExcalidrawImperativeAPI,
   fetcher: MediaFetcher,
-): Promise<HydrateResult> {
-  const files = api.getFiles();
-  const originals = new Map<string, string>();
+): Promise<HydratedFiles> {
+  const source = (api.getFiles() ?? {}) as Record<string, FileEntry>;
+  const files: Record<string, FileEntry> = { ...source };
   const failed: string[] = [];
+  let hydrated = 0;
 
-  const pending = Object.values(files ?? {}).filter((f) =>
-    needsHydration((f as { dataURL?: unknown })?.dataURL),
-  ) as { id: string; dataURL: string; mimeType: string }[];
+  const pending = Object.values(source).filter((f) => needsHydration(f?.dataURL));
+  if (pending.length === 0) return { files, hydrated, failed };
 
-  if (pending.length === 0) {
-    return { hydrated: 0, failed, restore: () => {} };
-  }
-
-  const hydratedFiles: Record<string, unknown> = {};
   await Promise.all(
     pending.map(async (file) => {
       try {
         const blob = await fetcher(file.dataURL);
-        const dataURL = await blobToDataUrl(blob, file.mimeType);
-        originals.set(file.id, file.dataURL);
-        hydratedFiles[file.id] = { ...file, dataURL };
+        files[file.id] = { ...file, dataURL: await blobToDataUrl(blob, file.mimeType) };
+        hydrated += 1;
       } catch {
         failed.push(file.dataURL);
       }
     }),
   );
 
-  const hydrated = Object.keys(hydratedFiles).length;
-  if (hydrated > 0) {
-    // `addFiles` sobrescribe por id: es la vía pública para intercambiar los
-    // bytes sin tocar los elementos ni generar una entrada de historial.
-    api.addFiles(Object.values(hydratedFiles) as Parameters<typeof api.addFiles>[0]);
-  }
-
-  let restored = false;
-  const restore = () => {
-    if (restored || originals.size === 0) return;
-    restored = true;
-    const current = api.getFiles();
-    const back = [...originals.entries()]
-      .map(([id, dataURL]) => {
-        const f = current?.[id];
-        return f ? { ...f, dataURL } : null;
-      })
-      .filter(Boolean);
-    if (back.length > 0) {
-      api.addFiles(back as Parameters<typeof api.addFiles>[0]);
-    }
-  };
-
-  return { hydrated, failed, restore };
-}
-
-/**
- * Envuelve cualquier export para que las imágenes remotas estén inlineadas
- * mientras dura, y restaura al terminar pase lo que pase.
- */
-export async function withHydratedFiles<T>(
-  api: ExcalidrawImperativeAPI,
-  fetcher: MediaFetcher,
-  run: () => Promise<T>,
-): Promise<T> {
-  const { restore } = await hydrateFilesForExport(api, fetcher);
-  try {
-    return await run();
-  } finally {
-    restore();
-  }
+  return { files, hydrated, failed };
 }
