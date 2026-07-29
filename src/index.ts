@@ -28,6 +28,8 @@ export type { PageInfo, PageSize, PageSizePreset } from './pages';
 // sin duplicar el número.
 export { PAGE_GAP } from './layout';
 export { patchElement, commitElements } from './mutate';
+// Miniaturas por página para tiras de navegación (host o PageNavigator).
+export { usePageThumbnails } from './pageThumbnails';
 
 // ─── Export: hidratación de imágenes remotas ─────────────────────────────────
 export { buildHydratedFiles } from './exportHydrate';

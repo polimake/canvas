@@ -18,6 +18,7 @@ import {
 } from './pages';
 import { exportScenePng, exportSceneSvg, exportScenePdf, downloadBlob } from './export';
 import { TEXT_PRESETS, insertTextPreset } from './text';
+import { usePageThumbnails } from './pageThumbnails';
 import { getPageBackground, setPageBackgroundColor } from './background';
 import { PANEL_FONT, palette } from './theme';
 import {
@@ -46,6 +47,14 @@ export interface PageNavigatorProps {
   activeId?: string | null;
   /** Notified when the user switches pages. */
   onActiveChange?: (id: string) => void;
+  /**
+   * Miniatura por página en los chips (como la tira del editor legacy).
+   * Apagado por defecto: rasterizar cuesta, y una escena con imágenes remotas
+   * necesita además el mapa hidratado (`thumbnailFiles`) o no producirá nada.
+   */
+  thumbnails?: boolean;
+  /** Mapa de ficheros hidratado para poder rasterizar imágenes remotas. */
+  thumbnailFiles?: Parameters<typeof usePageThumbnails>[1] extends { files?: infer F } ? F : never;
 }
 
 function pagesSignature(pages: PageInfo[]): string {
@@ -130,6 +139,8 @@ export function PageNavigator({
   viewMode = false,
   activeId: controlledActiveId,
   onActiveChange,
+  thumbnails = false,
+  thumbnailFiles,
 }: PageNavigatorProps) {
   const c = palette[theme];
   const [pages, setPages] = useState<PageInfo[]>(() => listPages(api));
@@ -151,6 +162,7 @@ export function PageNavigator({
   const [customW, setCustomW] = useState('');
   const [customH, setCustomH] = useState('');
   const chipRefs = useRef(new Map<string, HTMLDivElement>());
+  const pageThumbs = usePageThumbnails(api, { enabled: thumbnails, files: thumbnailFiles });
   const lastElementsRef = useRef<unknown>(null);
 
   // Curated swatches for the page-background menu; the color input covers the rest.
@@ -397,6 +409,23 @@ export function PageNavigator({
               color: isActive ? c.activeFg : c.fg,
             }}
           >
+            {thumbnails && pageThumbs[page.id] ? (
+              // Es un <img> a secas y no next/image a propósito: el paquete no
+              // depende de Next, y la fuente es un blob URL local.
+              <img
+                src={pageThumbs[page.id]}
+                alt=""
+                style={{
+                  width: 18,
+                  height: 24,
+                  objectFit: 'cover',
+                  borderRadius: 3,
+                  border: `1px solid ${c.border}`,
+                  marginRight: 4,
+                  flexShrink: 0,
+                }}
+              />
+            ) : null}
             {isRenaming ? (
               <input
                 autoFocus

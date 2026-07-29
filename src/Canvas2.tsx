@@ -66,6 +66,32 @@ export interface Canvas2EditorProps {
    * also supplies the export path.
    */
   nativeImageExport?: boolean;
+  /**
+   * Sustitución de fuentes por nombre de familia.
+   *
+   * Excalidraw NO expone forma de registrar tipografías propias: `Fonts.register`
+   * es privado y la clase no se exporta del paquete npm (la petición #9132 sigue
+   * abierta y la #3240 se cerró como "out of scope"). Pero `getFontString()`
+   * emite el NOMBRE de la familia en texto plano al `font` del canvas, así que
+   * declarar un `@font-face` con ese mismo nombre hace que el navegador resuelva
+   * a nuestro fichero.
+   *
+   * Se secuestra una familia que no se use (p. ej. 'Lilita One'). El ajuste de
+   * línea sigue siendo correcto porque la medición usa `measureText` con esa
+   * misma cadena, así que mide la fuente sustituida.
+   *
+   * Límite conocido: el export a SVG embebe la fuente REGISTRADA, no la
+   * sustituida, así que un SVG abierto en otro equipo se verá con la original.
+   * Para eso hace falta el parche que exponga `Fonts.register`.
+   */
+  fontOverrides?: Array<{
+    /** Familia de Excalidraw a secuestrar: 'Lilita One', 'Comic Shanns'… */
+    family: string;
+    /** URL del woff2/otf propio. */
+    src: string;
+    weight?: string;
+    style?: string;
+  }>;
   /** Debounce window for `onSceneChange`, in ms. Defaults to 400. */
   changeDebounceMs?: number;
   /** Enable the fixed-size multi-page artboard model (frames-as-pages) and show
@@ -76,6 +102,14 @@ export interface Canvas2EditorProps {
   /** Show the right-side layers panel (the active page's elements). Requires
    *  `pages` (it's scoped to the active artboard). */
   layers?: boolean;
+  /**
+   * Miniatura por página en la tira inferior (como el editor legacy). Apagado
+   * por defecto porque rasterizar cuesta; con imágenes remotas hace falta
+   * además `pageThumbnailFiles` o las páginas con foto saldrán sin miniatura.
+   */
+  pageThumbnails?: boolean;
+  /** Mapa de ficheros hidratado, para poder rasterizar imágenes remotas. */
+  pageThumbnailFiles?: Parameters<typeof PageNavigator>[0]['thumbnailFiles'];
 }
 
 /** Debounce a callback; always invokes the latest closure, clears on unmount. */
@@ -117,11 +151,37 @@ export function Canvas2Editor({
   langCode = 'es-ES',
   onReady,
   nativeImageExport = true,
+  fontOverrides,
   changeDebounceMs = 400,
   pages = false,
   pageSize,
   layers = false,
+  pageThumbnails = false,
+  pageThumbnailFiles,
 }: Canvas2EditorProps) {
+  // Inyecta las @font-face de sustitución una sola vez por conjunto. Va en un
+  // <style> propio y NO se limpia entre renders porque el navegador cachea la
+  // fuente por familia: quitarla y volver a ponerla provocaría un parpadeo de
+  // texto en cada re-render.
+  useEffect(() => {
+    if (!fontOverrides?.length) return;
+    const id = 'canvas2-font-overrides';
+    const css = fontOverrides
+      .map(
+        (f) =>
+          `@font-face{font-family:'${f.family}';src:url('${f.src}');` +
+          `font-weight:${f.weight ?? 'normal'};font-style:${f.style ?? 'normal'};font-display:swap;}`,
+      )
+      .join('\n');
+    let tag = document.getElementById(id) as HTMLStyleElement | null;
+    if (!tag) {
+      tag = document.createElement('style');
+      tag.id = id;
+      document.head.appendChild(tag);
+    }
+    if (tag.textContent !== css) tag.textContent = css;
+  }, [fontOverrides]);
+
   const apiRef = useRef<ExcalidrawImperativeAPI | null>(null);
   const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null);
   // Active page, lifted here so PageNavigator, inserts and LayersPanel all
@@ -341,6 +401,8 @@ export function Canvas2Editor({
           viewMode={viewMode}
           activeId={activePageId}
           onActiveChange={setActivePageId}
+          thumbnails={pageThumbnails}
+          thumbnailFiles={pageThumbnailFiles}
         />
       )}
       {layers && api && (
