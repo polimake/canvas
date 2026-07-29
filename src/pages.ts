@@ -35,6 +35,10 @@ export interface PageInfo {
   width: number;
   height: number;
   locked: boolean;
+  /** Posición del marco en coordenadas de ESCENA (no de pantalla). La usa la
+   *  barra de acciones flotante para anclarse junto al nombre de la página. */
+  x: number;
+  y: number;
 }
 
 /** Social-first default (IG feed 4:5) — new documents are made to publish. */
@@ -181,6 +185,8 @@ export function listPages(api: ExcalidrawImperativeAPI): PageInfo[] {
     width: Math.round(f.width),
     height: Math.round(f.height),
     locked: Boolean(f.locked),
+    x: f.x,
+    y: f.y,
   }));
 }
 
@@ -245,10 +251,28 @@ export function addPage(
 }
 
 /** Center + zoom the viewport onto a page. */
-export function goToPage(api: ExcalidrawImperativeAPI, pageId: string): void {
+/**
+ * Cuánto de la pantalla ocupa la página al saltar a ella (0,1–1).
+ *
+ * `fitToContent` la pegaba a los bordes del viewport: se veía la página y nada
+ * más, sin margen para arrastrar algo desde fuera ni para entender dónde estás
+ * dentro del documento. Con 0,72 queda aire alrededor.
+ */
+const PAGE_VIEWPORT_COVERAGE = 0.72;
+
+export function goToPage(
+  api: ExcalidrawImperativeAPI,
+  pageId: string,
+  opts?: { coverage?: number },
+): void {
   const frame = api.getSceneElements().find((e) => e.id === pageId);
   if (!frame) return;
-  api.scrollToContent(frame, { fitToContent: true, animate: true, duration: 300 });
+  api.scrollToContent(frame, {
+    fitToViewport: true,
+    viewportZoomFactor: Math.min(1, Math.max(0.1, opts?.coverage ?? PAGE_VIEWPORT_COVERAGE)),
+    animate: true,
+    duration: 300,
+  });
 }
 
 /** Rename a page (its frame). */
@@ -324,6 +348,35 @@ export function setPageLocked(
 /**
  * Move a page one slot left (-1) or right (+1) in the strip — one undo entry.
  */
+/**
+ * Lleva una página a una posición concreta (arrastrar y soltar en la tira).
+ *
+ * `movePage` solo intercambia con la vecina, que sirve para los botones ◀ ▶
+ * pero no para soltar una página cinco puestos más allá. Se apoya en las mismas
+ * dos primitivas —reempaquetar y renumerar— así que el resultado es idéntico al
+ * de mover de una en una, sin duplicar la lógica de layout.
+ */
+export function movePageTo(
+  api: ExcalidrawImperativeAPI,
+  pageId: string,
+  targetIndex: number,
+): void {
+  const elements = api.getSceneElements();
+  const frames = framesInArray(elements);
+  const from = frames.findIndex((f) => f.id === pageId);
+  if (from < 0) return;
+
+  const to = Math.max(0, Math.min(frames.length - 1, Math.trunc(targetIndex)));
+  if (to === from) return;
+
+  const order = frames.map((f) => f.id);
+  order.splice(to, 0, ...order.splice(from, 1));
+
+  let next = packPagesInArray(elements, order);
+  next = renumberPagesInArray(next, order);
+  commitElements(api, next);
+}
+
 export function movePage(
   api: ExcalidrawImperativeAPI,
   pageId: string,

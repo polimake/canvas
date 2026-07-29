@@ -1,9 +1,15 @@
 export { Canvas2Editor, Canvas2, default } from './Canvas2';
 export type { Canvas2EditorProps, Canvas2Scene, Canvas2Api } from './Canvas2';
+// Tipo de dataTransfer para soltar media de la biblioteca sobre el lienzo.
+export { MEDIA_DROP_TYPE } from './Canvas2';
 
 // ─── Pages / artboards (frames-as-pages) ──────────────────────────────────────
 export { PageNavigator } from './PageNavigator';
 export type { PageNavigatorProps } from './PageNavigator';
+// Tarjeta que sigue al cursor al arrastrar, con el mismo gesto que el
+// calendario. Se exporta por si un host quiere el mismo levantado.
+export { DragPreview, hideNativeDragImage } from './DragPreview';
+export type { DragPreviewProps, DragGrab } from './DragPreview';
 export {
   DEFAULT_PAGE_SIZE,
   PAGE_SIZE_PRESETS,
@@ -19,6 +25,7 @@ export {
   packPagesInArray,
   renumberPagesInArray,
   movePage,
+  movePageTo,
   isPageLocked,
   setPageLocked,
   goToPage,
@@ -30,6 +37,7 @@ export { PAGE_GAP } from './layout';
 export { patchElement, commitElements } from './mutate';
 // Miniaturas por página para tiras de navegación (host o PageNavigator).
 export { usePageThumbnails } from './pageThumbnails';
+export type { FilesMap } from './pageThumbnails';
 
 // ─── Export: hidratación de imágenes remotas ─────────────────────────────────
 export { buildHydratedFiles } from './exportHydrate';
@@ -45,10 +53,37 @@ export type { PageAlignment } from './align';
 // ─── Layers panel + image ops ─────────────────────────────────────────────────
 export { LayersPanel } from './LayersPanel';
 export type { LayersPanelProps } from './LayersPanel';
+// Menú principal del editor (fondo de página, tamaño, exportar). Lo monta
+// Canvas2Editor; se exporta para hosts que compongan su propio editor.
+export { CanvasMenu } from './CanvasMenu';
+export type { CanvasMenuProps } from './CanvasMenu';
+// Acciones de la página activa, flotando sobre el lienzo junto a su nombre.
+export { PageActions } from './PageActions';
+export type { PageActionsProps } from './PageActions';
 export { setAsBackground, extendToPage } from './imageOps';
 export { reorderPageMembers, sendMemberToBack } from './zorder';
 export { palette, PANEL_FONT } from './theme';
+// Contrato de textos: canvas2 no lleva i18n dentro, el host inyecta.
+export { DEFAULT_LABELS, mergeLabels } from './labels';
+export type { Canvas2Labels, PartialLabels } from './labels';
 export type { Palette, Canvas2Theme } from './theme';
+
+// ─── Identidad de marca ───────────────────────────────────────────────────────
+// `Canvas2Editor` recibe `projects.brandKit` CRUDO y lo traduce dentro: si el
+// host tuviera que llamar a `resolveBrandKit`, importaría un valor de este
+// barrel y arrastraría Excalidraw al bundle de servidor.
+// `BrandGallery` la monta el propio editor, abajo a la derecha del lienzo.
+export { resolveBrandKit, EMPTY_BRAND, HIJACKED_FAMILIES } from './brand';
+export type { Canvas2Brand, BrandKitInput, BrandFontFace } from './brand';
+export { BrandGallery } from './BrandGallery';
+export type { BrandGalleryProps } from './BrandGallery';
+// Dock inferior derecho: Capas y Marca en pestañas. Lo monta Canvas2Editor.
+export { RightDock } from './RightDock';
+export type { RightDockProps } from './RightDock';
+// Marco de la biblioteca (arriba a la derecha). El CONTENIDO lo pone el host:
+// la mediateca vive en apps/web sobre @polimake/ui.
+export { LibraryPanel } from './LibraryPanel';
+export type { LibraryPanelProps } from './LibraryPanel';
 
 // ─── Persistence (scene ↔ JSON) ───────────────────────────────────────────────
 export { serializeScene, parseScene } from './serialize';
@@ -63,13 +98,25 @@ export {
 } from './export';
 export type { ExportOptions } from './export';
 
-// ─── Media (programmatic image insertion — MM seam) ───────────────────────────
+// ─── Media (imágenes: SIEMPRE en MediaMonster, nunca base64 en el diseño) ─────
+// No se exporta ningún insertador por dataURL: la única forma de meter una
+// imagen es por referencia remota o subiendo antes a MM. Ver media.ts.
 export {
-  insertImageDataURL,
   insertImageFromBlob,
   insertImageFromUrl,
+  externalizeInlineImages,
+  buildPersistableFiles,
+  findInlineImageIds,
+  isInlineDataUrl,
+  dataUrlToBlob,
 } from './media';
-export type { InsertImageOptions } from './media';
+export type {
+  InsertImageOptions,
+  MediaUploader,
+  FileEntry,
+  ExternalizeResult,
+  PersistableFiles,
+} from './media';
 
 // ─── Text presets + page background ───────────────────────────────────────────
 export { TEXT_PRESETS, insertTextPreset, contrastTextColor } from './text';

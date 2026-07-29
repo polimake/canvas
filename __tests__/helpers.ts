@@ -60,20 +60,37 @@ export interface FakeApi {
   setSelected: (ids: string[]) => void;
 }
 
-export function fakeApi(initial: any[]): FakeApi {
+export function fakeApi(initial: any[], initialFiles: Record<string, any> = {}): FakeApi {
   let elements = initial;
+  const files: Record<string, any> = { ...initialFiles };
   let appState: Record<string, any> = { selectedElementIds: {}, viewBackgroundColor: '#ffffff' };
   const commits: Commit[] = [];
+  const listeners = new Set<() => void>();
+  const notify = () => listeners.forEach((cb) => cb());
   const api = {
     getSceneElements: () => elements,
     getAppState: () => appState,
+    getFiles: () => files,
     updateScene: (payload: Commit) => {
       commits.push(payload);
       if (payload.elements) elements = payload.elements;
       if (payload.appState) appState = { ...appState, ...payload.appState };
+      notify();
     },
-    addFiles: () => {},
-    onChange: () => () => {},
+    // Fidelidad deliberada con Excalidraw: `addMissingFiles` hace `continue`
+    // con todo id que ya exista, así que NO se puede sobrescribir una entrada.
+    // Es la trampa que `externalizeInlineImages` esquiva usando ids nuevos; si
+    // el doble la ocultara, el test pasaría y producción fallaría.
+    addFiles: (list: any[]) => {
+      for (const f of list ?? []) if (!files[f.id]) files[f.id] = f;
+    },
+    // `onChange` SÍ notifica: los paneles (acciones de página, galería de marca,
+    // capas) se reconstruyen desde esta suscripción, así que un doble inerte los
+    // dejaría congelados y los tests pasarían midiendo el primer render.
+    onChange: (cb: () => void) => {
+      listeners.add(cb);
+      return () => listeners.delete(cb);
+    },
     onScrollChange: () => () => {},
     scrollToContent: () => {},
   };
@@ -82,8 +99,14 @@ export function fakeApi(initial: any[]): FakeApi {
     get: () => elements,
     commits,
     setSelected: (ids: string[]) => {
-      appState.selectedElementIds = Object.fromEntries(ids.map((id) => [id, true]));
+      appState = {
+        ...appState,
+        selectedElementIds: Object.fromEntries(ids.map((id) => [id, true])),
+      };
+      notify();
     },
+    /** Fuerza una notificación sin cambiar nada (paneo, zoom). */
+    notify,
   };
 }
 

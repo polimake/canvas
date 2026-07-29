@@ -11,6 +11,7 @@ const {
   deletePage,
   duplicatePage,
   movePage,
+  movePageTo,
   renamePage,
   resizePage,
   relayoutPages,
@@ -83,6 +84,52 @@ describe('pages on frames', () => {
     const p2 = api.getSceneElements().find((e: any) => e.id === 'p2');
     const m2 = api.getSceneElements().find((e: any) => e.id === 'm2');
     expect(m2.x - p2.x).toBe(700 - 660);
+  });
+
+  it('movePageTo lleva una página a una posición lejana, no solo a la vecina', () => {
+    const { api } = fakeApi([
+      frame('a', 0, 0, 500, 500),
+      frame('b', 660, 0, 500, 500),
+      frame('c', 1320, 0, 500, 500),
+      frame('d', 1980, 0, 500, 500),
+      member('md', 'd', 2000, 10, 20, 20),
+    ]);
+    movePageTo(api as any, 'd', 0);
+    expect(listPages(api as any).map((p) => p.id)).toEqual(['d', 'a', 'b', 'c']);
+    // Los miembros viajan con su página, igual que en movePage.
+    const d = api.getSceneElements().find((e: any) => e.id === 'd');
+    const md = api.getSceneElements().find((e: any) => e.id === 'md');
+    expect(md.x - d.x).toBe(2000 - 1980);
+  });
+
+  it('movePageTo hacia la derecha deja la página EN el índice pedido', () => {
+    // El caso que el splice se come si se hace ingenuamente: al quitar primero,
+    // los índices por encima del origen se desplazan uno a la izquierda.
+    const { api } = fakeApi([
+      frame('a', 0, 0, 500, 500),
+      frame('b', 660, 0, 500, 500),
+      frame('c', 1320, 0, 500, 500),
+    ]);
+    movePageTo(api as any, 'a', 2);
+    expect(listPages(api as any).map((p) => p.id)).toEqual(['b', 'c', 'a']);
+  });
+
+  it('movePageTo ignora índices fuera de rango y el no-movimiento', () => {
+    const inicial = [
+      frame('a', 0, 0, 500, 500),
+      frame('b', 660, 0, 500, 500),
+    ];
+    const { api } = fakeApi(inicial);
+    const antes = api.getSceneElements();
+
+    movePageTo(api as any, 'a', 0); // mismo sitio
+    expect(api.getSceneElements()).toBe(antes); // ni un commit
+
+    movePageTo(api as any, 'a', 99); // se recorta al último
+    expect(listPages(api as any).map((p) => p.id)).toEqual(['b', 'a']);
+
+    movePageTo(api as any, 'inexistente', 0);
+    expect(listPages(api as any).map((p) => p.id)).toEqual(['b', 'a']);
   });
 
   it('resizePage with scaleContent remaps centers and scales sizes uniformly', () => {

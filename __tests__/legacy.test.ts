@@ -169,6 +169,73 @@ describe('legacyToScene() — T2 texto', () => {
   });
 });
 
+describe('legacyToScene() — imagen de fondo del RootLayer', () => {
+  // En polimake-canvas la foto a sangre NO es una capa: vive en `root.g.p`. En
+  // Paella Power son 59 de 64 páginas. Ignorarlo dejaba la página en blanco.
+  const CON_FONDO = [
+    {
+      a: '',
+      c: {
+        d: {
+          e: { f: 'RootLayer' },
+          g: {
+            h: { i: 1080, j: 1920 },
+            k: { x: 0, y: 0 },
+            n: 0,
+            o: '#fff',
+            p: { y: IMG_URL, h: { i: 1080.87, j: 1920 }, k: { l: -0.44, m: 0 }, n: 0 },
+          },
+          r: false,
+          s: [],
+          t: null,
+        },
+      },
+    },
+  ];
+
+  it('convierte el fondo del root en un elemento imagen', () => {
+    const { elements, files } = legacyToScene(CON_FONDO);
+    expect(elements.map((e: any) => e.type)).toEqual(['frame', 'rectangle', 'image']);
+    const img = elements[2] as any;
+    expect(files[img.fileId].dataURL).toBe(IMG_URL);
+  });
+
+  it('respeta el desplazamiento del recorte y el tamaño escalado', () => {
+    const img = legacyToScene(CON_FONDO).elements[2] as any;
+    expect(img.x).toBeCloseTo(-0.44);
+    expect(img.width).toBeCloseTo(1080.87);
+  });
+
+  it('el fondo va bloqueado y por debajo de las capas', () => {
+    const conCapa = JSON.parse(JSON.stringify(CON_FONDO));
+    conCapa[0].c.ca_txt = {
+      e: { f: 'TextLayer' },
+      g: { h: { i: 100, j: 40 }, k: { l: 0, m: 0 }, u: 1, v: '<p style="font-size:20px">x</p>' },
+      s: [],
+      t: 'ROOT',
+    };
+    conCapa[0].c.d.s = ['ca_txt'];
+    const { elements } = legacyToScene(conCapa);
+    // El fondo se pinta ANTES que el texto: si no, taparía la capa.
+    expect(elements.map((e: any) => e.type)).toEqual(['frame', 'rectangle', 'image', 'text']);
+    expect((elements[2] as any).locked).toBe(true);
+  });
+
+  it('descarta un fondo blob: y lo reporta en vez de dejar la página muda', () => {
+    const roto = JSON.parse(JSON.stringify(CON_FONDO));
+    roto[0].c.d.g.p.y = 'blob:http://localhost/x';
+    const { elements, report } = legacyToScene(roto);
+    expect(elements.map((e: any) => e.type)).toEqual(['frame', 'rectangle']);
+    expect(report.notes.some((n) => n.detail.includes('fondo de página'))).toBe(true);
+  });
+
+  it('una página sin fondo ni capas sigue produciendo solo frame + papel', () => {
+    const vacia = JSON.parse(JSON.stringify(CON_FONDO));
+    vacia[0].c.d.g.p = null;
+    expect(legacyToScene(vacia).elements.map((e: any) => e.type)).toEqual(['frame', 'rectangle']);
+  });
+});
+
 describe('legacyToScene() — multipágina', () => {
   it('coloca las páginas de izquierda a derecha con el mismo carril que el editor', () => {
     const dos = [T1_UNA_PAGINA[0], JSON.parse(JSON.stringify(T1_UNA_PAGINA[0]))];
@@ -199,13 +266,55 @@ describe('legacyToScene() — robustez', () => {
     expect(legacyToScene(undefined).report.pages).toBe(0);
   });
 
-  it('marca T3 y reporta las capas que no sabe convertir', () => {
+  it('una VideoLayer sin póster recuperable se descarta y marca T3', () => {
     const conVideo = JSON.parse(JSON.stringify(T1_UNA_PAGINA));
     conVideo[0].c.ca_video = { e: { f: 'VideoLayer' }, g: {}, s: [], t: 'ROOT' };
     conVideo[0].c.d.s.push('ca_video');
     const { report } = legacyToScene(conVideo);
     expect(report.tier).toBe('T3');
-    expect(report.notes.some((n) => n.detail.includes('VideoLayer'))).toBe(true);
+    expect(report.notes.some((n) => n.detail.includes('sin póster'))).toBe(true);
+  });
+
+  it('una VideoLayer CON póster se convierte a imagen, no se tira', () => {
+    // Fixture COPIADA de un diseño real de Aldea Los Odres, no inventada: el
+    // póster de un vídeo vive en `g.ar.as`, NO en `g.p` como el de una imagen.
+    // La primera versión de este test usaba una forma inventada con `g.p.aj`,
+    // pasaba en verde, y las cuatro páginas de vídeo de producción seguían
+    // saliendo en blanco.
+    const conVideo = JSON.parse(JSON.stringify(T1_UNA_PAGINA));
+    conVideo[0].c.ca_video = {
+      e: { f: 'VideoLayer' },
+      g: {
+        h: { i: 1086, j: 1931 },
+        k: { l: -5, m: -12 },
+        n: 0,
+        ar: {
+          y: 'https://light-media.polimake.com/p/videos/v1/preview.mp4',
+          as: 'https://light-media.polimake.com/p/videos/v1/thumbnail.webp',
+          at: 'https://light-media.polimake.com/p/videos/v1/thumbnail.webp',
+          h: { i: 1086, j: 1931 },
+          k: { l: 0, m: 0 },
+          n: 0,
+        },
+      },
+      r: false,
+      s: [],
+      t: 'ROOT',
+    };
+    conVideo[0].c.d.s.push('ca_video');
+    const { elements, files, report } = legacyToScene(conVideo);
+
+    const img = elements.filter((e) => e.type === 'image');
+    expect(img).toHaveLength(2); // la del diseño + el póster del vídeo
+    const video = img[img.length - 1];
+    expect(video).toMatchObject({ width: 1086, height: 1931 });
+    expect(
+      Object.values(files).some((f) => String(f.dataURL).endsWith('thumbnail.webp')),
+    ).toBe(true);
+
+    // Sigue siendo una pérdida: la pieza está, la reproducción no.
+    expect(report.notes.some((n) => n.kind === 'lossy' && n.detail.includes('póster'))).toBe(true);
+    expect(report.clean).toBe(false);
   });
 
   it('es determinista: dos conversiones de la misma entrada son idénticas', () => {

@@ -1,46 +1,17 @@
 'use client';
 
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import type { ExcalidrawImperativeAPI } from './excal';
-import {
-  type PageInfo,
-  type PageSize,
-  PAGE_SIZE_PRESETS,
-  listPages,
-  addPage,
-  deletePage,
-  duplicatePage,
-  renamePage,
-  resizePage,
-  movePage,
-  setPageLocked,
-  goToPage,
-} from './pages';
-import { exportScenePng, exportSceneSvg, exportScenePdf, downloadBlob } from './export';
-import { TEXT_PRESETS, insertTextPreset } from './text';
-import { usePageThumbnails } from './pageThumbnails';
-import { getPageBackground, setPageBackgroundColor } from './background';
+import { type PageInfo, listPages, renamePage, movePageTo, goToPage } from './pages';
+import { usePageThumbnails, type FilesMap } from './pageThumbnails';
 import { PANEL_FONT, palette } from './theme';
-import {
-  CaretDownIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  DuplicateIcon,
-  ExportIcon,
-  FillIcon,
-  LockIcon,
-  PencilIcon,
-  PlusIcon,
-  TextIcon,
-  TrashIcon,
-  UnlockIcon,
-} from './icons';
+import { LockIcon } from './icons';
+import { DragPreview, hideNativeDragImage, type DragGrab } from './DragPreview';
 
 export interface PageNavigatorProps {
   api: ExcalidrawImperativeAPI;
-  pageSize?: PageSize;
   theme?: 'light' | 'dark';
-  /** Read-only mode: chips + export stay, every mutating control is hidden. */
+  /** Read-only mode: la tira sigue navegando; se ocultan renombrar y reordenar. */
   viewMode?: boolean;
   /** Controlled active page id. When provided, the strip reflects it instead of
    *  its own local state (so it can stay in sync with the LayersPanel). */
@@ -54,7 +25,7 @@ export interface PageNavigatorProps {
    */
   thumbnails?: boolean;
   /** Mapa de ficheros hidratado para poder rasterizar imágenes remotas. */
-  thumbnailFiles?: Parameters<typeof usePageThumbnails>[1] extends { files?: infer F } ? F : never;
+  thumbnailFiles?: FilesMap;
 }
 
 function pagesSignature(pages: PageInfo[]): string {
@@ -63,78 +34,18 @@ function pagesSignature(pages: PageInfo[]): string {
     .join('|');
 }
 
-function safeFilename(name: string): string {
-  return (name || 'diseño').replace(/[\\/:*?"<>|]+/g, '_').slice(0, 80);
-}
-
-const SIZE_MIN = 100;
-const SIZE_MAX = 8000;
-
-/** Upward popup anchored to the strip; closes via the transparent backdrop. */
-function PopupMenu({
-  onClose,
-  children,
-  bg,
-  border,
-}: {
-  onClose: () => void;
-  children: ReactNode;
-  bg: string;
-  border: string;
-}) {
-  return (
-    <>
-      <div
-        onClick={onClose}
-        style={{ position: 'fixed', inset: 0, zIndex: 110 }}
-      />
-      <div
-        style={{
-          position: 'absolute',
-          bottom: 'calc(100% + 8px)',
-          right: 0,
-          zIndex: 120,
-          minWidth: 220,
-          maxHeight: 340,
-          overflowY: 'auto',
-          padding: 6,
-          borderRadius: 10,
-          background: bg,
-          border: `1px solid ${border}`,
-          boxShadow: '0 8px 24px rgba(0,0,0,0.22)',
-        }}
-      >
-        {children}
-      </div>
-    </>
-  );
-}
-
-function menuRowStyle(active: boolean, activeBg: string): CSSProperties {
-  return {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-    width: '100%',
-    padding: '6px 10px',
-    borderRadius: 6,
-    fontSize: 12,
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
-    background: active ? activeBg : 'transparent',
-    textAlign: 'left',
-  };
-}
+/** Ancho de la miniatura del chip; el alto sale de la proporción de la página. */
+const THUMB_W = 34;
 
 /**
- * Bottom-center page strip — the canvas2 analogue of polimake-canvas's
- * `PageControl`. Reads pages (frames) live from the scene and lets the user
- * switch / add / rename / duplicate / delete artboards.
+ * Tira de páginas, abajo y centrada — el análogo del `PageControl` de
+ * polimake-canvas. Lee las páginas (marcos) en vivo de la escena y sirve para
+ * NAVEGAR: cambiar de página, reordenarlas arrastrando y renombrar con doble
+ * clic. Todo lo demás vive donde se opera: las acciones de la página en
+ * `PageActions`, sobre el lienzo; fondo, tamaño y exportación en `CanvasMenu`.
  */
 export function PageNavigator({
   api,
-  pageSize,
   theme = 'light',
   viewMode = false,
   activeId: controlledActiveId,
@@ -149,24 +60,16 @@ export function PageNavigator({
   );
   // Prefer the controlled value when the host drives active-page state.
   const activeId = controlledActiveId !== undefined ? controlledActiveId : localActiveId;
-  const activePage = pages.find((p) => p.id === activeId) ?? null;
-  const [openMenu, setOpenMenu] = useState<'size' | 'export' | 'text' | 'bg' | null>(null);
-  const [scaleContent, setScaleContent] = useState(true);
-  const [exporting, setExporting] = useState(false);
-  const [exportError, setExportError] = useState(false);
   // Inline rename (replaces window.prompt): the chip being renamed + its draft.
   const [renaming, setRenaming] = useState<{ id: string; value: string } | null>(null);
-  // Two-step delete (replaces window.confirm): the armed page id.
-  const [armedDelete, setArmedDelete] = useState<string | null>(null);
-  // Custom-size form state (replaces the window.prompt regex).
-  const [customW, setCustomW] = useState('');
-  const [customH, setCustomH] = useState('');
+  // Reordenar arrastrando: página que se arrastra + página sobre la que se suelta.
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+  /** Punto de agarre y tamaño de la pieza, para la tarjeta que sigue al cursor. */
+  const [grab, setGrab] = useState<DragGrab | null>(null);
   const chipRefs = useRef(new Map<string, HTMLDivElement>());
   const pageThumbs = usePageThumbnails(api, { enabled: thumbnails, files: thumbnailFiles });
   const lastElementsRef = useRef<unknown>(null);
-
-  // Curated swatches for the page-background menu; the color input covers the rest.
-  const BG_SWATCHES = ['#ffffff', '#f8f9fa', '#fff9db', '#ffe3e3', '#d3f9d8', '#d0ebff', '#1e1e1e'];
 
   // Keep the strip in sync with the scene. onChange fires on every commit
   // (including viewport ticks), so gate first on the elements-array REFERENCE
@@ -193,146 +96,18 @@ export function PageNavigator({
     chipRefs.current.get(activeId)?.scrollIntoView({ inline: 'nearest', block: 'nearest' });
   }, [activeId]);
 
-  // Auto-disarm the two-step delete.
-  useEffect(() => {
-    if (!armedDelete) return;
-    const t = setTimeout(() => setArmedDelete(null), 2500);
-    return () => clearTimeout(t);
-  }, [armedDelete]);
-
   const select = (id: string) => {
     setLocalActiveId(id);
     onActiveChange?.(id);
     goToPage(api, id);
   };
 
-  const onAdd = () => {
-    // New pages inherit the active page's size (falling back to the host prop)
-    // and are inserted right AFTER the active page.
-    const size: PageSize | undefined = activePage
-      ? { width: activePage.width, height: activePage.height }
-      : pageSize;
-    const id = addPage(api, size, { afterPageId: activeId ?? undefined });
-    select(id);
-  };
-
-  const onResize = (size: PageSize) => {
-    if (!activeId) return;
-    resizePage(api, activeId, size, { scaleContent });
-    setOpenMenu(null);
-    goToPage(api, activeId);
-  };
-
-  const applyCustomSize = () => {
-    const width = Number.parseInt(customW, 10);
-    const height = Number.parseInt(customH, 10);
-    if (!Number.isInteger(width) || !Number.isInteger(height)) return;
-    if (width < SIZE_MIN || width > SIZE_MAX || height < SIZE_MIN || height > SIZE_MAX) return;
-    onResize({ width, height });
-  };
-  const customValid = (() => {
-    const w = Number.parseInt(customW, 10);
-    const h = Number.parseInt(customH, 10);
-    return (
-      Number.isInteger(w) && Number.isInteger(h) &&
-      w >= SIZE_MIN && w <= SIZE_MAX && h >= SIZE_MIN && h <= SIZE_MAX
-    );
-  })();
-
-  const runExport = async (kind: 'png' | 'png-all' | 'svg' | 'pdf') => {
-    if (exporting) return;
-    setOpenMenu(null);
-    setExporting(true);
-    setExportError(false);
-    try {
-      const base = safeFilename(activePage?.name ?? 'diseño');
-      if (kind === 'png') {
-        downloadBlob(await exportScenePng(api, { pageId: activeId ?? undefined }), `${base}.png`);
-      } else if (kind === 'png-all') {
-        for (const page of pages) {
-          downloadBlob(
-            await exportScenePng(api, { pageId: page.id }),
-            `${safeFilename(page.name)}.png`,
-          );
-        }
-      } else if (kind === 'svg') {
-        const svg = await exportSceneSvg(api, { pageId: activeId ?? undefined });
-        const blob = new Blob([new XMLSerializer().serializeToString(svg)], {
-          type: 'image/svg+xml',
-        });
-        downloadBlob(blob, `${base}.svg`);
-      } else {
-        downloadBlob(await exportScenePdf(api), `${safeFilename(pages[0]?.name ?? 'diseño')}.pdf`);
-      }
-    } catch (err) {
-      console.error('[canvas2] export failed', err);
-      setExportError(true);
-      setTimeout(() => setExportError(false), 4000);
-    } finally {
-      setExporting(false);
-    }
-  };
-
-  const onDuplicate = (id: string) => {
-    const newId = duplicatePage(api, id);
-    if (newId) select(newId);
-  };
-
+  // El renombrado se dispara con doble clic en el chip; el marco del lienzo
+  // también se puede renombrar de forma nativa, y ambos escriben el mismo campo.
   const startRename = (page: PageInfo) => setRenaming({ id: page.id, value: page.name });
   const commitRename = () => {
     if (renaming && renaming.value.trim()) renamePage(api, renaming.id, renaming.value.trim());
     setRenaming(null);
-  };
-
-  const onDelete = (page: PageInfo) => {
-    if (pages.length <= 1) return;
-    if (armedDelete !== page.id) {
-      setArmedDelete(page.id);
-      return;
-    }
-    setArmedDelete(null);
-    deletePage(api, page.id);
-    const fallback = pages.find((p) => p.id !== page.id);
-    if (fallback) select(fallback.id);
-  };
-
-  const iconBtn = (label: string, onClick: () => void, icon: ReactNode, danger = false) => (
-    <button
-      type="button"
-      aria-label={label}
-      title={label}
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick();
-      }}
-      style={{
-        all: 'unset',
-        cursor: 'pointer',
-        display: 'inline-flex',
-        alignItems: 'center',
-        lineHeight: 1,
-        padding: '2px 3px',
-        borderRadius: 4,
-        color: danger ? '#e03131' : 'inherit',
-        opacity: 0.85,
-      }}
-    >
-      {icon}
-    </button>
-  );
-
-  const pillStyle: CSSProperties = {
-    all: 'unset',
-    cursor: 'pointer',
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 5,
-    padding: '4px 10px',
-    borderRadius: 8,
-    fontSize: 12,
-    fontWeight: 600,
-    color: c.sub,
-    whiteSpace: 'nowrap',
   };
 
   const inputStyle: CSSProperties = {
@@ -348,6 +123,9 @@ export function PageNavigator({
 
   return (
     <div
+      // Marca para que canvas2.css pueda recentrarla cuando la barra lateral se
+      // ancla y el lienzo visible deja de ser el contenedor entero.
+      data-canvas2-pages=""
       style={{
         position: 'absolute',
         bottom: 16,
@@ -379,6 +157,12 @@ export function PageNavigator({
       {pages.map((page) => {
         const isActive = page.id === activeId;
         const isRenaming = renaming?.id === page.id;
+        const thumb = pageThumbs[page.id];
+        // La miniatura respeta la proporción real de la página, así que una
+        // story alargada y un cuadrado se distinguen de un vistazo aunque
+        // todavía no se haya rasterizado ninguna de las dos.
+        const thumbH = Math.round(THUMB_W * (page.height / Math.max(1, page.width)));
+        const isDropTarget = dragOverId === page.id && draggingId !== page.id;
         return (
           <div
             key={page.id}
@@ -388,7 +172,52 @@ export function PageNavigator({
             }}
             role="button"
             tabIndex={0}
+            title={page.name}
+            draggable={!viewMode && !isRenaming}
+            onDragStart={(e) => {
+              setDraggingId(page.id);
+              e.dataTransfer.effectAllowed = 'move';
+              // Firefox no inicia el arrastre sin datos en el portapapeles.
+              e.dataTransfer.setData('text/plain', page.id);
+              // Mismo gesto que arrastrar contenido en el calendario: se esconde
+              // el fantasma del navegador y se levanta una tarjeta propia.
+              const box = e.currentTarget.getBoundingClientRect();
+              setGrab({
+                x: e.clientX - box.left,
+                y: e.clientY - box.top,
+                width: box.width,
+                height: box.height,
+              });
+              hideNativeDragImage(e);
+            }}
+            onDragOver={(e) => {
+              if (!draggingId || draggingId === page.id) return;
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'move';
+              setDragOverId(page.id);
+            }}
+            onDragLeave={() => setDragOverId((prev) => (prev === page.id ? null : prev))}
+            onDrop={(e) => {
+              e.preventDefault();
+              if (draggingId && draggingId !== page.id) {
+                movePageTo(api, draggingId, page.index);
+                select(draggingId);
+              }
+              setDraggingId(null);
+              setDragOverId(null);
+              setGrab(null);
+            }}
+            onDragEnd={() => {
+              setDraggingId(null);
+              setDragOverId(null);
+              setGrab(null);
+            }}
             onClick={() => select(page.id)}
+            onDoubleClick={(e) => {
+              if (viewMode) return;
+              e.stopPropagation();
+              startRename(page);
+            }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
@@ -397,35 +226,68 @@ export function PageNavigator({
             }}
             style={{
               display: 'flex',
+              flexDirection: 'column',
               alignItems: 'center',
               gap: 2,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              padding: '4px 8px',
+              cursor: draggingId === page.id ? 'grabbing' : 'pointer',
+              padding: 4,
               borderRadius: 8,
-              fontSize: 12,
-              fontWeight: 500,
-              background: isActive ? c.active : 'transparent',
-              color: isActive ? c.activeFg : c.fg,
+              fontSize: 11,
+              fontWeight: 600,
+              flexShrink: 0,
+              color: c.fg,
+              // La página activa se distingue SOLO por opacidad: la miniatura ya
+              // es el contenido, y un fondo de color encima competía con ella.
+              opacity:
+                draggingId === page.id ? 0.3 : isActive ? 1 : 0.45,
+              // El destino de un arrastre se marca con un filo, no moviendo las
+              // páginas: que la tira baile mientras arrastras hace imposible
+              // apuntar. Se queda en gris, como el resto de la tira.
+              boxShadow: isDropTarget ? `inset 3px 0 0 ${c.fg}` : 'none',
+              transition: 'opacity 120ms ease',
             }}
           >
-            {thumbnails && pageThumbs[page.id] ? (
-              // Es un <img> a secas y no next/image a propósito: el paquete no
-              // depende de Next, y la fuente es un blob URL local.
-              <img
-                src={pageThumbs[page.id]}
-                alt=""
-                style={{
-                  width: 18,
-                  height: 24,
-                  objectFit: 'cover',
-                  borderRadius: 3,
-                  border: `1px solid ${c.border}`,
-                  marginRight: 4,
-                  flexShrink: 0,
-                }}
-              />
-            ) : null}
+            <div
+              style={{
+                position: 'relative',
+                width: THUMB_W,
+                height: thumbH,
+                borderRadius: 3,
+                border: `1px solid ${c.border}`,
+                background: c.hover,
+                overflow: 'hidden',
+                flexShrink: 0,
+              }}
+            >
+              {thumb ? (
+                // Es un <img> a secas y no next/image a propósito: el paquete no
+                // depende de Next, y la fuente es un blob URL local.
+                <img
+                  src={thumb}
+                  alt=""
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                />
+              ) : null}
+              {page.locked && (
+                // El candado va sobre la miniatura: es ESTADO de la página y hay
+                // que verlo sin tener que activarla primero.
+                <span
+                  style={{
+                    position: 'absolute',
+                    right: 1,
+                    bottom: 1,
+                    display: 'inline-flex',
+                    color: c.fg,
+                    background: c.bg,
+                    borderRadius: 3,
+                    padding: 1,
+                    lineHeight: 0,
+                  }}
+                >
+                  <LockIcon />
+                </span>
+              )}
+            </div>
             {isRenaming ? (
               <input
                 autoFocus
@@ -438,357 +300,71 @@ export function PageNavigator({
                   if (e.key === 'Escape') setRenaming(null);
                 }}
                 onBlur={commitRename}
-                style={{ ...inputStyle, width: 100, color: isActive ? c.activeFg : c.fg }}
+                style={{ ...inputStyle, width: THUMB_W + 24 }}
               />
             ) : (
-              <span
-                onDoubleClick={(e) => {
-                  if (viewMode) return;
-                  e.stopPropagation();
-                  startRename(page);
-                }}
-                style={{ maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }}
-              >
-                {page.name}
-              </span>
-            )}
-            {isActive && !viewMode && !isRenaming && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 1, marginLeft: 2 }}>
-                {page.index > 0 &&
-                  iconBtn('Mover a la izquierda', () => movePage(api, page.id, -1), <ChevronLeftIcon />)}
-                {page.index < pages.length - 1 &&
-                  iconBtn('Mover a la derecha', () => movePage(api, page.id, 1), <ChevronRightIcon />)}
-                {iconBtn('Duplicar página', () => onDuplicate(page.id), <DuplicateIcon />)}
-                {iconBtn('Renombrar página', () => startRename(page), <PencilIcon />)}
-                {iconBtn(
-                  page.locked ? 'Desbloquear página' : 'Bloquear página',
-                  () => setPageLocked(api, page.id, !page.locked),
-                  page.locked ? <LockIcon /> : <UnlockIcon />,
-                )}
-                {pages.length > 1 && !page.locked && (
-                  armedDelete === page.id ? (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDelete(page);
-                      }}
-                      style={{
-                        all: 'unset',
-                        cursor: 'pointer',
-                        padding: '2px 6px',
-                        borderRadius: 4,
-                        fontSize: 11,
-                        fontWeight: 700,
-                        color: '#fff',
-                        background: '#e03131',
-                      }}
-                    >
-                      ¿Eliminar?
-                    </button>
-                  ) : (
-                    iconBtn('Eliminar página', () => onDelete(page), <TrashIcon />, true)
-                  )
-                )}
-              </span>
+              <span>{page.index + 1}</span>
             )}
           </div>
         );
       })}
-
-      {!viewMode && (
-        <button
-          type="button"
-          onClick={onAdd}
-          title="Agregar página después de la actual"
-          style={{ ...pillStyle, border: `1px dashed ${c.border}` }}
-        >
-          <PlusIcon />
-          Página
-        </button>
-      )}
       </div>
 
-      <span style={{ fontSize: 11, color: c.sub, whiteSpace: 'nowrap', padding: '0 2px' }}>
-        {activePage ? activePage.index + 1 : 1}/{pages.length}
-      </span>
+      {/* Aquí abajo SOLO van páginas. Las acciones de la página están en
+          `PageActions`, sobre el lienzo junto a su nombre; fondo, tamaño,
+          insertar texto y exportar, en el menú principal (`CanvasMenu`). */}
 
-      <div style={{ width: 1, alignSelf: 'stretch', background: c.border, margin: '0 2px' }} />
-
-      {/* Insert / size / export controls for the ACTIVE page. Rendered outside
-          the scrollable strip so their upward popups are never clipped. */}
-      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 4 }}>
-        {!viewMode && (
-          <>
-        <button
-          type="button"
-          title="Insertar texto"
-          onClick={() => setOpenMenu(openMenu === 'text' ? null : 'text')}
-          style={pillStyle}
-        >
-          <TextIcon />
-          Texto
-          <CaretDownIcon />
-        </button>
-        <button
-          type="button"
-          title="Fondo de la página"
-          onClick={() => setOpenMenu(openMenu === 'bg' ? null : 'bg')}
-          style={pillStyle}
-        >
-          <FillIcon />
-          Fondo
-          <CaretDownIcon />
-        </button>
-        <button
-          type="button"
-          title="Tamaño de la página"
-          onClick={() => {
-            setCustomW(String(activePage?.width ?? ''));
-            setCustomH(String(activePage?.height ?? ''));
-            setOpenMenu(openMenu === 'size' ? null : 'size');
-          }}
-          style={pillStyle}
-        >
-          {activePage ? `${activePage.width}×${activePage.height}` : 'Tamaño'}
-          <CaretDownIcon />
-        </button>
-          </>
-        )}
-        <button
-          type="button"
-          title="Exportar"
-          onClick={() => setOpenMenu(openMenu === 'export' ? null : 'export')}
-          disabled={exporting}
-          style={{
-            ...pillStyle,
-            cursor: exporting ? 'wait' : 'pointer',
-            opacity: exporting ? 0.5 : 1,
-            ...(exportError ? { color: '#e03131' } : {}),
-          }}
-        >
-          <ExportIcon />
-          {exporting ? 'Exportando…' : exportError ? 'Error al exportar' : 'Exportar'}
-          <CaretDownIcon />
-        </button>
-
-        {openMenu === 'text' && (
-          <PopupMenu onClose={() => setOpenMenu(null)} bg={c.bg} border={c.border}>
-            {TEXT_PRESETS.map((preset) => (
-              <button
-                key={preset.key}
-                type="button"
-                onClick={() => {
-                  insertTextPreset(api, preset.key, { pageId: activeId ?? undefined });
-                  setOpenMenu(null);
-                }}
-                style={{ all: 'unset', ...menuRowStyle(false, c.active) }}
-              >
-                <span
-                  style={{
-                    color: c.fg,
-                    fontSize: preset.key === 'heading' ? 15 : preset.key === 'subheading' ? 13 : 12,
-                    fontWeight: preset.key === 'body' ? 400 : 700,
-                  }}
-                >
-                  {preset.label}
-                </span>
-                <span style={{ color: c.sub }}>{preset.fontSize}px</span>
-              </button>
-            ))}
-          </PopupMenu>
-        )}
-
-        {openMenu === 'bg' && (
-          <PopupMenu onClose={() => setOpenMenu(null)} bg={c.bg} border={c.border}>
-            <div style={{ display: 'flex', gap: 6, padding: '6px 10px', flexWrap: 'wrap' }}>
-              {BG_SWATCHES.map((color) => (
-                <button
-                  key={color}
-                  type="button"
-                  title={color}
-                  onClick={() => {
-                    if (activeId) setPageBackgroundColor(api, activeId, color);
-                    setOpenMenu(null);
-                  }}
-                  style={{
-                    all: 'unset',
-                    cursor: 'pointer',
-                    width: 22,
-                    height: 22,
-                    borderRadius: 6,
-                    background: color,
-                    border: `1px solid ${c.border}`,
-                  }}
-                />
-              ))}
-            </div>
-            <label
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '6px 10px',
-                fontSize: 12,
-                color: c.fg,
-                cursor: 'pointer',
-              }}
-            >
-              Otro color…
-              <input
-                type="color"
-                value={(activeId && getPageBackground(api, activeId)) || '#ffffff'}
-                onChange={(e) => {
-                  // Live preview while dragging the picker: folded into the
-                  // final undoable commit (capture 'transient').
-                  if (activeId) {
-                    setPageBackgroundColor(api, activeId, e.target.value, { capture: 'transient' });
-                  }
-                }}
-                onBlur={(e) => {
-                  if (activeId) setPageBackgroundColor(api, activeId, e.target.value);
-                }}
-                style={{ marginLeft: 'auto', width: 28, height: 22, border: 'none', background: 'none', cursor: 'pointer' }}
-              />
-            </label>
-            <button
-              type="button"
-              onClick={() => {
-                if (activeId) setPageBackgroundColor(api, activeId, null);
-                setOpenMenu(null);
-              }}
-              style={{ all: 'unset', ...menuRowStyle(false, c.active) }}
-            >
-              <span style={{ color: c.sub }}>Quitar fondo</span>
-            </button>
-          </PopupMenu>
-        )}
-
-        {openMenu === 'size' && (
-          <PopupMenu onClose={() => setOpenMenu(null)} bg={c.bg} border={c.border}>
-            {PAGE_SIZE_PRESETS.map((preset) => {
-              const isCurrent =
-                activePage?.width === preset.width && activePage?.height === preset.height;
-              return (
-                <button
-                  key={preset.key}
-                  type="button"
-                  onClick={() => onResize(preset)}
-                  style={{ all: 'unset', ...menuRowStyle(isCurrent, c.active) }}
-                >
-                  <span style={{ color: isCurrent ? c.activeFg : c.fg }}>{preset.label}</span>
-                  <span style={{ color: c.sub }}>{preset.width}×{preset.height}</span>
-                </button>
-              );
-            })}
+      {/* La pieza levantada. Va fuera de la tira (es un portal a <body>) para
+          que no la recorte el `overflow-x` del carril de páginas. */}
+      <DragPreview active={Boolean(draggingId)} grab={grab} radius={8}>
+        {(() => {
+          const page = pages.find((p) => p.id === draggingId);
+          if (!page) return null;
+          const thumb = pageThumbs[page.id];
+          return (
             <div
               style={{
+                width: '100%',
+                height: '100%',
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
-                gap: 6,
-                padding: '8px 10px 4px',
-                borderTop: `1px solid ${c.border}`,
-                marginTop: 4,
+                justifyContent: 'center',
+                gap: 2,
+                padding: 4,
+                background: c.bg,
+                color: c.fg,
+                border: `1px solid ${c.border}`,
+                borderRadius: 8,
+                fontSize: 11,
+                fontWeight: 600,
+                fontFamily: PANEL_FONT,
+                boxSizing: 'border-box',
               }}
             >
-              <input
-                value={customW}
-                onChange={(e) => setCustomW(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && applyCustomSize()}
-                inputMode="numeric"
-                aria-label="Ancho"
-                placeholder="Ancho"
-                style={inputStyle}
-              />
-              <span style={{ color: c.sub, fontSize: 12 }}>×</span>
-              <input
-                value={customH}
-                onChange={(e) => setCustomH(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && applyCustomSize()}
-                inputMode="numeric"
-                aria-label="Alto"
-                placeholder="Alto"
-                style={inputStyle}
-              />
-              <button
-                type="button"
-                onClick={applyCustomSize}
-                disabled={!customValid}
+              <div
                 style={{
-                  all: 'unset',
-                  cursor: customValid ? 'pointer' : 'default',
-                  padding: '4px 10px',
-                  borderRadius: 6,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: customValid ? c.activeFg : c.sub,
-                  background: customValid ? c.active : 'transparent',
+                  width: THUMB_W,
+                  height: Math.round(THUMB_W * (page.height / Math.max(1, page.width))),
+                  borderRadius: 3,
                   border: `1px solid ${c.border}`,
-                  opacity: customValid ? 1 : 0.6,
+                  background: c.hover,
+                  overflow: 'hidden',
                 }}
               >
-                Aplicar
-              </button>
+                {thumb ? (
+                  <img
+                    src={thumb}
+                    alt=""
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                  />
+                ) : null}
+              </div>
+              <span>{page.index + 1}</span>
             </div>
-            <div style={{ padding: '2px 10px 4px', fontSize: 11, color: c.sub }}>
-              {SIZE_MIN}–{SIZE_MAX}px
-            </div>
-            <label
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '8px 10px 4px',
-                fontSize: 12,
-                color: c.sub,
-                cursor: 'pointer',
-                borderTop: `1px solid ${c.border}`,
-                marginTop: 4,
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={scaleContent}
-                onChange={(e) => setScaleContent(e.target.checked)}
-              />
-              Escalar el contenido
-            </label>
-          </PopupMenu>
-        )}
-
-        {openMenu === 'export' && (
-          <PopupMenu onClose={() => setOpenMenu(null)} bg={c.bg} border={c.border}>
-            <button
-              type="button"
-              onClick={() => void runExport('png')}
-              style={{ all: 'unset', ...menuRowStyle(false, c.active) }}
-            >
-              <span style={{ color: c.fg }}>PNG · página actual</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => void runExport('png-all')}
-              style={{ all: 'unset', ...menuRowStyle(false, c.active) }}
-            >
-              <span style={{ color: c.fg }}>PNG · todas las páginas</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => void runExport('svg')}
-              style={{ all: 'unset', ...menuRowStyle(false, c.active) }}
-            >
-              <span style={{ color: c.fg }}>SVG · página actual</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => void runExport('pdf')}
-              style={{ all: 'unset', ...menuRowStyle(false, c.active) }}
-            >
-              <span style={{ color: c.fg }}>PDF · todas las páginas</span>
-            </button>
-          </PopupMenu>
-        )}
-      </div>
+          );
+        })()}
+      </DragPreview>
     </div>
   );
 }

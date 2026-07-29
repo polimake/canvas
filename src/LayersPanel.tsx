@@ -44,6 +44,8 @@ export interface LayersPanelProps {
   theme?: 'light' | 'dark';
   /** Read-only mode: rows become click-to-select only, no mutations. */
   viewMode?: boolean;
+  /** Dentro de una pestaña de la barra lateral: sin flotar, sin marco propio. */
+  embedded?: boolean;
 }
 
 const TYPE_ICON: Record<string, ComponentType> = {
@@ -118,7 +120,13 @@ function sceneSignature(api: ExcalidrawImperativeAPI, pageId: string | null): st
  * visibility / lock / delete, plus image "Fondo"/"Extender" actions. Excalidraw
  * has no per-element hidden flag, so visibility is emulated with `opacity: 0`.
  */
-export function LayersPanel({ api, activePageId, theme = 'light', viewMode = false }: LayersPanelProps) {
+export function LayersPanel({
+  api,
+  activePageId,
+  theme = 'light',
+  viewMode = false,
+  embedded = false,
+}: LayersPanelProps) {
   const c = palette[theme];
   const [, setTick] = useState(0);
   const sigRef = useRef('');
@@ -237,19 +245,26 @@ export function LayersPanel({ api, activePageId, theme = 'light', viewMode = fal
   return (
     <div
       style={{
-        position: 'absolute',
-        top: 56,
-        right: 12,
-        bottom: 76,
-        zIndex: 4,
-        width: 240,
+        // Empotrado dentro de una pestaña de la barra lateral, el panel no debe
+        // flotar ni traer marco propio: la barra ya pone el suyo, y un panel
+        // absoluto se saldría de la pestaña.
+        ...(embedded
+          ? { position: 'relative', width: '100%', height: '100%' }
+          : {
+              position: 'absolute' as const,
+              top: 56,
+              right: 12,
+              bottom: 76,
+              zIndex: 4,
+              width: 240,
+              borderRadius: 12,
+              border: `1px solid ${c.border}`,
+              boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+            }),
         display: 'flex',
         flexDirection: 'column',
-        borderRadius: 12,
-        background: c.bg,
+        background: embedded ? 'transparent' : c.bg,
         color: c.fg,
-        border: `1px solid ${c.border}`,
-        boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
         fontFamily: PANEL_FONT,
         overflow: 'hidden',
       }}

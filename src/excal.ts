@@ -19,6 +19,10 @@ import '@excalidraw/excalidraw/index.css';
 // ─── Values ───────────────────────────────────────────────────────────────────
 export {
   Excalidraw,
+  // Menú principal (la hamburguesa). Pasarlo como hijo de <Excalidraw> SUSTITUYE
+  // al de serie, así que quien lo componga debe reponer los items de fábrica que
+  // quiera conservar (MainMenu.DefaultItems).
+  MainMenu,
   CaptureUpdateAction,
   convertToExcalidrawElements,
   exportToBlob,
@@ -31,6 +35,13 @@ export {
   // Live-scene helpers used by emission hygiene and viewport-following.
   getNonDeletedElements,
   getVisibleSceneBounds,
+  // Pantalla → escena. Lo necesita el soltar desde la biblioteca para insertar
+  // donde ha caído el puntero y no en el centro de la página.
+  viewportCoordsToSceneCoords,
+  // Nombre de familia → id numérico. `src/brand.ts` decide qué familia se
+  // secuestra para la marca pero no puede resolver su id sin importar
+  // Excalidraw, así que la traducción ocurre aquí y en un solo sitio.
+  FONT_FAMILY,
 } from '@excalidraw/excalidraw';
 
 // ─── Types (public entry) ─────────────────────────────────────────────────────

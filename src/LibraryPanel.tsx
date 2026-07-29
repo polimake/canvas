@@ -1,0 +1,153 @@
+'use client';
+
+import { useState, type ReactNode } from 'react';
+import { PANEL_FONT, palette } from './theme';
+import { ImageIcon } from './icons';
+import { mergeLabels, type PartialLabels } from './labels';
+
+/**
+ * Marco del panel de biblioteca, arriba a la derecha del lienzo.
+ *
+ * Es DELIBERADAMENTE un marco vacío: canvas2 pone la posición, la cabecera y el
+ * plegado, y el host mete dentro su propia mediateca. El motivo es que la UI de
+ * media ya existe —`@polimake/ui` publica la parte presentacional y
+ * `features/media-library` la compone con la capa de datos de studio— y este
+ * paquete no puede importar de `apps/web` ni conocer proyectos, carpetas ni
+ * autenticación. Mismo seam que `MediaFetcher`, `MediaUploader` y
+ * `hydrateFiles`: canvas2 pide, el host resuelve.
+ *
+ * Sustituye a la Biblioteca de fábrica de Excalidraw (sus ficheros
+ * `.excalidrawlib` no tienen nada que ver con la mediateca del proyecto), cuyo
+ * disparador se oculta desde canvas2.css.
+ */
+
+export interface LibraryPanelProps {
+  /** Contenido: la mediateca del host. Sin él, el panel no se dibuja. */
+  children?: ReactNode;
+  title?: string;
+  theme?: 'light' | 'dark';
+  /** En modo lectura no se muestra: solo sirve para insertar. */
+  viewMode?: boolean;
+  /**
+   * Arranca plegada, como un botón. Por defecto SÍ: abierta ocupa casi toda la
+   * altura del lado derecho, y tapar el diseño nada más entrar es peor que un
+   * clic de más.
+   */
+  defaultCollapsed?: boolean;
+  /** Textos, inyectados por el host (ver labels.ts). */
+  labels?: PartialLabels;
+}
+
+export function LibraryPanel({
+  children,
+  title,
+  theme = 'light',
+  viewMode = false,
+  defaultCollapsed = true,
+  labels: labelsProp,
+}: LibraryPanelProps) {
+  const L = mergeLabels(labelsProp);
+  const c = palette[theme];
+  const [abierto, setAbierto] = useState(!defaultCollapsed);
+  const rotulo = title ?? L.library.title;
+
+  if (viewMode || !children) return null;
+
+  // Cerrada, la biblioteca es solo un botón cuadrado con el mismo tamaño y
+  // tratamiento que los de la cromo de Excalidraw (la hamburguesa, el zoom):
+  // ocupa lo mínimo y se reconoce como control del editor, no como panel.
+  if (!abierto) {
+    return (
+      <button
+        type="button"
+        data-testid="canvas2-library-trigger"
+        onClick={() => setAbierto(true)}
+        title={rotulo}
+        aria-label={rotulo}
+        style={{
+          all: 'unset',
+          position: 'absolute',
+          top: 56,
+          right: 12,
+          zIndex: 95,
+          boxSizing: 'border-box',
+          width: 36,
+          height: 36,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+          borderRadius: 10,
+          background: c.bg,
+          color: c.fg,
+          border: `1px solid ${c.border}`,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.14)',
+        }}
+      >
+        <ImageIcon />
+      </button>
+    );
+  }
+
+  return (
+    <div
+      data-testid="canvas2-library"
+      data-canvas2-library=""
+      style={{
+        position: 'absolute',
+        // Por debajo de la fila de herramientas de Excalidraw, que ocupa el
+        // borde superior de lado a lado.
+        top: 56,
+        right: 12,
+        zIndex: 95,
+        width: 320,
+        // Baja hasta justo encima del dock de Capas/Marca, que vive abajo a la
+        // derecha: la biblioteca es una rejilla y cuanto más alta, más se ve
+        // sin desplazar.
+        bottom: 96,
+        display: 'flex',
+        flexDirection: 'column',
+        borderRadius: 12,
+        background: c.bg,
+        color: c.fg,
+        border: `1px solid ${c.border}`,
+        boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+        font: `12px ${PANEL_FONT}`,
+        overflow: 'hidden',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          padding: '6px 10px',
+          color: c.sub,
+          fontWeight: 600,
+          borderBottom: `1px solid ${c.border}`,
+          flexShrink: 0,
+        }}
+      >
+        {rotulo}
+        <button
+          type="button"
+          onClick={() => setAbierto(false)}
+          title={L.library.close}
+          aria-label={L.library.close}
+          style={{
+            all: 'unset',
+            cursor: 'pointer',
+            marginLeft: 'auto',
+            padding: '0 4px',
+            lineHeight: 1,
+            color: c.sub,
+          }}
+        >
+          ✕
+        </button>
+      </div>
+
+      <div style={{ minHeight: 0, flex: 1, overflowY: 'auto' }}>{children}</div>
+    </div>
+  );
+}

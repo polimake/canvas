@@ -27,6 +27,79 @@
   display: none !important;
 }
 
+/* "Volver al contenido" (aparece al alejarse de los objetos) sale abajo y
+   centrado — exactamente donde vive nuestra tira de páginas, así que quedaba
+   tapado por ella. Se sube justo POR ENCIMA de las tarjetas de página y se le da
+   z-index: el suyo es `-1`, pensado para un lienzo sin nada más abajo.
+
+   `bottom` = 16 (hueco de la tira) + ~78 de la tira + aire. */
+[data-canvas2] .scroll-back-to-content {
+  bottom: 108px !important;
+  z-index: 101 !important;
+  /* Aparece de golpe al salirte de los objetos, que es brusco justo cuando
+     estás perdido. Entra con un fundido corto y un empujón hacia arriba. */
+  animation: canvas2-fade-up 180ms ease-out both;
+}
+
+@keyframes canvas2-fade-up {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 6px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+/* Con `prefers-reduced-motion` el desplazamiento sobra; el fundido se queda
+   porque es la señal de que ha aparecido algo, no un adorno. */
+@media (prefers-reduced-motion: reduce) {
+  [data-canvas2] .scroll-back-to-content {
+    animation: canvas2-fade 180ms ease-out both;
+  }
+  @keyframes canvas2-fade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}
+
+/* Oculta el disparador de la Biblioteca de Excalidraw (arriba a la derecha).
+   Su sitio lo ocupa nuestra Library, y sus fichas `.excalidrawlib` no tienen
+   nada que ver con la mediateca del proyecto.
+
+   Se oculta SOLO el botón, no la barra lateral: el buscador del menú principal
+   se abre en esa misma barra, y esconderla entera se lo llevaría por delante. */
+[data-canvas2] .default-sidebar-trigger {
+  display: none !important;
+}
+
+/* Con la barra lateral ANCLADA, Excalidraw encoge su propia UI a
+   `calc(100% - var(--right-sidebar-width))`, pero nuestro cromo (galería de
+   marca y tira de páginas) se posiciona contra el contenedor completo y quedaría
+   debajo de la barra. Se desplaza el mismo ancho.
+
+   La anchura se lee de la variable de Excalidraw, con 302px de reserva por si
+   no llega hasta aquí por herencia. */
+[data-canvas2]:has(.sidebar--docked) [data-testid='canvas2-brand-gallery'] {
+  right: calc(var(--right-sidebar-width, 302px) + 12px);
+}
+[data-canvas2]:has(.sidebar--docked) [data-canvas2-pages] {
+  left: calc(50% - var(--right-sidebar-width, 302px) / 2);
+}
+
+/* Hide the contextual hint strip under the toolbar ("Para mover el lienzo,
+   mantenga la rueda del ratón…"). Son atajos del lienzo infinito de Excalidraw,
+   no de un editor de páginas, y ocupan una franja fija sobre el diseño. No hay
+   prop que los apague: `HintViewer` se renderiza siempre. */
+[data-canvas2] .HintViewer {
+  display: none !important;
+}
+
 /* Remove the AI "Generate" section (incl. "Mermaid to Excalidraw") from the
    toolbar's extra-tools dropdown. `aiEnabled={false}` already drops the AI
    text-to-diagram trigger + magic-frame, but the "Generate" header and the

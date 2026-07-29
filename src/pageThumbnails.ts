@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ExcalidrawImperativeAPI } from './excal';
-import { exportScenePng } from './export';
+import { exportScenePng, type ExportOptions } from './export';
 import { listPages } from './pages';
 
 /**
@@ -23,7 +23,16 @@ const THUMB_WIDTH = 64;
 /** Espaciado entre recálculos: editar no debe disparar un render por tecla. */
 const DEBOUNCE_MS = 600;
 
-type FilesMap = Parameters<typeof exportScenePng>[1] extends { files?: infer F } ? F : never;
+/**
+ * Mapa de ficheros hidratado que acepta el exportador.
+ *
+ * Se saca de `ExportOptions` y NO de `Parameters<typeof exportScenePng>[1]`:
+ * ese parámetro es opcional, así que su tipo incluye `undefined`, y
+ * `{…} | undefined extends { files?: infer F }` no encaja y colapsa a `never` —
+ * con lo que la prop `thumbnailFiles` solo admitía `undefined` y era imposible
+ * pasarle el mapa de verdad.
+ */
+export type FilesMap = NonNullable<ExportOptions['files']>;
 
 function pageFingerprint(api: ExcalidrawImperativeAPI, pageId: string): string {
   return api
@@ -44,11 +53,32 @@ export function usePageThumbnails(
   const enabled = opts?.enabled ?? true;
   const files = opts?.files;
 
+  /**
+   * Identidad ESTABLE del mapa de ficheros, por sus claves.
+   *
+   * Entra en la huella de cada página, y ese detalle es el que arregla el fallo
+   * de "las miniaturas nunca aparecen": en el primer tick el mapa hidratado aún
+   * no ha llegado, rasterizar revienta por canvas contaminado y el `catch`
+   * marcaba la página como hecha para no reintentar en bucle. Cuando la
+   * hidratación llegaba, la huella seguía siendo la misma, así que se saltaba
+   * todas las páginas y no se rasterizaba ninguna nunca más.
+   *
+   * Se usan las CLAVES y no la identidad del objeto porque el host publica un
+   * mapa nuevo en cada captura (cada 10 s): con la identidad, todas las páginas
+   * se rerasterizarían en cada latido.
+   */
+  const filesToken = files ? Object.keys(files).sort().join(',') : '';
+  // El mapa se lee por referencia dentro del tick para que el efecto NO dependa
+  // de su identidad, solo de `filesToken`.
+  const filesRef = useRef(files);
+  filesRef.current = files;
+
   useEffect(() => {
     if (!api || !enabled) return;
     let cancelled = false;
 
     const tick = async () => {
+      const files = filesRef.current;
       const pages = listPages(api);
       const live = new Set(pages.map((p) => p.id));
 
@@ -62,7 +92,7 @@ export function usePageThumbnails(
       }
 
       for (const page of pages) {
-        const stamp = pageFingerprint(api, page.id);
+        const stamp = `${pageFingerprint(api, page.id)}|${filesToken}`;
         if (stampsRef.current[page.id] === stamp) continue;
         try {
           const blob = await exportScenePng(api, {
@@ -77,10 +107,17 @@ export function usePageThumbnails(
           urlsRef.current[page.id] = next;
           stampsRef.current[page.id] = stamp;
           if (prev) setTimeout(() => URL.revokeObjectURL(prev), 1_000);
-        } catch {
-          // Página que no se puede rasterizar (imagen remota sin hidratar):
-          // se queda sin miniatura y el chip cae a su texto. No se reintenta
-          // hasta que cambie, para no rasterizar en bucle.
+        } catch (err) {
+          // Una página que no rasteriza se queda sin miniatura y el chip cae a
+          // su marco vacío. No se reintenta con la MISMA huella para no
+          // rasterizar en bucle; al llegar el mapa hidratado la huella cambia y
+          // se vuelve a intentar sola.
+          console.warn(
+            `[canvas2] miniatura de página fallida (${page.name}) · ficheros hidratados: ${
+              files ? Object.keys(files).length : 0
+            }`,
+            err,
+          );
           stampsRef.current[page.id] = stamp;
         }
       }
@@ -93,7 +130,9 @@ export function usePageThumbnails(
       cancelled = true;
       clearInterval(id);
     };
-  }, [api, enabled, files]);
+    // `filesToken` y no `files`: el host publica un objeto nuevo en cada
+    // captura, y con su identidad este efecto se reiniciaría cada 10 segundos.
+  }, [api, enabled, filesToken]);
 
   useEffect(
     () => () => {

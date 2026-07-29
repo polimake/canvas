@@ -29,12 +29,28 @@ type LegacyProps = Record<string, unknown> & {
     aj?: string;
     h?: { i?: number; j?: number };
     k?: { l?: number; m?: number };
+    /** Rotación en grados. La imagen de fondo la lleva dentro, no en el root. */
+    n?: number;
   } | null;
   n?: number;
   o?: string;
   u?: number;
   v?: string;
   w?: Array<{ a?: string; x?: string }>;
+  /**
+   * Media de una `VideoLayer`. NO va en `p` como la de una imagen:
+   *   y  = mp4 reproducible
+   *   as / at = miniatura (el póster)
+   *   h  = tamaño escalado, k = desplazamiento del recorte, n = rotación
+   */
+  ar?: {
+    y?: string;
+    as?: string;
+    at?: string;
+    h?: { i?: number; j?: number };
+    k?: { l?: number; m?: number };
+    n?: number;
+  } | null;
 };
 
 interface LegacyLayer {
@@ -252,6 +268,58 @@ export function legacyToScene(editorConfig: unknown): LegacyScene {
       }),
     );
 
+    // IMAGEN DE FONDO DE LA PÁGINA (`root.g.p`).
+    //
+    // En polimake-canvas la foto a sangre NO es una capa: se guarda como imagen
+    // del propio RootLayer, con la misma forma que una ImageLayer (y=url,
+    // h=tamaño escalado, k=desplazamiento del recorte). En Paella Power, 59 de
+    // 64 páginas son así — mirar solo `root.s` dejaba la página en blanco y era
+    // la causa de "las fotos se ven blancas".
+    //
+    // Va justo después del papel y antes de los hijos, que es su orden de
+    // pintado: el fondo tapa al papel y las capas tapan al fondo.
+    const bg = root?.g?.p;
+    const bgUrl = bg?.y ?? bg?.aj;
+    if (typeof bgUrl === 'string' && bgUrl) {
+      counts.RootBackgroundImage = (counts.RootBackgroundImage ?? 0) + 1;
+      if (bgUrl.startsWith('blob:')) {
+        notes.push({
+          page: pageIndex,
+          layer: 'ROOT',
+          kind: 'dropped',
+          detail: 'fondo de página con URL blob: (bytes irrecuperables)',
+        });
+      } else {
+        const bgFileId = makeId(`bgfile-${pageIndex}`);
+        elements.push(
+          baseElement({
+            id: makeId(`bgimg-${pageIndex}`),
+            type: 'image',
+            x: offsetX + num(bg?.k?.l),
+            y: num(bg?.k?.m),
+            width: num(bg?.h?.i, width),
+            height: num(bg?.h?.j, height),
+            angle: (num(bg?.n) * Math.PI) / 180,
+            fileId: bgFileId,
+            status: 'saved',
+            scale: [1, 1],
+            crop: null,
+            frameId: pageId,
+            // El fondo no se selecciona al hacer clic en la foto: se comporta
+            // como fondo, igual que en el editor legacy.
+            locked: true,
+          }),
+        );
+        filesOut[bgFileId] = {
+          mimeType: bgUrl.endsWith('.webp') ? 'image/webp' : 'image/png',
+          id: bgFileId,
+          dataURL: bgUrl,
+          created: 0,
+          lastRetrieved: 0,
+        };
+      }
+    }
+
     // Los hijos del root, en su orden de pintado.
     const childIds: string[] = Array.isArray(root?.s) ? root!.s! : [];
     childIds.forEach((childId) => {
@@ -310,6 +378,70 @@ export function legacyToScene(editorConfig: unknown): LegacyScene {
           created: 0,
           lastRetrieved: 0,
         };
+        return;
+      }
+
+      // VIDEOLAYER → SU PÓSTER.
+      //
+      // Excalidraw no sabe representar vídeo. Descartarla dejaba un hueco en la
+      // página y el diseño parecía roto, cuando el fotograma de portada es una
+      // representación fiel de cómo se ve esa pieza en el feed. Se convierte a
+      // imagen y se anota como pérdida: la pieza está, la reproducción no.
+      if (kind === 'VideoLayer') {
+        // El póster vive en `g.ar.as` (miniatura del vídeo), no en `g.p` como
+        // el de una imagen. Se comprobó contra un diseño real: mirar en `p`
+        // dejaba las cuatro páginas de vídeo en blanco.
+        const media = g.ar;
+        const poster = media?.as ?? media?.at ?? g.p?.aj ?? g.p?.y;
+        if (typeof poster !== 'string' || !poster || poster.startsWith('blob:')) {
+          // Sin póster no queda nada de la pieza, así que sigue siendo T3: el
+          // diseño convertido NO representa al original y hay que mirarlo.
+          sawUnsupported = true;
+          notes.push({
+            page: pageIndex,
+            layer: childId,
+            kind: 'dropped',
+            detail: 'VideoLayer sin póster recuperable',
+          });
+          return;
+        }
+        // Mismo recorte que una ImageLayer: el vídeo también se guarda escalado
+        // dentro de una caja recortante (`ar.h` tamaño, `ar.k` desplazamiento).
+        const innerW = num(media?.h?.i, w);
+        const innerH = num(media?.h?.j, h);
+        const innerX = num(media?.k?.l);
+        const innerY = num(media?.k?.m);
+        const fileId = makeId(`vfile-${pageIndex}-${childId}`);
+        elements.push(
+          baseElement({
+            id: makeId(`vimg-${pageIndex}-${childId}`),
+            type: 'image',
+            x: x + innerX,
+            y: y + innerY,
+            width: innerW,
+            height: innerH,
+            angle,
+            fileId,
+            status: 'saved',
+            scale: [1, 1],
+            crop: null,
+            frameId: pageId,
+            locked: Boolean(layer?.r),
+          }),
+        );
+        filesOut[fileId] = {
+          mimeType: poster.endsWith('.webp') ? 'image/webp' : 'image/png',
+          id: fileId,
+          dataURL: poster,
+          created: 0,
+          lastRetrieved: 0,
+        };
+        notes.push({
+          page: pageIndex,
+          layer: childId,
+          kind: 'lossy',
+          detail: 'VideoLayer → póster: se conserva el fotograma, no la reproducción',
+        });
         return;
       }
 

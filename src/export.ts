@@ -5,6 +5,12 @@ import {
   type ExcalidrawImperativeAPI,
   type FrameElement,
 } from './excal';
+import {
+  appendFontFacesToSvg,
+  buildFontFaceCss,
+  inlineFontFaces,
+  type SvgFontFace,
+} from './svgFonts';
 
 /**
  * Image / document export — the canvas2 analogue of polimake-canvas's
@@ -91,16 +97,33 @@ export function exportScenePng(
 }
 
 /** Export the scene (or one page) to an SVG element. */
-export function exportSceneSvg(
+export async function exportSceneSvg(
   api: ExcalidrawImperativeAPI,
-  opts?: ExportOptions,
+  opts?: ExportOptions & {
+    /**
+     * Tipografías propias a embeber. Excalidraw mete en el SVG las fuentes que
+     * tiene REGISTRADAS, no las que sustituimos por `@font-face`, así que sin
+     * esto el SVG sale con la tipografía de serie. Ver svgFonts.ts.
+     */
+    fontFaces?: readonly SvgFontFace[];
+    /** Con esto las fuentes se incrustan como data URI y el SVG queda autocontenido. */
+    fontFetcher?: (url: string) => Promise<Blob>;
+  },
 ): Promise<SVGSVGElement> {
-  return exportToSvg({
+  const svg = await exportToSvg({
     elements: api.getSceneElements(),
     appState: exportAppState(api, opts),
     files: opts?.files ?? api.getFiles(),
     exportingFrame: findFrame(api, opts?.pageId),
   });
+
+  const faces = opts?.fontFaces ?? [];
+  if (!faces.length) return svg;
+
+  const resueltas = opts?.fontFetcher
+    ? (await inlineFontFaces(faces, opts.fontFetcher)).faces
+    : faces;
+  return appendFontFacesToSvg(svg, buildFontFaceCss(resueltas));
 }
 
 /**
@@ -145,11 +168,13 @@ export function downloadBlob(blob: Blob, filename: string): void {
  */
 export async function exportScenePdf(
   api: ExcalidrawImperativeAPI,
-  opts?: { background?: boolean; scale?: number },
+  opts?: { background?: boolean; scale?: number; files?: ExportOptions['files'] },
 ): Promise<Blob> {
   const { jsPDF } = await import('jspdf');
   const elements = api.getSceneElements();
-  const files = api.getFiles();
+  // Igual que los otros exportadores: el mapa hidratado del host manda sobre el
+  // de la escena, que con imágenes remotas contamina el canvas.
+  const files = opts?.files ?? api.getFiles();
   const appState = exportAppState(api, opts);
   const targets: (FrameElement | null)[] = frames(api).length ? frames(api) : [null];
 
