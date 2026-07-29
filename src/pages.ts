@@ -6,6 +6,7 @@ import {
 } from './excal';
 import { asSceneElements, commitElements, patchElement, type CaptureMode } from './mutate';
 import { buildPageBackground, isPageBackground } from './background';
+import { PAGE_GAP } from './layout';
 
 /**
  * "Pages" / artboards on top of Excalidraw's infinite canvas.
@@ -55,9 +56,7 @@ export const PAGE_SIZE_PRESETS: PageSizePreset[] = [
   { key: 'default', label: 'Lienzo clásico', width: 1640, height: 924 },
 ];
 
-/** Pages sit flush against each other (Canva-style contiguous sheets); the
- *  hairline border of each page's paper rect is the only separator. */
-const PAGE_GAP = 0;
+
 
 /** Default paper color for a new page. */
 const PAPER_COLOR = '#ffffff';

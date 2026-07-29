@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { excalMock, fakeApi, frame, member } from './helpers';
+import { PAGE_GAP } from '../src/layout';
 
 vi.mock('../src/excal', () => excalMock);
 
@@ -17,8 +18,10 @@ const {
   isPageLocked,
 } = await import('../src/pages.js');
 
-// Pages sit FLUSH against each other (Canva-style contiguous sheets).
-const GAP = 0;
+
+// Se importa de la fuente en vez de duplicarlo: un GAP a mano en el test se
+// desincroniza del real y los tests dejan de comprobar el layout de verdad.
+const GAP = PAGE_GAP;
 
 describe('pages on frames', () => {
   it('addPage appends flush to the right with the requested size and a paper sheet', () => {
@@ -172,7 +175,8 @@ describe('single-undo + ordering guarantees', () => {
     expect(pagesNow.map((p) => p.id)).toEqual(['a', id, 'b']);
     expect(pagesNow.map((p) => p.name)).toEqual(['Página 1', 'Página 2', 'Página 3']);
     const b = api.getSceneElements().find((e: any) => e.id === 'b');
-    expect(b.x).toBe(800); // shifted by the inserted page's width
+    // desplazada por el ancho de la página insertada + los dos carriles
+    expect(b.x).toBe(500 + GAP + 300 + GAP);
     const mb = api.getSceneElements().find((e: any) => e.id === 'mb');
     expect(mb.x - b.x).toBe(100); // member offset preserved
   });
@@ -197,7 +201,8 @@ describe('single-undo + ordering guarantees', () => {
     // The default-named page after the insertion point renumbers to its slot.
     expect(order[2].name).toBe('Página 3');
     const b = api.getSceneElements().find((e: any) => e.id === 'b');
-    expect(b.x).toBe(1000);
+    // a (500) + carril + copia (500) + carril
+    expect(b.x).toBe(500 + GAP + 500 + GAP);
     // Clones carry no inherited fractional index.
     const clone = api.getSceneElements().find((e: any) => e.id === copy);
     expect('index' in clone).toBe(false);

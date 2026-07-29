@@ -1,4 +1,5 @@
 import type { SceneElement } from './excal';
+import { PAGE_GAP } from './layout';
 
 /**
  * Conversión polimake-canvas (legacy) → escena de Excalidraw.
@@ -73,8 +74,9 @@ export interface LegacyScene {
   report: ConversionReport;
 }
 
-/** Las páginas se colocan pegadas de izquierda a derecha, como en pages.ts. */
-const PAGE_GAP = 0;
+// La separación viene de layout.ts (módulo sin dependencias) y no de pages.ts:
+// si el convertidor usara su propio valor, un diseño migrado quedaría
+// desalineado respecto a uno creado en el editor.
 const PAPER_COLOR = '#ffffff';
 const BG_MARKER = 'pageBackground';
 /** 2 = "Normal" de Excalidraw. Es la que usa text.ts; no hay serif display. */

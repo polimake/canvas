@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { legacyToScene, parseLegacyText } from '../src/legacy';
+import { PAGE_GAP } from '../src/layout';
 
 /**
  * Fixtures recortadas de filas reales de `designs` en producción (Paella Power),
@@ -169,12 +170,12 @@ describe('legacyToScene() — T2 texto', () => {
 });
 
 describe('legacyToScene() — multipágina', () => {
-  it('coloca las páginas pegadas de izquierda a derecha', () => {
+  it('coloca las páginas de izquierda a derecha con el mismo carril que el editor', () => {
     const dos = [T1_UNA_PAGINA[0], JSON.parse(JSON.stringify(T1_UNA_PAGINA[0]))];
     const frames = legacyToScene(dos).elements.filter((e: any) => e.type === 'frame') as any[];
     expect(frames).toHaveLength(2);
     expect(frames[0].x).toBe(0);
-    expect(frames[1].x).toBe(1080);
+    expect(frames[1].x).toBe(1080 + PAGE_GAP);
   });
 
   it('cada elemento pertenece a su propia página', () => {

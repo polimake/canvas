@@ -24,6 +24,9 @@ export {
   goToPage,
 } from './pages';
 export type { PageInfo, PageSize, PageSizePreset } from './pages';
+// Separación entre páginas. El host la necesita para razonar sobre el layout
+// sin duplicar el número.
+export { PAGE_GAP } from './layout';
 export { patchElement, commitElements } from './mutate';
 
 // ─── Export: hidratación de imágenes remotas ─────────────────────────────────
