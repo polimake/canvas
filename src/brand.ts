@@ -12,6 +12,7 @@
  * blob JSON sin esquema), así que todo se valida aquí y lo que no encaja se
  * reporta en `notes` en vez de romper o de colarse silenciosamente.
  */
+import { fontFamilyAlias, normalizeFontSrc, type CustomFontFace } from './fonts';
 
 /** Forma laxa de `projects.brandKit`. Todo opcional: 12 de 21 proyectos no lo tienen. */
 export interface BrandKitInput {
@@ -24,21 +25,15 @@ export interface BrandKitInput {
   logoWhite?: unknown;
 }
 
-export interface BrandFontFace {
-  /** Familia de Excalidraw que se secuestra. */
-  family: string;
-  src: string;
-  weight?: string;
-  style?: string;
-}
+export type BrandFontFace = CustomFontFace;
 
 export interface Canvas2Brand {
   mainColor: string | null;
   /** Paleta deduplicada, con `mainColor` al frente si es válido. */
   palette: string[];
-  /** Familia secuestrada para titulares, o null si la marca no aporta fichero. */
+  /** Familia de titulares con su nombre REAL, o null si la marca no aporta fichero. */
   headingFamily: string | null;
-  /** Familia secuestrada para texto corrido, o null. */
+  /** Familia de texto corrido con su nombre REAL, o null. */
   bodyFamily: string | null;
   /** Listo para la prop `fontOverrides` de Canvas2Editor. */
   fontOverrides: BrandFontFace[];
@@ -46,26 +41,6 @@ export interface Canvas2Brand {
   /** Lo que se ha descartado y por qué. Se enseña en la UI, no se traga. */
   notes: string[];
 }
-
-/**
- * Familias de Excalidraw que se secuestran, una por rol.
- *
- * Se eligen éstas y no otras por dos motivos. Primero, son nombres propios de
- * Excalidraw: ninguna hoja de estilo de la aplicación los usa, así que el
- * `@font-face` que los declara no puede filtrarse al resto de la interfaz —
- * cosa que sí pasaría secuestrando 'Helvetica'. Segundo, no son la familia a la
- * que `legacy.ts` manda todo el texto migrado (la 2, Helvetica), así que
- * secuestrarlas no reescribe de golpe los 491 diseños ya convertidos.
- *
- * Contrapartida honesta: el selector de fuentes de Excalidraw 0.18 sí las
- * ofrece. Quien elija a mano "Lilita One" verá la tipografía de titular de la
- * marca. Es reversible y, en una herramienta de marca, preferible a lo
- * contrario.
- */
-export const HIJACKED_FAMILIES = {
-  heading: 'Lilita One',
-  body: 'Comic Shanns',
-} as const;
 
 const HEX = /^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 
@@ -164,8 +139,12 @@ export function resolveBrandKit(raw: unknown): Canvas2Brand {
       notes.push(`"${f.name}" (${rol === 'heading' ? 'titulares' : 'texto'}) no tiene fichero en el brand kit; se usa la tipografía por defecto`);
       continue;
     }
-    const family = HIJACKED_FAMILIES[rol];
-    fontOverrides.push({ family, src: f.src, style: f.style });
+    // La familia se registra con su NOMBRE, no secuestrando una de Excalidraw
+    // (ver `fonts.ts`). `fontFamilyAlias` solo lo cambia si choca con una de
+    // serie, p. ej. un brand kit que traiga su propia "Nunito".
+    const family = fontFamilyAlias(f.name);
+    if (!family) continue;
+    fontOverrides.push({ family, src: normalizeFontSrc(f.src), style: f.style });
     if (rol === 'heading') headingFamily = family;
     else bodyFamily = family;
   }

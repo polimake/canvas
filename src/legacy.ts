@@ -1,5 +1,13 @@
 import type { SceneElement } from './excal';
 import { PAGE_GAP } from './layout';
+import {
+  customFontFamilyId,
+  dedupeFontFaces,
+  fontFamilyAlias,
+  normalizeFontName,
+  normalizeFontSrc,
+  type CustomFontFace,
+} from './fonts';
 
 /**
  * Conversión polimake-canvas (legacy) → escena de Excalidraw.
@@ -36,7 +44,12 @@ type LegacyProps = Record<string, unknown> & {
   o?: string;
   u?: number;
   v?: string;
-  w?: Array<{ a?: string; x?: string }>;
+  /**
+   * Fuentes que USA esta capa de texto, con su fichero. Claves minificadas:
+   * a=name, x=family, y=url, z=style. La capa puede traer varias; cuál se
+   * aplica a cada párrafo lo dice el `font-family` en línea del HTML de `v`.
+   */
+  w?: Array<{ a?: string; x?: string; y?: string; z?: string }>;
   /**
    * Media de una `VideoLayer`. NO va en `p` como la de una imagen:
    *   y  = mp4 reproducible
@@ -87,6 +100,13 @@ export interface ConversionReport {
 export interface LegacyScene {
   elements: SceneElement[];
   files: Record<string, unknown>;
+  /**
+   * Tipografías propias que la escena necesita para verse como el original.
+   * Se guardan junto a la escena (`editorConfig.fonts`) y el host las pasa a
+   * `fontOverrides`, así que un diseño migrado es AUTOSUFICIENTE: no depende de
+   * que el brand kit del proyecto siga teniendo esa fuente.
+   */
+  fonts: CustomFontFace[];
   report: ConversionReport;
 }
 
@@ -95,7 +115,10 @@ export interface LegacyScene {
 // desalineado respecto a uno creado en el editor.
 const PAPER_COLOR = '#ffffff';
 const BG_MARKER = 'pageBackground';
-/** 2 = "Normal" de Excalidraw. Es la que usa text.ts; no hay serif display. */
+/**
+ * Respaldo cuando el párrafo no declara tipografía o la capa no trae su
+ * fichero. 2 = "Helvetica", la familia sin trazo a mano de Excalidraw.
+ */
 const DEFAULT_FONT_FAMILY = 2;
 
 let idCounter = 0;
@@ -151,6 +174,8 @@ interface ParsedParagraph {
   fontSize: number;
   color: string;
   align: string;
+  /** Nombre de familia declarado en línea, ya sin comillas. '' si no hay. */
+  fontFamily: string;
 }
 
 function decodeEntities(s: string): string {
@@ -163,8 +188,18 @@ function decodeEntities(s: string): string {
     .replace(/&amp;/g, '&');
 }
 
+/**
+ * Lee una propiedad de un `style="…"` YA DECODIFICADO (ver `parseLegacyText`).
+ *
+ * El valor llega hasta el `;` y no se excluye la comilla: el editor legacy
+ * escribe la familia entrecomillada — `font-family: &quot;Canva Sans&quot;` —
+ * y la comilla codificada TERMINA EN `;`, así que leer sobre el HTML crudo
+ * devolvía literalmente `&quot`. Como la cadena que entra aquí es solo el
+ * contenido del atributo (el `[^"]*` de fuera ya cortó en la comilla de
+ * cierre), parar en el `;` es suficiente y no se puede uno salir de la etiqueta.
+ */
 function styleValue(style: string, prop: string): string | null {
-  const m = new RegExp(`${prop}\\s*:\\s*([^;"]+)`, 'i').exec(style);
+  const m = new RegExp(`${prop}\\s*:\\s*([^;]+)`, 'i').exec(style);
   return m ? m[1].trim() : null;
 }
 
@@ -179,16 +214,22 @@ export function parseLegacyText(html: string): ParsedParagraph[] {
   const chunks = paragraphs ?? (html.trim() ? [`<p>${html}</p>`] : []);
 
   for (const p of chunks) {
-    const pStyle = /<p\b[^>]*style="([^"]*)"/i.exec(p)?.[1] ?? '';
-    const spanStyle = /<span\b[^>]*style="([^"]*)"/i.exec(p)?.[1] ?? '';
+    // Se decodifican ANTES de leer propiedades: dentro del atributo las
+    // comillas viajan como `&quot;`, y ese `;` partía el valor en dos.
+    const pStyle = decodeEntities(/<p\b[^>]*style="([^"]*)"/i.exec(p)?.[1] ?? '');
+    const spanStyle = decodeEntities(/<span\b[^>]*style="([^"]*)"/i.exec(p)?.[1] ?? '');
     const text = decodeEntities(p.replace(/<[^>]+>/g, '')).trim();
     if (!text) continue;
     const size = styleValue(pStyle, 'font-size');
+    // `paragraphSpec.toDOM` la escribe en el <p>; se mira también el <span> por
+    // si un documento antiguo la llevaba dentro.
+    const familia = styleValue(spanStyle, 'font-family') ?? styleValue(pStyle, 'font-family');
     out.push({
       text,
       fontSize: size ? parseFloat(size) : 20,
       color: styleValue(spanStyle, 'color') ?? styleValue(pStyle, 'color') ?? '#1e1e1e',
       align: styleValue(pStyle, 'text-align') ?? 'left',
+      fontFamily: familia ? normalizeFontName(familia) : '',
     });
   }
   return out;
@@ -200,7 +241,13 @@ function groupParagraphs(paras: ParsedParagraph[]): ParsedParagraph[][] {
   for (const p of paras) {
     const last = groups[groups.length - 1];
     const head = last?.[0];
-    if (head && head.fontSize === p.fontSize && head.color === p.color && head.align === p.align) {
+    if (
+      head &&
+      head.fontSize === p.fontSize &&
+      head.color === p.color &&
+      head.align === p.align &&
+      head.fontFamily === p.fontFamily
+    ) {
       last.push(p);
     } else {
       groups.push([p]);
@@ -211,18 +258,52 @@ function groupParagraphs(paras: ParsedParagraph[]): ParsedParagraph[][] {
 
 // ─── Conversión ──────────────────────────────────────────────────────────────
 
-export function legacyToScene(editorConfig: unknown): LegacyScene {
+/** Fichero de una tipografía, venga de donde venga. */
+export interface FontSource {
+  url: string;
+  style?: string;
+}
+
+export interface LegacyConversionOptions {
+  /**
+   * Último recurso para una fuente que el diseño nombra pero cuyo fichero no
+   * guarda. Pasa MUCHO: el editor legacy solo escribía `url` en la capa cuando
+   * la fuente venía de su lista curada, así que hay diseños que dicen
+   * "Montserrat" sin decir de dónde bajarla.
+   *
+   * Se inyecta en vez de resolverse aquí para que el módulo siga siendo puro:
+   * el script de migración lo cablea al brand kit del proyecto y a la lista de
+   * Google Fonts del paquete legacy; los tests, a un mapa de mentira.
+   */
+  resolveFontUrl?: (name: string) => FontSource | null;
+}
+
+export function legacyToScene(
+  editorConfig: unknown,
+  options: LegacyConversionOptions = {},
+): LegacyScene {
   resetIdCounter();
-  const raw: LegacyPage[] = Array.isArray(editorConfig)
-    ? (editorConfig as LegacyPage[])
-    : typeof editorConfig === 'string'
-      ? (JSON.parse(editorConfig) as LegacyPage[])
+  const parsed: unknown =
+    typeof editorConfig === 'string' ? JSON.parse(editorConfig) : editorConfig;
+
+  // El legacy es un ARRAY de páginas, pero hay dos formas más por ahí: los
+  // cargadores del editor antiguo aceptan una página suelta sin envolver
+  // (DesignFrame.tsx la mete en un array), y un `editorConfig` de canvas2 es un
+  // objeto {elements,…} que NO tiene nada que convertir. Distinguirlas aquí
+  // evita que un diseño ya migrado reviente el convertidor con un
+  // `raw.forEach is not a function`.
+  const raw: LegacyPage[] = Array.isArray(parsed)
+    ? (parsed as LegacyPage[])
+    : parsed && typeof parsed === 'object' && !Array.isArray((parsed as { elements?: unknown }).elements)
+      ? [parsed as LegacyPage]
       : [];
 
   const elements: SceneElement[] = [];
   const filesOut: Record<string, unknown> = {};
   const notes: ConversionNote[] = [];
   const counts: Record<string, number> = {};
+  /** Tipografías propias vistas por el camino; se deduplican al final. */
+  const caras: CustomFontFace[] = [];
   let offsetX = 0;
   let sawText = false;
   let sawUnsupported = false;
@@ -462,21 +543,54 @@ export function legacyToScene(editorConfig: unknown): LegacyScene {
             detail: `estilos mixtos: 1 capa → ${groups.length} elementos (Excalidraw es un estilo por elemento)`,
           });
         }
-        const fontName = g.w?.[0]?.x ?? g.w?.[0]?.a;
-        if (fontName) {
-          notes.push({
-            page: pageIndex,
-            layer: childId,
-            kind: 'lossy',
-            detail: `fuente "${fontName}" → familia 2 (Excalidraw no admite fuentes propias sin parche)`,
+        // Catálogo de ficheros que declara ESTA capa: nombre → url/estilo.
+        // Es de donde sale la tipografía real; el brand kit del proyecto no
+        // hace falta para nada aquí, y por eso el diseño migrado se ve igual
+        // aunque la marca cambie de fuentes después.
+        const catalogo = new Map<string, { url: string; style?: string }>();
+        for (const f of g.w ?? []) {
+          const nombre = normalizeFontName(f?.a ?? f?.x ?? '');
+          const url = typeof f?.y === 'string' ? f.y.trim() : '';
+          if (!nombre || !/^https?:\/\//i.test(url)) continue;
+          catalogo.set(nombre.toLowerCase(), {
+            url: normalizeFontSrc(url),
+            style: f?.z && f.z !== 'regular' ? f.z : undefined,
           });
         }
+
         let cursorY = y;
         for (const group of groups) {
           const head = group[0];
           const size = head.fontSize * scale;
           const text = group.map((p) => p.text).join('\n');
           const boxH = group.length * size * 1.25;
+
+          // Tipografía del grupo. Sin fichero no se puede registrar nada, así
+          // que se cae a la familia por defecto y se anota: es una pérdida
+          // real y silenciarla es lo que hacía que "las fuentes no funcionen".
+          let fontFamily = DEFAULT_FONT_FAMILY;
+          if (head.fontFamily) {
+            const fichero =
+              catalogo.get(head.fontFamily.toLowerCase()) ??
+              options.resolveFontUrl?.(head.fontFamily) ??
+              null;
+            if (fichero) {
+              fontFamily = customFontFamilyId(head.fontFamily);
+              caras.push({
+                family: fontFamilyAlias(head.fontFamily),
+                src: normalizeFontSrc(fichero.url),
+                style: fichero.style,
+              });
+            } else {
+              notes.push({
+                page: pageIndex,
+                layer: childId,
+                kind: 'lossy',
+                detail: `sin fichero para la fuente "${head.fontFamily}"; se usa la de respaldo`,
+              });
+            }
+          }
+
           elements.push(
             baseElement({
               id: makeId(`txt-${pageIndex}-${childId}`),
@@ -489,7 +603,7 @@ export function legacyToScene(editorConfig: unknown): LegacyScene {
               text,
               originalText: text,
               fontSize: size,
-              fontFamily: DEFAULT_FONT_FAMILY,
+              fontFamily,
               textAlign: head.align === 'justify' ? 'left' : head.align,
               verticalAlign: 'top',
               containerId: null,
@@ -521,6 +635,7 @@ export function legacyToScene(editorConfig: unknown): LegacyScene {
   return {
     elements,
     files: filesOut,
+    fonts: dedupeFontFaces(caras),
     report: {
       pages: raw.length,
       tier,

@@ -64,6 +64,11 @@ export interface CanvasMenuProps {
    * un SVG abierto en otro equipo sale con la fuente de serie (ver svgFonts.ts).
    */
   fontFaces?: readonly SvgFontFace[];
+  /**
+   * Familias de marca por rol, para que "Insertar texto" nazca ya en la
+   * tipografía del cliente. Las resuelve `Canvas2Editor` desde el brand kit.
+   */
+  brandFamilies?: { heading: string | null; body: string | null };
   /** Textos, inyectados por el host (ver labels.ts). */
   labels?: PartialLabels;
 }
@@ -79,6 +84,7 @@ export function CanvasMenu({
   viewMode = false,
   hydrateFiles,
   fontFaces,
+  brandFamilies,
   labels: labelsProp,
 }: CanvasMenuProps) {
   const L = mergeLabels(labelsProp);
@@ -345,7 +351,17 @@ export function CanvasMenu({
                 fontSize: preset.key === 'heading' ? 15 : preset.key === 'subheading' ? 13 : 12,
                 fontWeight: preset.key === 'body' ? 400 : 700,
               }}
-              onSelect={() => insertTextPreset(api, preset.key, { pageId: activePageId ?? undefined })}
+              onSelect={() =>
+                insertTextPreset(api, preset.key, {
+                  pageId: activePageId ?? undefined,
+                  // El cuerpo usa la tipografía de texto; título y subtítulo, la
+                  // de titulares — con respaldo cruzado si la marca solo trae una.
+                  fontFamily:
+                    preset.key === 'body'
+                      ? brandFamilies?.body ?? brandFamilies?.heading
+                      : brandFamilies?.heading ?? brandFamilies?.body,
+                })
+              }
             >
               {L.sizes[preset.key] ?? preset.label}
             </MainMenu.Item>

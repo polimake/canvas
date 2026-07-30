@@ -5,7 +5,6 @@ import './canvas2.css';
 import {
   Excalidraw,
   viewportCoordsToSceneCoords,
-  FONT_FAMILY,
   getNonDeletedElements,
   getVisibleSceneBounds,
   type ExcalidrawImperativeAPI,
@@ -21,6 +20,8 @@ import type { FilesMap } from './pageThumbnails';
 import { addPage, createBlankScene, goToPage, listPages, relayoutPages, type PageSize } from './pages';
 import { ensurePagePapers } from './background';
 import { resolveBrandKit, type BrandKitInput, type Canvas2Brand } from './brand';
+import { buildFontFaceCss, dedupeFontFaces, type CustomFontFace } from './fonts';
+import { fontFamilyId, registerCustomFonts } from './fontRegistry';
 import type { PartialLabels } from './labels';
 
 /**
@@ -75,31 +76,18 @@ export interface Canvas2EditorProps {
    */
   nativeImageExport?: boolean;
   /**
-   * Sustitución de fuentes por nombre de familia.
+   * Tipografías propias que la escena necesita, con su fichero.
    *
-   * Excalidraw NO expone forma de registrar tipografías propias: `Fonts.register`
-   * es privado y la clase no se exporta del paquete npm (la petición #9132 sigue
-   * abierta y la #3240 se cerró como "out of scope"). Pero `getFontString()`
-   * emite el NOMBRE de la familia en texto plano al `font` del canvas, así que
-   * declarar un `@font-face` con ese mismo nombre hace que el navegador resuelva
-   * a nuestro fichero.
+   * Se REGISTRAN como familias nuevas de Excalidraw (no se secuestra ninguna de
+   * las suyas): ver la cabecera de `fonts.ts` para el mecanismo y sus límites.
+   * El id numérico que le toca a cada nombre lo da `customFontFamilyId`, y es
+   * el mismo que estampa el convertidor `legacy.ts`, así que un diseño migrado
+   * se abre con su tipografía sin más trámite.
    *
-   * Se secuestra una familia que no se use (p. ej. 'Lilita One'). El ajuste de
-   * línea sigue siendo correcto porque la medición usa `measureText` con esa
-   * misma cadena, así que mide la fuente sustituida.
-   *
-   * Límite conocido: el export a SVG embebe la fuente REGISTRADA, no la
-   * sustituida, así que un SVG abierto en otro equipo se verá con la original.
-   * Para eso hace falta el parche que exponga `Fonts.register`.
+   * Un diseño guardado trae las suyas en `editorConfig.fonts` y el host las
+   * pasa por aquí; las del brand kit del proyecto se añaden aparte.
    */
-  fontOverrides?: Array<{
-    /** Familia de Excalidraw a secuestrar: 'Lilita One', 'Comic Shanns'… */
-    family: string;
-    /** URL del woff2/otf propio. */
-    src: string;
-    weight?: string;
-    style?: string;
-  }>;
+  fontOverrides?: CustomFontFace[];
   /** Debounce window for `onSceneChange`, in ms. Defaults to 400. */
   changeDebounceMs?: number;
   /** Enable the fixed-size multi-page artboard model (frames-as-pages) and show
@@ -202,12 +190,11 @@ function brandDefaults(brand?: Canvas2Brand) {
   if (!brand) return {};
   const defaults: Record<string, unknown> = {};
   if (brand.mainColor) defaults.currentItemStrokeColor = brand.mainColor;
-  // `brand.ts` decide QUÉ familia se secuestra; el id numérico solo se puede
-  // resolver aquí, que es el lado que conoce Excalidraw.
+  // La familia ya está registrada (el efecto de registro corre antes de montar
+  // Excalidraw), así que aquí solo hay que preguntar por su id.
   const familia = brand.bodyFamily ?? brand.headingFamily;
-  if (familia && familia in FONT_FAMILY) {
-    defaults.currentItemFontFamily = FONT_FAMILY[familia as keyof typeof FONT_FAMILY];
-  }
+  const id = familia ? fontFamilyId(familia) : null;
+  if (id !== null) defaults.currentItemFontFamily = id;
   return defaults;
 }
 
@@ -276,28 +263,38 @@ export function Canvas2Editor({
     [fontOverrides, brand],
   );
 
-  // Inyecta las @font-face de sustitución una sola vez por conjunto. Va en un
-  // <style> propio y NO se limpia entre renders porque el navegador cachea la
-  // fuente por familia: quitarla y volver a ponerla provocaría un parpadeo de
-  // texto en cada re-render.
+  /**
+   * Da de alta las familias en Excalidraw y declara sus `@font-face`.
+   *
+   * El registro va en `useMemo` y no en un efecto porque tiene que haber
+   * ocurrido ANTES del primer render de `<Excalidraw>`: `brandDefaults` consulta
+   * los ids para sembrar el `appState`, y la escena inicial ya trae textos con
+   * esos ids. Es idempotente (`fontRegistry` lleva la cuenta), así que
+   * ejecutarlo durante el render no tiene efectos observables repetidos.
+   */
+  const fuentes = useMemo(() => registerCustomFonts(dedupeFontFaces(allFontOverrides)), [
+    allFontOverrides,
+  ]);
+
+  // El <style> va aparte y NO se limpia entre renders: el navegador cachea la
+  // fuente por familia, y quitarla y reponerla provocaría un parpadeo de texto.
   useEffect(() => {
-    if (!allFontOverrides.length) return;
+    if (!fuentes.faces.length) return;
     const id = 'canvas2-font-overrides';
-    const css = allFontOverrides
-      .map(
-        (f) =>
-          `@font-face{font-family:'${f.family}';src:url('${f.src}');` +
-          `font-weight:${f.weight ?? 'normal'};font-style:${f.style ?? 'normal'};font-display:swap;}`,
-      )
-      .join('\n');
+    const css = buildFontFaceCss(fuentes.faces, { display: 'swap' });
     let tag = document.getElementById(id) as HTMLStyleElement | null;
     if (!tag) {
       tag = document.createElement('style');
       tag.id = id;
       document.head.appendChild(tag);
     }
-    if (tag.textContent !== css) tag.textContent = css;
-  }, [allFontOverrides]);
+    // Acumula en vez de sustituir: dos editores montados con marcas distintas
+    // (p. ej. una previsualización al lado) comparten el <style>, y machacarlo
+    // dejaría al primero sin su tipografía.
+    if (!tag.textContent?.includes(css)) {
+      tag.textContent = tag.textContent ? `${tag.textContent}\n${css}` : css;
+    }
+  }, [fuentes]);
 
   const apiRef = useRef<ExcalidrawImperativeAPI | null>(null);
   const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null);
@@ -562,9 +559,10 @@ export function Canvas2Editor({
             theme={theme}
             viewMode={viewMode}
             hydrateFiles={hydrateFiles}
-            // Las mismas familias secuestradas que se inyectan por @font-face en
-            // pantalla, embebidas también en el SVG.
-            fontFaces={allFontOverrides}
+            // Las mismas familias (ya con su alias) que se declaran en
+            // pantalla, embebidas también en el SVG exportado.
+            fontFaces={fuentes.faces}
+            brandFamilies={{ heading: brand.headingFamily, body: brand.bodyFamily }}
             labels={labels}
           />
         ) : null}

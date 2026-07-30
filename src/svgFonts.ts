@@ -3,18 +3,16 @@
  *
  * POR QUÉ EXISTE ESTE MÓDULO
  *
- * Excalidraw no tiene vía pública para registrar una fuente. Su mecanismo real
- * es `Fonts.register`, pero es `private static` y la clase no se exporta del
- * paquete (el índice solo publica `FONT_FAMILY`), así que la única forma de
- * llamarlo sería parchear el bundle minificado en varios sitios.
+ * En pantalla y en PNG basta con registrar la familia y declarar su
+ * `@font-face`: el canvas resuelve el nombre contra las fuentes del documento
+ * (ver `fonts.ts` para el mecanismo completo).
  *
- * En pantalla y en PNG eso no hace falta: `getFontString()` escribe el NOMBRE de
- * la familia en el contexto del canvas, así que declarar un `@font-face` con ese
- * mismo nombre basta para que el navegador resuelva a nuestro fichero (ver
- * `fontOverrides` en Canvas2Editor).
+ * Pero el SVG lo genera Excalidraw embebiendo únicamente las fuentes que tiene
+ * REGISTRADAS en su `Fonts.registered` — un mapa privado al que no se puede
+ * añadir desde fuera. Para una familia nuestra emite el `font-family` correcto
+ * en el `<text>` pero ninguna `@font-face`, así que el SVG abierto en otro
+ * equipo salía con la tipografía de respaldo.
  *
- * Pero el SVG lo genera Excalidraw embebiendo las fuentes REGISTRADAS, no las
- * sustituidas: un SVG abierto en otro equipo salía con la tipografía de serie.
  * Como el exportador nos devuelve el `<svg>` ya construido, la solución
  * desacoplada es añadir NOSOTROS las declaraciones al final de su hoja de
  * estilos — la última regla con la misma especificidad gana — sin tocar la
@@ -23,44 +21,13 @@
  * Con `fetcher`, el fichero se incrusta como data URI y el SVG queda
  * autocontenido: se abre en cualquier equipo sin red y sin acceso al CDN.
  */
+import { buildFontFaceCss, fontFormatHint, type CustomFontFace } from './fonts';
 
-export interface SvgFontFace {
-  /** Familia tal y como aparece en el SVG (la familia secuestrada). */
-  family: string;
-  /** URL del fichero (woff2/ttf/otf) o data URI ya resuelto. */
-  src: string;
-  weight?: string;
-  style?: string;
-}
+/** Misma forma que una tipografía propia: el SVG declara exactamente lo mismo
+ *  que la pantalla, y así no pueden divergir. */
+export type SvgFontFace = CustomFontFace;
 
-/** `format()` correcto según la extensión: sin él algunos visores descartan la fuente. */
-function formatHint(src: string): string | null {
-  const limpio = src.split('?')[0].toLowerCase();
-  if (limpio.endsWith('.woff2')) return 'woff2';
-  if (limpio.endsWith('.woff')) return 'woff';
-  if (limpio.endsWith('.otf')) return 'opentype';
-  if (limpio.endsWith('.ttf')) return 'truetype';
-  // Un data URI trae el tipo dentro; dejar `format()` fuera es mejor que mentir.
-  return null;
-}
-
-/**
- * PURA: construye el CSS de las `@font-face`. Separada de la manipulación del
- * DOM para poder probarla en node, donde no hay `SVGSVGElement`.
- */
-export function buildFontFaceCss(faces: readonly SvgFontFace[]): string {
-  return faces
-    .filter((f) => f.family && f.src)
-    .map((f) => {
-      const hint = formatHint(f.src);
-      const src = hint ? `url("${f.src}") format("${hint}")` : `url("${f.src}")`;
-      return (
-        `@font-face{font-family:"${f.family}";src:${src};` +
-        `font-weight:${f.weight ?? 'normal'};font-style:${f.style ?? 'normal'};}`
-      );
-    })
-    .join('\n');
-}
+export { buildFontFaceCss };
 
 /** Convierte bytes a data URI. Chunked: un spread de 3 MB revienta la pila. */
 async function blobToDataUrl(blob: Blob, mime: string): Promise<string> {
@@ -74,7 +41,7 @@ async function blobToDataUrl(blob: Blob, mime: string): Promise<string> {
 }
 
 function mimeFor(src: string): string {
-  switch (formatHint(src)) {
+  switch (fontFormatHint(src)) {
     case 'woff2':
       return 'font/woff2';
     case 'woff':

@@ -73,8 +73,24 @@ export type { Palette, Canvas2Theme } from './theme';
 // host tuviera que llamar a `resolveBrandKit`, importaría un valor de este
 // barrel y arrastraría Excalidraw al bundle de servidor.
 // `BrandGallery` la monta el propio editor, abajo a la derecha del lienzo.
-export { resolveBrandKit, EMPTY_BRAND, HIJACKED_FAMILIES } from './brand';
+export { resolveBrandKit, EMPTY_BRAND } from './brand';
 export type { Canvas2Brand, BrandKitInput, BrandFontFace } from './brand';
+
+// ─── Tipografías propias ──────────────────────────────────────────────────────
+// El id numérico de familia es una función PURA del nombre, así que el
+// convertidor (node) y el editor (navegador) calculan el mismo sin hablarse.
+// Ver la cabecera de `fonts.ts` para el mecanismo completo.
+export {
+  customFontFamilyId,
+  fontFamilyAlias,
+  normalizeFontName,
+  buildFontFaceCss,
+  dedupeFontFaces,
+  EXCALIDRAW_BUILTIN_FAMILIES,
+} from './fonts';
+export type { CustomFontFace } from './fonts';
+export { registerCustomFont, registerCustomFonts, fontFamilyId } from './fontRegistry';
+export type { RegisteredFont } from './fontRegistry';
 export { BrandGallery } from './BrandGallery';
 export type { BrandGalleryProps } from './BrandGallery';
 // Dock inferior derecho: Capas y Marca en pestañas. Lo monta Canvas2Editor.

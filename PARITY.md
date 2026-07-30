@@ -70,7 +70,7 @@ overlay · ◐ partial · ✗ roadmap — not built yet
 | Color picker + eyedropper | ✔ native | |
 | Gradients (root/shape) | ✗ roadmap | Excalidraw has no gradients; low priority |
 | Text effects (shadow/neon/outline…) | ✗ roadmap | not native; would be CSS-free SVG filters — defer |
-| Fonts system (73 Google families, brand fonts) | ◐ | Excalidraw ships 5 families; custom-font support is limited — evaluate on demand |
+| Fonts system (73 Google families, brand fonts) | ✅ | Familias propias registradas en `FONT_FAMILY` + `@font-face`; ver `src/fonts.ts`. El diseño guarda las suyas en `editorConfig.fonts`, así que es autosuficiente. Falta un selector de fuentes en el panel: hoy la tipografía llega del brand kit o del diseño migrado, no se elige a mano |
 | Zoom / fit / pinch | ✔ native | plus `goToPage` fit-to-frame |
 | JSON persistence | ✔ ported | `serialize.ts` = Excalidraw canonical JSON (lossless round-trip) |
 | Save to `designs` table + content `designId` | ✗ **next phase** | store scene JSON in `editorConfig` with `format:'excalidraw'` marker; server CRUD unchanged |

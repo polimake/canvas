@@ -6,6 +6,7 @@ import {
 } from './excal';
 import { commitElements } from './mutate';
 import { getPageBackground } from './background';
+import { fontFamilyId } from './fontRegistry';
 
 /**
  * Text presets — the canvas2 analogue of the Canva clone's sidebar "Agregar un
@@ -70,7 +71,15 @@ export function contrastTextColor(background: string | null): string {
 export function insertTextPreset(
   api: ExcalidrawImperativeAPI,
   preset: TextPresetKey,
-  opts?: { pageId?: string },
+  opts?: {
+    pageId?: string;
+    /**
+     * Nombre de la familia de marca para este preset (titular o cuerpo). Ya
+     * registrada por `Canvas2Editor`; si no lo estuviera, se cae a la de serie
+     * en vez de estampar un id que no resuelve a nada.
+     */
+    fontFamily?: string | null;
+  },
 ): string | null {
   const def = TEXT_PRESETS.find((p) => p.key === preset) ?? TEXT_PRESETS[0];
   const pages = frames(api);
@@ -89,8 +98,9 @@ export function insertTextPreset(
       type: 'text',
       text: def.text,
       fontSize,
-      // 2 = Excalidraw's built-in "normal" (non hand-drawn) family.
-      fontFamily: 2,
+      // 2 = Excalidraw's built-in "normal" (non hand-drawn) family; the brand
+      // font wins when the project has one with a real file.
+      fontFamily: (opts?.fontFamily ? fontFamilyId(opts.fontFamily) : null) ?? 2,
       strokeColor,
       x: anchorX,
       y: anchorY,

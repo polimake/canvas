@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveBrandKit, EMPTY_BRAND, HIJACKED_FAMILIES } from '../src/brand';
+import { resolveBrandKit, EMPTY_BRAND } from '../src/brand';
 
 /**
  * Fixtures copiadas literalmente de `projects.brandKit` en producción. Las dos
@@ -60,18 +60,28 @@ describe('resolveBrandKit', () => {
     expect(b.palette).toEqual(['#2a2d6f', '#ffffff', '#b0e9e9', '#233b21', '#b47913']);
   });
 
-  it('secuestra una familia por rol cuando la fuente sí trae fichero', () => {
+  it('registra cada rol con el NOMBRE real de su tipografía', () => {
     const b = resolveBrandKit({
       headingFont: { name: 'Instrument Serif', url: 'https://fonts.example/serif.woff2', style: 'regular' },
       bodyFont: { name: 'Inter', url: 'https://fonts.example/inter.woff2', style: 'italic' },
     });
-    expect(b.headingFamily).toBe(HIJACKED_FAMILIES.heading);
-    expect(b.bodyFamily).toBe(HIJACKED_FAMILIES.body);
+    expect(b.headingFamily).toBe('Instrument Serif');
+    expect(b.bodyFamily).toBe('Inter');
     expect(b.fontOverrides).toEqual([
-      { family: HIJACKED_FAMILIES.heading, src: 'https://fonts.example/serif.woff2', style: undefined },
-      { family: HIJACKED_FAMILIES.body, src: 'https://fonts.example/inter.woff2', style: 'italic' },
+      { family: 'Instrument Serif', src: 'https://fonts.example/serif.woff2', style: undefined },
+      { family: 'Inter', src: 'https://fonts.example/inter.woff2', style: 'italic' },
     ]);
     expect(b.notes).toEqual([]);
+  });
+
+  it('desambigua una fuente de marca que se llame como una de Excalidraw', () => {
+    // Si se registrara como "Nunito" a secas, machacaría la entrada de fábrica
+    // y cualquier diseño que usara la Nunito de Excalidraw dejaría de resolver.
+    const b = resolveBrandKit({
+      headingFont: { name: 'Nunito', url: 'https://fonts.example/nunito-cliente.woff2' },
+    });
+    expect(b.headingFamily).toBe('Nunito (marca)');
+    expect(b.fontOverrides[0].family).toBe('Nunito (marca)');
   });
 
   it('rechaza urls de fuente que no sobreviven a una recarga', () => {
@@ -90,7 +100,12 @@ describe('resolveBrandKit', () => {
     expect(b.logos.white).toBeNull();
   });
 
-  it('las dos familias secuestradas son distintas, o un rol pisaría al otro', () => {
-    expect(HIJACKED_FAMILIES.heading).not.toBe(HIJACKED_FAMILIES.body);
+  it('dos roles con la misma tipografía comparten familia sin duplicarla', () => {
+    const b = resolveBrandKit({
+      headingFont: { name: 'Inter', url: 'https://fonts.example/inter.woff2' },
+      bodyFont: { name: 'Inter', url: 'https://fonts.example/inter.woff2' },
+    });
+    expect(b.headingFamily).toBe('Inter');
+    expect(b.bodyFamily).toBe('Inter');
   });
 });

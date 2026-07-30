@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { legacyToScene, parseLegacyText } from '../src/legacy';
+import { customFontFamilyId } from '../src/fonts';
 import { PAGE_GAP } from '../src/layout';
 
 /**
@@ -68,9 +69,17 @@ const T2_TEXTO = [
 ];
 
 describe('parseLegacyText()', () => {
-  it('extrae texto, tamaño, color y alineación', () => {
+  it('extrae texto, tamaño, color, alineación y tipografía', () => {
     const [p] = parseLegacyText(T2_TEXTO[0].c.ca_txt.g.v);
-    expect(p).toEqual({ text: 'Hola mundo', fontSize: 45, color: 'rgb(0, 0, 0)', align: 'center' });
+    expect(p).toEqual({
+      text: 'Hola mundo',
+      fontSize: 45,
+      color: 'rgb(0, 0, 0)',
+      align: 'center',
+      // El editor legacy la escribe entrecomillada con `&quot;`: si no se
+      // decodifica antes de leer el estilo, el `;` de la entidad parte el valor.
+      fontFamily: 'Canva Sans Regular',
+    });
   });
 
   it('el color del span gana al del párrafo', () => {
@@ -147,7 +156,67 @@ describe('legacyToScene() — T2 texto', () => {
     expect(txt.strokeColor).toBe('rgb(0, 0, 0)');
     expect(txt.textAlign).toBe('center');
     expect(report.tier).toBe('T2');
+    // Esta capa nombra la fuente pero no guarda su fichero, así que se cae al
+    // respaldo y se dice. La familia 2 es "Helvetica" de Excalidraw.
+    expect(txt.fontFamily).toBe(2);
     expect(report.notes.some((n) => n.detail.includes('Canva Sans'))).toBe(true);
+    expect(legacyToScene(T2_TEXTO).fonts).toEqual([]);
+  });
+
+  it('conserva la tipografía cuando la capa SÍ trae el fichero', () => {
+    const conFichero = JSON.parse(JSON.stringify(T2_TEXTO));
+    conFichero[0].c.ca_txt.g.w = [
+      { a: 'Canva Sans Regular', x: 'Canva Sans', y: 'https://fonts.example/canva-sans.ttf' },
+    ];
+    const out = legacyToScene(conFichero);
+    const txt = out.elements.find((e: any) => e.type === 'text') as any;
+
+    expect(txt.fontFamily).toBe(customFontFamilyId('Canva Sans Regular'));
+    expect(out.fonts).toEqual([
+      {
+        family: 'Canva Sans Regular',
+        src: 'https://fonts.example/canva-sans.ttf',
+        style: undefined,
+      },
+    ]);
+    // Ya no hay pérdida tipográfica que anotar.
+    expect(out.report.notes.some((n) => n.detail.includes('Canva Sans'))).toBe(false);
+  });
+
+  it('el resolvedor externo rescata una fuente sin fichero en la capa', () => {
+    // Es el caso mayoritario en los diseños reales: el editor legacy solo
+    // escribía `url` cuando la fuente salía de su lista curada.
+    const out = legacyToScene(T2_TEXTO, {
+      resolveFontUrl: (nombre) =>
+        nombre === 'Canva Sans Regular'
+          ? { url: 'https://fonts.gstatic.com/canva.ttf', style: 'italic' }
+          : null,
+    });
+    const txt = out.elements.find((e: any) => e.type === 'text') as any;
+
+    expect(txt.fontFamily).toBe(customFontFamilyId('Canva Sans Regular'));
+    expect(out.fonts[0].src).toBe('https://fonts.gstatic.com/canva.ttf');
+    expect(out.fonts[0].style).toBe('italic');
+  });
+
+  it('el fichero de la capa gana al del resolvedor', () => {
+    const conFichero = JSON.parse(JSON.stringify(T2_TEXTO));
+    conFichero[0].c.ca_txt.g.w = [
+      { a: 'Canva Sans Regular', y: 'https://propia/la-del-diseno.woff2' },
+    ];
+    const out = legacyToScene(conFichero, {
+      resolveFontUrl: () => ({ url: 'https://ajena/otra.woff2' }),
+    });
+    expect(out.fonts[0].src).toBe('https://propia/la-del-diseno.woff2');
+  });
+
+  it('la misma fuente en varias páginas se declara una sola vez', () => {
+    const dos = JSON.parse(JSON.stringify(T2_TEXTO));
+    dos[0].c.ca_txt.g.w = [{ a: 'Canva Sans Regular', y: 'https://x/f.woff2' }];
+    dos.push(JSON.parse(JSON.stringify(dos[0])));
+    const out = legacyToScene(dos);
+    expect(out.report.pages).toBe(2);
+    expect(out.fonts).toHaveLength(1);
   });
 
   it('parte estilos mixtos en varios elementos y lo reporta', () => {
