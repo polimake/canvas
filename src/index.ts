@@ -134,6 +134,30 @@ export type {
   PersistableFiles,
 } from './media';
 
+// ─── Componentes reutilizables ───────────────────────────────────────────────
+// Motor puro en components.ts (lo comparte el worker vía el subpath
+// '@studio/canvas2/components'); la integración con la escena viva, aquí.
+export {
+  cloneSceneElements,
+  listSlots,
+  deriveComponentMeta,
+  extractComponentFragment,
+  instantiateComponent,
+  appendComponentToEditorConfig,
+  measureWrappedText,
+  fitImageInBox,
+} from './components';
+export type {
+  ComponentElement,
+  ComponentFileEntry,
+  ComponentFragment,
+  ComponentSlotInfo,
+  InstantiatedComponent,
+  SlotValue,
+  SlotValues,
+} from './components';
+export { insertComponentIntoScene, extractPageForComponent } from './insertComponent';
+
 // ─── Text presets + page background ───────────────────────────────────────────
 export { TEXT_PRESETS, insertTextPreset, contrastTextColor } from './text';
 export type { TextPreset, TextPresetKey } from './text';

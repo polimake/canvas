@@ -6,6 +6,7 @@ import {
 } from './excal';
 import { asSceneElements, commitElements, patchElement, type CaptureMode } from './mutate';
 import { buildPageBackground, isPageBackground } from './background';
+import { cloneSceneElements } from './components';
 import { PAGE_GAP } from './layout';
 
 /**
@@ -480,55 +481,18 @@ export function duplicatePage(
   if (!source) return null;
 
   const members = elements.filter((e) => e.frameId === pageId);
-  const group = [source, ...members];
-  const dx = source.width + PAGE_GAP;
-
-  const idMap = new Map<string, string>();
-  for (const e of group) idMap.set(e.id, createId());
-  const groupIdMap = new Map<string, string>();
-
-  const clones = group.map((e) => {
-    // Elements are plain serializable objects — deep clone, then rewrite ids.
-    const clone: Record<string, unknown> = JSON.parse(JSON.stringify(e));
-    clone.id = idMap.get(e.id);
-    clone.x = (clone.x as number) + dx;
-    // Fresh identity for the store: bumped version, new nonce, and NO
-    // inherited fractional index (updateScene re-derives it from array order).
-    clone.version = ((clone.version as number) ?? 0) + 1;
-    clone.versionNonce = Math.floor(Math.random() * 2 ** 31);
-    clone.updated = Date.now();
-    delete clone.index;
-
-    if (typeof clone.frameId === 'string' && idMap.has(clone.frameId)) {
-      clone.frameId = idMap.get(clone.frameId);
-    }
-    if (typeof clone.containerId === 'string' && idMap.has(clone.containerId)) {
-      clone.containerId = idMap.get(clone.containerId);
-    }
-    if (Array.isArray(clone.boundElements)) {
-      clone.boundElements = (clone.boundElements as Array<{ id: string }>).map((b) =>
-        idMap.has(b.id) ? { ...b, id: idMap.get(b.id)! } : b,
-      );
-    }
-    for (const key of ['startBinding', 'endBinding'] as const) {
-      const binding = clone[key] as { elementId?: string } | null | undefined;
-      if (binding?.elementId && idMap.has(binding.elementId)) {
-        clone[key] = { ...binding, elementId: idMap.get(binding.elementId) };
-      }
-    }
-    if (Array.isArray(clone.groupIds)) {
-      clone.groupIds = (clone.groupIds as string[]).map((g) => {
-        if (!groupIdMap.has(g)) groupIdMap.set(g, createId());
-        return groupIdMap.get(g)!;
-      });
-    }
-    if (clone.type === 'frame') {
-      clone.name = `${source.name ?? 'Página'} (copia)`;
-    }
-    return clone as unknown as SceneElement;
+  // La mecánica de clonado (ids frescos, remapeo de referencias internas) es
+  // compartida con la instanciación de componentes — vive en components.ts.
+  const { clones, idMap } = cloneSceneElements([source, ...members], {
+    dx: source.width + PAGE_GAP,
   });
 
   const cloneId = idMap.get(pageId)!;
+  for (const clone of clones) {
+    if (clone.id === cloneId) {
+      (clone as Record<string, unknown>).name = `${source.name ?? 'Página'} (copia)`;
+    }
+  }
   const order = framesInArray(elements).map((f) => f.id);
   order.splice(order.indexOf(pageId) + 1, 0, cloneId);
 

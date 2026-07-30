@@ -53,6 +53,7 @@ describe('mergeLabels', () => {
     // Si alguien añade una sección y olvida las de serie, esto lo dice.
     const secciones: (keyof Canvas2Labels)[] = [
       'library',
+      'components',
       'menu',
       'pages',
       'dock',

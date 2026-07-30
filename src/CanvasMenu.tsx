@@ -69,6 +69,8 @@ export interface CanvasMenuProps {
    * tipografía del cliente. Las resuelve `Canvas2Editor` desde el brand kit.
    */
   brandFamilies?: { heading: string | null; body: string | null };
+  /** "Guardar página como componente" — la subida la hace el host. */
+  onSaveComponent?: () => void;
   /** Textos, inyectados por el host (ver labels.ts). */
   labels?: PartialLabels;
 }
@@ -85,6 +87,7 @@ export function CanvasMenu({
   hydrateFiles,
   fontFaces,
   brandFamilies,
+  onSaveComponent,
   labels: labelsProp,
 }: CanvasMenuProps) {
   const L = mergeLabels(labelsProp);
@@ -367,6 +370,12 @@ export function CanvasMenu({
             </MainMenu.Item>
           ))}
         </MainMenu.Group>
+      )}
+
+      {/* La página activa pasa a la biblioteca de componentes del proyecto.
+          Solo si el host lo cablea: sin API donde guardar, sin entrada. */}
+      {!viewMode && onSaveComponent && (
+        <MainMenu.Item onSelect={onSaveComponent}>{L.components.save}</MainMenu.Item>
       )}
 
       <MainMenu.Group

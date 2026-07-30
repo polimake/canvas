@@ -22,7 +22,8 @@ import { ensurePagePapers } from './background';
 import { resolveBrandKit, type BrandKitInput, type Canvas2Brand } from './brand';
 import { buildFontFaceCss, dedupeFontFaces, type CustomFontFace } from './fonts';
 import { fontFamilyId, registerCustomFonts } from './fontRegistry';
-import type { PartialLabels } from './labels';
+import { mergeLabels, type PartialLabels } from './labels';
+import { DuplicateIcon } from './icons';
 
 /**
  * A serializable snapshot of the canvas. Same shape Excalidraw accepts as
@@ -148,6 +149,17 @@ export interface Canvas2EditorProps {
    */
   library?: ReactNode;
   /**
+   * Contenido del panel de componentes reutilizables (debajo del de biblioteca).
+   * Mismo seam que `library`: el host aporta la rejilla (los componentes viven
+   * en su API); canvas2 solo pone el marco. Sin contenido, no aparece.
+   */
+  componentsPanel?: ReactNode;
+  /**
+   * "Guardar página como componente" del menú. La subida es cosa del host
+   * (POST a su API + miniatura); canvas2 solo ofrece la entrada de menú.
+   */
+  onSaveComponent?: () => void;
+  /**
    * Se suelta algo de la biblioteca sobre el lienzo.
    *
    * Recibe el payload tal cual venía en el `dataTransfer` (tipo
@@ -248,6 +260,8 @@ export function Canvas2Editor({
   hydrateFiles,
   dockedSidebarBreakpoint = 820,
   library,
+  componentsPanel,
+  onSaveComponent,
   onActivePageChange,
   onMediaDrop,
   mediaDropType = MEDIA_DROP_TYPE,
@@ -563,6 +577,7 @@ export function Canvas2Editor({
             // pantalla, embebidas también en el SVG exportado.
             fontFaces={fuentes.faces}
             brandFamilies={{ heading: brand.headingFamily, body: brand.bodyFamily }}
+            onSaveComponent={onSaveComponent}
             labels={labels}
           />
         ) : null}
@@ -581,6 +596,18 @@ export function Canvas2Editor({
       {/* Biblioteca: el marco es nuestro, el contenido lo pone el host. */}
       <LibraryPanel theme={theme} viewMode={viewMode} labels={labels}>
         {library}
+      </LibraryPanel>
+      {/* Componentes reutilizables: mismo marco, anclado bajo la biblioteca. */}
+      <LibraryPanel
+        theme={theme}
+        viewMode={viewMode}
+        labels={labels}
+        title={mergeLabels(labels).components.title}
+        anchorTop={100}
+        icon={<DuplicateIcon />}
+        testId="canvas2-components"
+      >
+        {componentsPanel}
       </LibraryPanel>
 
       {/* Capas y Marca comparten la esquina inferior derecha, en pestañas.

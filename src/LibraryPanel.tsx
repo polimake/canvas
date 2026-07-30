@@ -36,6 +36,15 @@ export interface LibraryPanelProps {
   defaultCollapsed?: boolean;
   /** Textos, inyectados por el host (ver labels.ts). */
   labels?: PartialLabels;
+  /**
+   * Anclaje vertical del panel/botón. Parametrizado porque el marco se reutiliza
+   * (mediateca arriba, componentes debajo) y dos instancias no pueden compartir
+   * la misma esquina.
+   */
+  anchorTop?: number;
+  /** Icono del botón plegado; por defecto, el de la mediateca. */
+  icon?: ReactNode;
+  testId?: string;
 }
 
 export function LibraryPanel({
@@ -45,6 +54,9 @@ export function LibraryPanel({
   viewMode = false,
   defaultCollapsed = true,
   labels: labelsProp,
+  anchorTop = 56,
+  icon,
+  testId = 'canvas2-library',
 }: LibraryPanelProps) {
   const L = mergeLabels(labelsProp);
   const c = palette[theme];
@@ -60,14 +72,14 @@ export function LibraryPanel({
     return (
       <button
         type="button"
-        data-testid="canvas2-library-trigger"
+        data-testid={`${testId}-trigger`}
         onClick={() => setAbierto(true)}
         title={rotulo}
         aria-label={rotulo}
         style={{
           all: 'unset',
           position: 'absolute',
-          top: 56,
+          top: anchorTop,
           right: 12,
           zIndex: 95,
           boxSizing: 'border-box',
@@ -84,20 +96,20 @@ export function LibraryPanel({
           boxShadow: '0 2px 8px rgba(0,0,0,0.14)',
         }}
       >
-        <ImageIcon />
+        {icon ?? <ImageIcon />}
       </button>
     );
   }
 
   return (
     <div
-      data-testid="canvas2-library"
+      data-testid={testId}
       data-canvas2-library=""
       style={{
         position: 'absolute',
         // Por debajo de la fila de herramientas de Excalidraw, que ocupa el
         // borde superior de lado a lado.
-        top: 56,
+        top: anchorTop,
         right: 12,
         zIndex: 95,
         width: 320,

@@ -17,6 +17,16 @@ export interface Canvas2Labels {
     title: string;
     close: string;
   };
+  components: {
+    title: string;
+    empty: string;
+    insert: string;
+    inserted: string;
+    insertFailed: string;
+    save: string;
+    saved: string;
+    saveFailed: string;
+  };
   menu: {
     background: string;
     backgroundOther: string;
@@ -73,6 +83,16 @@ export const DEFAULT_LABELS: Canvas2Labels = {
   library: {
     title: 'Biblioteca',
     close: 'Cerrar',
+  },
+  components: {
+    title: 'Componentes',
+    empty: 'Aún no hay componentes en este proyecto. Guarda una página como componente desde el menú.',
+    insert: 'Insertar como página nueva',
+    inserted: 'Componente insertado',
+    insertFailed: 'No se pudo insertar el componente',
+    save: 'Guardar página como componente',
+    saved: 'Página guardada como componente',
+    saveFailed: 'No se pudo guardar el componente',
   },
   menu: {
     background: 'Fondo de la página',
