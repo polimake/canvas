@@ -38,12 +38,21 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { randomUUID, createHash } from 'node:crypto';
 import { legacyToScene } from '../src/legacy';
 
-const SP =
-  'C:/Users/OliSR/AppData/Local/Temp/claude/c--Users-OliSR-Desktop-studio/317510af-8803-43ba-9e6a-7379084ed5b3/scratchpad';
+const arg = (n: string) => process.argv.find((a) => a.startsWith(`--${n}=`))?.split('=').slice(1).join('=');
 
-const DESTINO_SPACE = 'c26a8b61-3da8-45ea-b888-4cad00c00a0e';
-const OWNER = 'usr_2ed033dba4e4ded6728894e0114474ea';
-const NOW = new Date('2026-07-29T12:00:00.000Z').toISOString();
+/** Directorio de trabajo: volcados de entrada y SQL de salida. */
+const SP = arg('sp');
+/** Pares origen→destino, tal como los emite `sandbox-new-projects.ts`. */
+const PARES_JSON = arg('pares');
+
+if (!SP || !PARES_JSON) {
+  console.error('faltan --sp=<directorio> y/o --pares=<pares.json>');
+  process.exit(1);
+}
+
+const DESTINO_SPACE = arg('space') ?? 'c26a8b61-3da8-45ea-b888-4cad00c00a0e';
+const OWNER = arg('owner') ?? 'usr_2ed033dba4e4ded6728894e0114474ea';
+const NOW = arg('now') ?? new Date().toISOString();
 /** Tope por fichero SQL: `wrangler d1 execute --file` se atraganta con blobs enormes. */
 const MAX_SQL_BYTES = 3_500_000;
 
@@ -54,13 +63,7 @@ interface Par {
   destino: string;
 }
 
-const PARES: Par[] = [
-  { slug: 'paella', nombre: 'Paella Power', origen: 'K7iLB1DSagnls29DBjRR', destino: '8ef87292-e993-47d8-b655-bec2e15d5d8d' },
-  { slug: 'aldea', nombre: 'Aldea Los Odres', origen: 'tOGnErMZV8KIH6r9JXXm', destino: 'f5c2e8b9-1751-4803-bfee-c75bc2d464cc' },
-  { slug: 'invernadero', nombre: 'El Invernadero', origen: 'VhnsFyFf64Lm3Tw1Dixn', destino: 'aa7a4376-c815-4020-b753-851e94eec970' },
-  { slug: 'barbecho', nombre: 'Barbecho', origen: 'LXHzbKV7gu36ZXm5RMIH', destino: '382777b3-d560-4969-9b88-ac3ecd1988aa' },
-  { slug: 'nebular', nombre: 'Nebular', origen: 'vWXdjFgXk585q9j3bCfA', destino: '232d3ce3-4e28-42aa-b488-be23d7be7e1d' },
-];
+const PARES: Par[] = JSON.parse(readFileSync(PARES_JSON, 'utf8'));
 
 interface Fila {
   contentId: string;

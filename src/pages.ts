@@ -130,19 +130,28 @@ export function packPagesInArray(
 /**
  * PURE: give default-named pages ("Página N") their positional number, in
  * `orderedFrameIds` order. Custom names (incl. "(copia)") are left alone.
+ *
+ * Returns the SAME array reference when no page needs renaming — igual que
+ * `packPagesInArray`. Sin eso, `.map` devolvía siempre un array nuevo y quien
+ * encadena las dos primitivas no podía distinguir "no ha cambiado nada" de "ha
+ * cambiado algo", y acababa escribiendo en la escena una entrada de deshacer
+ * vacía.
  */
 export function renumberPagesInArray(
   elements: readonly SceneElement[],
   orderedFrameIds: string[],
 ): readonly SceneElement[] {
   const nameById = new Map(orderedFrameIds.map((id, i) => [id, `Página ${i + 1}`]));
-  return elements.map((e) => {
+  let changed = false;
+  const next = elements.map((e) => {
     if (e.type !== 'frame') return e;
     const target = nameById.get(e.id);
     const current = (e as FrameElement).name ?? '';
     if (!target || target === current || !DEFAULT_NAME_RE.test(current)) return e;
+    changed = true;
     return patchElement(e, { name: target } as Partial<SceneElement>);
   });
+  return changed ? next : elements;
 }
 
 /**

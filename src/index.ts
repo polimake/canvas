@@ -31,6 +31,14 @@ export {
   goToPage,
 } from './pages';
 export type { PageInfo, PageSize, PageSizePreset } from './pages';
+// Paginar una escena que llegó sin páginas (importada, pegada, arrastrada).
+export {
+  convertToPages,
+  paginateSceneInArray,
+  clusterLooseElements,
+  looseElements,
+} from './paginate';
+export type { PaginateOptions, PaginateResult } from './paginate';
 // Separación entre páginas. El host la necesita para razonar sobre el layout
 // sin duplicar el número.
 export { PAGE_GAP } from './layout';

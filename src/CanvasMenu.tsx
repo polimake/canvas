@@ -11,6 +11,7 @@ import {
   type PageSize,
 } from './pages';
 import { getPageBackground, setPageBackgroundColor } from './background';
+import { convertToPages, looseElements } from './paginate';
 import { TEXT_PRESETS, insertTextPreset } from './text';
 import { exportScenePng, exportSceneSvg, exportScenePdf, downloadBlob } from './export';
 import type { FilesMap } from './pageThumbnails';
@@ -93,6 +94,7 @@ export function CanvasMenu({
   const L = mergeLabels(labelsProp);
   const c = palette[theme];
   const [pages, setPages] = useState<PageInfo[]>(() => (api ? listPages(api) : []));
+  const [loose, setLoose] = useState(0);
   const [scaleContent, setScaleContent] = useState(true);
   const [customW, setCustomW] = useState('');
   const [customH, setCustomH] = useState('');
@@ -106,7 +108,10 @@ export function CanvasMenu({
   // la lista en cada render del editor.
   useEffect(() => {
     if (!api) return;
-    const refresh = () => setPages(listPages(api));
+    const refresh = () => {
+      setPages(listPages(api));
+      setLoose(looseElements(api.getSceneElements()).length);
+    };
     refresh();
     return api.onChange(refresh);
   }, [api]);
@@ -342,6 +347,32 @@ export function CanvasMenu({
             </span>
           </MainMenu.ItemCustom>
         </MainMenu.Group>
+      )}
+
+      {/* Paginar lo que está suelto en el plano infinito. Solo aparece cuando
+          hay algo que paginar: en un documento ya paginado sería una entrada
+          permanente que no hace nada, y que por estar ahí invita a pulsarla.
+          Tras convertir, `loose` baja a 0 y la entrada desaparece sola — ése es
+          el acuse de recibo, junto a las páginas que aparecen en la tira. */}
+      {!viewMode && loose > 0 && (
+        <MainMenu.Item
+          shortcut={L.menu.toPagesHint(loose)}
+          onSelect={() => {
+            const { created, total } = convertToPages(api, {
+              // Hereda el tamaño de la página activa cuando el documento ya
+              // tiene alguna; si no, lo decide el grupo más grande.
+              pageSize: activePage
+                ? { width: activePage.width, height: activePage.height }
+                : undefined,
+            });
+            // Salta a la primera página creada: si no, la conversión ocurre
+            // fuera de la pantalla y parece que no ha pasado nada.
+            const first = listPages(api)[total - created];
+            if (first) goToPage(api, first.id);
+          }}
+        >
+          {L.menu.toPages}
+        </MainMenu.Item>
       )}
 
       {!viewMode && (

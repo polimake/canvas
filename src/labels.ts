@@ -44,6 +44,12 @@ export interface Canvas2Labels {
     exportPngAll: string;
     exportSvg: string;
     exportPdf: string;
+    /** Acción de paginar lo que está suelto en el lienzo. */
+    toPages: string;
+    /** Recibe cuántos elementos sueltos hay ahora mismo. */
+    toPagesHint: (count: number) => string;
+    /** Recibe cuántas páginas se han creado. */
+    toPagesDone: (count: number) => string;
   };
   pages: {
     add: string;
@@ -111,6 +117,9 @@ export const DEFAULT_LABELS: Canvas2Labels = {
     exportPngAll: 'PNG · todas las páginas',
     exportSvg: 'SVG · página actual',
     exportPdf: 'PDF · todas las páginas',
+    toPages: 'Convertir en páginas',
+    toPagesHint: (count) => `${count} suelto${count === 1 ? '' : 's'}`,
+    toPagesDone: (count) => `${count} página${count === 1 ? '' : 's'} creada${count === 1 ? '' : 's'}`,
   },
   pages: {
     add: 'Agregar página después',
