@@ -79,6 +79,80 @@ export function looseElements(elements: readonly SceneElement[]): SceneElement[]
 }
 
 /**
+ * Cuánto se agranda la caja de una página candidata para decidir si un satélite
+ * le pertenece: un cuarto de su tamaño por cada lado.
+ */
+const SATELLITE_REACH = 0.25;
+
+/**
+ * Un grupo es SATÉLITE si su área no llega a esta fracción de la del grupo más
+ * grande. El salto real que separa un slide de su rótulo es de dos órdenes de
+ * magnitud (205.000 px² frente a 5.400), así que el umbral no está peleado con
+ * ningún caso realista.
+ */
+const SATELLITE_MAX_AREA = 0.15;
+
+/**
+ * Los rótulos vuelven con su slide.
+ *
+ * El solape no basta: en un guion de carrusel el número de slide ("01 ·
+ * Portada") se escribe UNA MIGA por encima del recuadro, sin llegar a tocarlo,
+ * y sin esto cada rótulo se convertía en su propia página — un carrusel de 11
+ * slides salía en 22 páginas, alternando slide y rótulo.
+ *
+ * La regla no es la distancia a secas, que dependería de lo apretada que esté
+ * la rejilla: un grupo minúsculo comparado con el mayor se considera adorno y se
+ * pega a la página CANDIDATA más cercana que lo tenga a tiro (su caja agrandada
+ * un cuarto contiene el centro del satélite). Si ninguna lo alcanza, el satélite
+ * se queda como página propia: es mejor una página de más que tragarse un
+ * elemento en la equivocada.
+ */
+function absorbSatellites(groups: Map<number, number[]>, boxes: readonly Box[]): void {
+  if (groups.size < 2) return;
+
+  const entries = [...groups.entries()].map(([root, indices]) => ({
+    root,
+    indices,
+    box: unionBox(indices.map((i) => boxes[i])),
+  }));
+  const areas = entries.map((e) => e.box.width * e.box.height);
+  const maxArea = Math.max(...areas);
+  if (maxArea <= 0) return;
+
+  const anfitriones = entries.filter((_, i) => areas[i] >= maxArea * SATELLITE_MAX_AREA);
+  const satelites = entries.filter((_, i) => areas[i] < maxArea * SATELLITE_MAX_AREA);
+  if (anfitriones.length === 0 || satelites.length === 0) return;
+
+  const centro = (b: Box) => ({ x: b.x + b.width / 2, y: b.y + b.height / 2 });
+
+  for (const satelite of satelites) {
+    const c = centro(satelite.box);
+    let elegido: (typeof anfitriones)[number] | null = null;
+    let mejor = Infinity;
+    for (const anfitrion of anfitriones) {
+      const { box } = anfitrion;
+      const margenX = box.width * SATELLITE_REACH;
+      const margenY = box.height * SATELLITE_REACH;
+      const alcanza =
+        c.x >= box.x - margenX &&
+        c.x <= box.x + box.width + margenX &&
+        c.y >= box.y - margenY &&
+        c.y <= box.y + box.height + margenY;
+      if (!alcanza) continue;
+      const h = centro(box);
+      const d = (c.x - h.x) ** 2 + (c.y - h.y) ** 2;
+      if (d < mejor) {
+        mejor = d;
+        elegido = anfitrion;
+      }
+    }
+    if (!elegido) continue;
+    elegido.indices.push(...satelite.indices);
+    groups.delete(satelite.root);
+  }
+}
+
+/**
  * PURA: reparte los elementos sueltos en grupos —un grupo, una página futura—
  * y los devuelve en orden de lectura (por filas, y dentro de cada fila de
  * izquierda a derecha).
@@ -149,6 +223,8 @@ export function clusterLooseElements(loose: readonly SceneElement[]): SceneEleme
     else groups.set(root, [i]);
   });
 
+  absorbSatellites(groups, boxes);
+
   // Orden de lectura: se abren filas por solape VERTICAL. Un carrusel en línea
   // da una sola fila (izquierda → derecha, que es el orden de los slides); una
   // rejilla da tantas filas como tenga, cada una ordenada por x. Ordenar solo
@@ -183,6 +259,18 @@ export interface PaginateOptions {
    * conversión no reencuadra nada cuando no hace falta.
    */
   pageSize?: PageSize;
+  /**
+   * Permitir AMPLIAR un grupo más pequeño que la página, además de reducir el
+   * que no cabe.
+   *
+   * Por defecto no: cuando el tamaño se deduce del propio contenido, ampliar
+   * solo emborronaría las imágenes sin ganar nada. Cuando el tamaño lo IMPONE
+   * quien llama —el menú, que hereda el de la página activa— la intención es
+   * llenar ese lienzo, y es justo lo que hace `resizePage` al cambiar el tamaño
+   * de una página con "Escalar el contenido" marcado. Mismo gesto, misma
+   * respuesta.
+   */
+  scaleUp?: boolean;
   /** Color del papel de las páginas nuevas. */
   paperColor?: string;
 }
@@ -260,9 +348,9 @@ export function paginateSceneInArray(
     }) as unknown as SceneElement[];
     newFrameIds.push(frame.id);
 
-    // Solo se REDUCE: ampliar un grupo pequeño para llenar la página estiraría
-    // sus imágenes por encima de su resolución.
-    const k = Math.min(1, pageSize.width / box.width, pageSize.height / box.height);
+    // Uniforme en los dos ejes: escalar por separado deformaría las imágenes.
+    const encaje = Math.min(pageSize.width / box.width, pageSize.height / box.height);
+    const k = opts.scaleUp ? encaje : Math.min(1, encaje);
     // Centrado en la página, conservando la disposición relativa del grupo.
     const offsetX = x + (pageSize.width - box.width * k) / 2;
     const offsetY = y + (pageSize.height - box.height * k) / 2;
@@ -279,6 +367,8 @@ export function paginateSceneInArray(
         updates.height = Math.max(1, elBox.height * k);
         const fontSize = (el as { fontSize?: number }).fontSize;
         if (el.type === 'text' && typeof fontSize === 'number') {
+          // El cuerpo de letra acompaña a la caja: sin esto, un slide ampliado
+          // sale con el texto del tamaño original nadando en la página.
           updates.fontSize = Math.max(4, fontSize * k);
         }
       }

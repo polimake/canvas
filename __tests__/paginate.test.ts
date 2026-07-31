@@ -73,6 +73,48 @@ describe('clusterLooseElements', () => {
     expect(clusterLooseElements(els as any)).toHaveLength(1);
   });
 
+  // Reproduce la forma de un guion de carrusel real (diseño ed173ee0): slides
+  // de 405×506 en rejilla, cada uno con su rótulo numerado 12px POR ENCIMA sin
+  // llegar a tocarlo. Sin absorción de satélites salían 2N páginas alternando
+  // slide y rótulo.
+  function guionDeCarrusel(n: number) {
+    const els: any[] = [];
+    for (let i = 0; i < n; i += 1) {
+      const x = 80 + (i % 4) * 480;
+      const y = 50 + Math.floor(i / 4) * 640;
+      els.push(loose(`rotulo${i}`, x, y, 162, 18, { type: 'text', fontSize: 14 }));
+      els.push(loose(`slide${i}`, x, y + 30, 405, 506, { type: 'rectangle' }));
+    }
+    return els;
+  }
+
+  it('el rótulo de un slide vuelve con él aunque no lo toque', () => {
+    const grupos = clusterLooseElements(guionDeCarrusel(11) as any);
+    expect(grupos).toHaveLength(11);
+    // Cada página lleva su rótulo y su slide, y en el orden de los slides.
+    expect(grupos.map((g) => g.map((e) => e.id).sort())).toEqual(
+      Array.from({ length: 11 }, (_, i) => [`rotulo${i}`, `slide${i}`]),
+    );
+  });
+
+  it('un satélite fuera del alcance se queda como página propia', () => {
+    // La nota está a 3.000px del slide más cercano: no es su rótulo, es otra cosa.
+    const els = [
+      loose('slide', 0, 0, 1080, 1350, { type: 'rectangle' }),
+      loose('nota', 4000, 4000, 60, 20, { type: 'text' }),
+    ];
+    expect(clusterLooseElements(els as any)).toHaveLength(2);
+  });
+
+  it('con grupos de tamaño parecido no se absorbe ninguno', () => {
+    const els = [
+      loose('a', 0, 0, 400, 500),
+      loose('b', 600, 0, 400, 500),
+      loose('c', 1200, 0, 380, 480),
+    ];
+    expect(clusterLooseElements(els as any)).toHaveLength(3);
+  });
+
   it('una rejilla se lee por filas y, dentro de cada fila, de izquierda a derecha', () => {
     const els = [
       loose('abajo-dcha', 1200, 1500, 1080, 1350),
@@ -170,6 +212,22 @@ describe('convertToPages', () => {
     const { api, get } = fakeApi([loose('pequeño', 0, 0, 200, 200)]);
     convertToPages(api as any, { pageSize: { width: 1080, height: 1080 } });
     expect(get().find((e) => e.id === 'pequeño')).toMatchObject({ width: 200, height: 200 });
+  });
+
+  it('con scaleUp sí amplía, uniformemente y con el cuerpo de letra', () => {
+    const { api, get } = fakeApi([
+      loose('mini', 0, 0, 405, 506, { type: 'text', fontSize: 20 }),
+    ]);
+    // 1080/405 = 2,666…; 1350/506 = 2,668… → manda el menor, sin deformar.
+    convertToPages(api as any, {
+      pageSize: { width: 1080, height: 1350 },
+      scaleUp: true,
+    });
+    const ampliado = get().find((e) => e.id === 'mini')!;
+    const k = 1080 / 405;
+    expect(ampliado.width).toBeCloseTo(1080, 5);
+    expect(ampliado.height).toBeCloseTo(506 * k, 5);
+    expect(ampliado.fontSize).toBeCloseTo(20 * k, 5);
   });
 
   it('escala el cuerpo de un texto junto con su caja', () => {

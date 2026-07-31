@@ -364,6 +364,11 @@ export function CanvasMenu({
               pageSize: activePage
                 ? { width: activePage.width, height: activePage.height }
                 : undefined,
+              // Con un tamaño heredado la intención es llenar ESE lienzo, así
+              // que el contenido se escala en los dos sentidos. Un guion de
+              // carrusel dibujado en miniatura sale a tamaño real, no como
+              // sellos centrados en una página gigante.
+              scaleUp: Boolean(activePage),
             });
             // Salta a la primera página creada: si no, la conversión ocurre
             // fuera de la pantalla y parece que no ha pasado nada.
