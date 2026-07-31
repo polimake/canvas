@@ -236,3 +236,13 @@ export const AlignBottomIcon = () => (
     <rect x="8" y="6" width="8" height="10" />
   </Svg>
 );
+
+/** Ver todas las páginas: cuatro esquinas apuntando hacia fuera. */
+export const FitAllIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 3H5a2 2 0 0 0-2 2v4" />
+    <path d="M15 3h4a2 2 0 0 1 2 2v4" />
+    <path d="M9 21H5a2 2 0 0 1-2-2v-4" />
+    <path d="M15 21h4a2 2 0 0 0 2-2v-4" />
+  </svg>
+);

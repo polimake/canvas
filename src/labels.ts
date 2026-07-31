@@ -51,6 +51,22 @@ export interface Canvas2Labels {
     /** Recibe cuántas páginas se han creado. */
     toPagesDone: (count: number) => string;
   };
+  video: {
+    pickFrame: string;
+    loading: string;
+    useFrame: string;
+    saving: string;
+    cancel: string;
+    failed: string;
+    /** El host no ha cableado el proxy: se puede ver el vídeo, no capturar. */
+    unavailable: string;
+  };
+  loose: {
+    /** Recibe cuántos elementos están fuera de toda página. */
+    warning: (count: number) => string;
+    adopt: string;
+    dismiss: string;
+  };
   pages: {
     add: string;
     duplicate: string;
@@ -61,6 +77,9 @@ export interface Canvas2Labels {
     confirmDelete: string;
     moveLeft: string;
     moveRight: string;
+    /** Por qué el botón de borrar no hace nada cuando solo queda una página. */
+    lastPage: string;
+    fitAll: string;
   };
   dock: {
     layers: string;
@@ -121,6 +140,23 @@ export const DEFAULT_LABELS: Canvas2Labels = {
     toPagesHint: (count) => `${count} suelto${count === 1 ? '' : 's'}`,
     toPagesDone: (count) => `${count} página${count === 1 ? '' : 's'} creada${count === 1 ? '' : 's'}`,
   },
+  video: {
+    pickFrame: 'Elegir fotograma',
+    loading: 'Cargando vídeo…',
+    useFrame: 'Usar este',
+    saving: 'Guardando…',
+    cancel: 'Cancelar',
+    failed: 'No se pudo capturar el fotograma',
+    unavailable: 'El selector de fotograma no está disponible aquí',
+  },
+  loose: {
+    warning: (count) =>
+      count === 1
+        ? 'Hay 1 elemento fuera de toda página: no saldrá al exportar ni en la miniatura.'
+        : `Hay ${count} elementos fuera de toda página: no saldrán al exportar ni en la miniatura.`,
+    adopt: 'Meter en esta página',
+    dismiss: 'Descartar aviso',
+  },
   pages: {
     add: 'Agregar página después',
     duplicate: 'Duplicar página',
@@ -131,6 +167,8 @@ export const DEFAULT_LABELS: Canvas2Labels = {
     confirmDelete: '¿Eliminar?',
     moveLeft: 'Mover a la izquierda',
     moveRight: 'Mover a la derecha',
+    lastPage: 'Es la única página: un diseño no puede quedarse sin ninguna',
+    fitAll: 'Ver todas las páginas',
   },
   dock: {
     layers: 'Capas',

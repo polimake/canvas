@@ -407,3 +407,62 @@ export function convertToPages(
   }
   return { created: result.created, total: result.total };
 }
+
+/**
+ * Mete los elementos sueltos DENTRO de una página que ya existe, en vez de
+ * crear páginas nuevas para ellos.
+ *
+ * Es la otra mitad de {@link convertToPages}. Aquella sirve cuando lo suelto es
+ * el documento entero (un guion dibujado en el plano infinito, que hay que
+ * paginar); ésta sirve para el caso pequeño y mucho más frecuente: uno o dos
+ * elementos que se quedaron en el hueco entre dos páginas o justo fuera del
+ * borde. Ahí no quieres una página nueva, quieres que pertenezcan a la que
+ * tienes delante.
+ *
+ * Importa porque un elemento sin página NO SE VE en el panel de capas, NO SALE
+ * en ningún export y NO SALE en la miniatura — pero sí se ve en el lienzo y sí
+ * se guarda. Es decir: lo tienes en pantalla y no está en lo que entregas.
+ *
+ * NO los recoloca a propósito: el usuario los dejó donde están y moverlos de
+ * golpe desconcierta más que el propio problema. Con pertenecer a la página ya
+ * dejan de ser invisibles; si además quedan fuera del recorte del marco, eso se
+ * ve en pantalla y se arregla arrastrando.
+ *
+ * Los hijos ligados (el texto dentro de una forma) viajan con su contenedor:
+ * mover el contenedor sin su texto dejaría al texto suelto, que es justo el
+ * fallo que esto viene a arreglar.
+ *
+ * Un solo `updateScene` = una sola entrada de deshacer. Devuelve cuántos movió.
+ */
+export function adoptLooseIntoPage(
+  api: ExcalidrawImperativeAPI,
+  pageId: string,
+  opts: { only?: readonly string[]; capture?: CaptureMode } = {},
+): number {
+  const elements = api.getSceneElements();
+  if (!elements.some((e) => e.id === pageId && e.type === 'frame')) return 0;
+
+  const filtro = opts.only ? new Set(opts.only) : null;
+  const objetivo = new Set(
+    looseElements(elements)
+      .filter((e) => !filtro || filtro.has(e.id))
+      .map((e) => e.id),
+  );
+  if (!objetivo.size) return 0;
+
+  for (const e of elements) {
+    const contenedor = (e as { containerId?: string | null }).containerId;
+    if (contenedor && objetivo.has(contenedor)) objetivo.add(e.id);
+  }
+
+  let movidos = 0;
+  const siguiente = elements.map((e) => {
+    if (!objetivo.has(e.id) || e.type === 'frame') return e;
+    movidos += 1;
+    return { ...e, frameId: pageId, version: e.version + 1 } as SceneElement;
+  });
+
+  if (!movidos) return 0;
+  commitElements(api, siguiente, opts.capture ?? 'undoable');
+  return movidos;
+}

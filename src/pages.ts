@@ -305,9 +305,36 @@ export function renamePage(
  * Delete a page and everything inside it, re-packing and renumbering the
  * survivors in the same (single) undo entry. Refuses to delete the last page.
  */
-export function deletePage(api: ExcalidrawImperativeAPI, pageId: string): void {
+/**
+ * Encuadra TODAS las páginas a la vez.
+ *
+ * El editor legacy apilaba las páginas en vertical y verlas todas era el estado
+ * por defecto; aquí van en fila y `goToPage` encuadra solo una, así que sin esto
+ * la única forma de ver el conjunto era alejar el zoom a mano. `scrollToContent`
+ * sin elemento concreto ajusta a la escena entera.
+ */
+export function fitAllPages(api: ExcalidrawImperativeAPI, opts?: { coverage?: number }): void {
+  const marcos = framesInArray(api.getSceneElements());
+  if (!marcos.length) return;
+  api.scrollToContent(marcos, {
+    fitToViewport: true,
+    viewportZoomFactor: Math.min(1, Math.max(0.1, opts?.coverage ?? 0.9)),
+    animate: true,
+    duration: 300,
+  });
+}
+
+/**
+ * Borra una página y todo lo que contiene.
+ *
+ * Devuelve `false` sin tocar nada cuando es la última: un diseño sin ninguna
+ * página no es representable (ni se exporta, ni tiene miniatura, ni sabe a qué
+ * tamaño volver). Quien llama DEBE decir por qué no ha pasado nada — que el
+ * botón se quedara mudo era la razón de que pareciera roto.
+ */
+export function deletePage(api: ExcalidrawImperativeAPI, pageId: string): boolean {
   const elements = api.getSceneElements();
-  if (framesInArray(elements).length <= 1) return;
+  if (framesInArray(elements).length <= 1) return false;
   let remaining: readonly SceneElement[] = elements.filter(
     (e) => e.id !== pageId && e.frameId !== pageId,
   );
@@ -315,6 +342,7 @@ export function deletePage(api: ExcalidrawImperativeAPI, pageId: string): void {
   remaining = packPagesInArray(remaining, order);
   remaining = renumberPagesInArray(remaining, order);
   commitElements(api, remaining);
+  return true;
 }
 
 /**

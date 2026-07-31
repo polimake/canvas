@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import type { ExcalidrawImperativeAPI } from './excal';
-import { type PageInfo, listPages, renamePage, movePageTo, goToPage } from './pages';
+import { type PageInfo, listPages, renamePage, movePageTo, goToPage, fitAllPages } from './pages';
 import { usePageThumbnails, type FilesMap } from './pageThumbnails';
 import { PANEL_FONT, palette } from './theme';
-import { LockIcon } from './icons';
+import { FitAllIcon, LockIcon } from './icons';
+import { mergeLabels, type PartialLabels } from './labels';
 import { DragPreview, hideNativeDragImage, type DragGrab } from './DragPreview';
 
 export interface PageNavigatorProps {
@@ -26,6 +27,8 @@ export interface PageNavigatorProps {
   thumbnails?: boolean;
   /** Mapa de ficheros hidratado para poder rasterizar imágenes remotas. */
   thumbnailFiles?: FilesMap;
+  /** Textos, inyectados por el host (ver labels.ts). */
+  labels?: PartialLabels;
 }
 
 function pagesSignature(pages: PageInfo[]): string {
@@ -50,10 +53,12 @@ export function PageNavigator({
   viewMode = false,
   activeId: controlledActiveId,
   onActiveChange,
+  labels: labelsProp,
   thumbnails = false,
   thumbnailFiles,
 }: PageNavigatorProps) {
   const c = palette[theme];
+  const L = mergeLabels(labelsProp);
   const [pages, setPages] = useState<PageInfo[]>(() => listPages(api));
   const [localActiveId, setLocalActiveId] = useState<string | null>(
     () => listPages(api)[0]?.id ?? null,
@@ -309,6 +314,32 @@ export function PageNavigator({
         );
       })}
       </div>
+
+      {/* Ver todas. Va PEGADO al carril y fuera de su scroll horizontal: en un
+          diseño de 20 páginas el botón se iría a la derecha con la tira y
+          justo entonces es cuando más falta hace. Con una sola página no
+          aporta nada sobre el encuadre que ya tienes. */}
+      {pages.length > 1 && (
+        <button
+          type="button"
+          aria-label={L.pages.fitAll}
+          title={L.pages.fitAll}
+          onClick={() => fitAllPages(api)}
+          style={{
+            all: 'unset',
+            flexShrink: 0,
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            padding: '4px 5px',
+            marginLeft: 2,
+            borderRadius: 6,
+            color: c.sub,
+          }}
+        >
+          <FitAllIcon />
+        </button>
+      )}
 
       {/* Aquí abajo SOLO van páginas. Las acciones de la página están en
           `PageActions`, sobre el lienzo junto a su nombre; fondo, tamaño,

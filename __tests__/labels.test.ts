@@ -55,6 +55,8 @@ describe('mergeLabels', () => {
       'library',
       'components',
       'menu',
+      'video',
+      'loose',
       'pages',
       'dock',
       'brand',

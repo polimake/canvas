@@ -12,6 +12,8 @@ import {
   type SceneElement,
 } from './excal';
 import { PageNavigator } from './PageNavigator';
+import { LooseWarning } from './LooseWarning';
+import { VideoFramePicker } from './VideoFramePicker';
 import { CanvasMenu } from './CanvasMenu';
 import { PageActions } from './PageActions';
 import { RightDock } from './RightDock';
@@ -180,6 +182,28 @@ export interface Canvas2EditorProps {
    * correcta lo que se elija en la biblioteca.
    */
   onActivePageChange?: (pageId: string | null) => void;
+  /**
+   * Convierte la URL de un vídeo de la mediateca en una que el `<video>` del
+   * selector de fotograma pueda usar SIN contaminar el lienzo.
+   *
+   * Es asíncrona porque el camino real es fetch autenticado → blob del mismo
+   * origen: el CDN no manda CORS y el proxy del host exige cabecera
+   * `Authorization`, que un `<video src>` no puede mandar. Sin esto el selector
+   * sale apagado.
+   */
+  resolveVideoSrc?: (src: string, signal: AbortSignal) => Promise<string>;
+  /** Libera lo que devolviera `resolveVideoSrc` (revoca el object URL). */
+  releaseVideoSrc?: (resolved: string) => void;
+  /**
+   * Captura el fotograma visible y devuelve la URL del póster YA subido a la
+   * mediateca. Lo hace el host porque los bytes son cosa suya: este paquete no
+   * sabe de MediaMonster, igual que no sabe de la biblioteca ni de los
+   * componentes.
+   */
+  onPickVideoFrame?: (
+    video: HTMLVideoElement,
+    timeSec: number,
+  ) => Promise<{ url: string; mimeType?: string } | null>;
 }
 
 /**
@@ -266,6 +290,9 @@ export function Canvas2Editor({
   onMediaDrop,
   mediaDropType = MEDIA_DROP_TYPE,
   labels,
+  resolveVideoSrc,
+  releaseVideoSrc,
+  onPickVideoFrame,
 }: Canvas2EditorProps) {
   const brand = useMemo(() => resolveBrandKit(brandKit), [brandKit]);
 
@@ -582,6 +609,27 @@ export function Canvas2Editor({
           />
         ) : null}
       </Excalidraw>
+      {/* Selector del fotograma de portada: aparece al seleccionar un vídeo. */}
+      <VideoFramePicker
+        api={api}
+        theme={theme}
+        viewMode={viewMode}
+        labels={labels}
+        resolveVideoSrc={resolveVideoSrc}
+        releaseVideoSrc={releaseVideoSrc}
+        onPickFrame={onPickVideoFrame}
+      />
+      {/* Aviso de elementos fuera de toda página. Va aquí y no dentro del
+          navegador de páginas porque habla del documento entero, no de una. */}
+      {pages && (
+        <LooseWarning
+          api={api}
+          activePageId={activePageId}
+          theme={theme}
+          viewMode={viewMode}
+          labels={labels}
+        />
+      )}
       {pages && api && (
         <PageNavigator
           api={api}
@@ -591,6 +639,7 @@ export function Canvas2Editor({
           onActiveChange={setActivePageId}
           thumbnails={pageThumbnails}
           thumbnailFiles={pageThumbnailFiles}
+          labels={labels}
         />
       )}
       {/* Biblioteca: el marco es nuestro, el contenido lo pone el host. */}

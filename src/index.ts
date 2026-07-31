@@ -18,6 +18,7 @@ export {
   getPageSize,
   addPage,
   deletePage,
+  fitAllPages,
   renamePage,
   duplicatePage,
   resizePage,
@@ -34,6 +35,7 @@ export type { PageInfo, PageSize, PageSizePreset } from './pages';
 // Paginar una escena que llegó sin páginas (importada, pegada, arrastrada).
 export {
   convertToPages,
+  adoptLooseIntoPage,
   paginateSceneInArray,
   clusterLooseElements,
   looseElements,
@@ -175,3 +177,15 @@ export {
   ensurePagePapers,
   isPageBackground,
 } from './background';
+
+// Vídeo en el lienzo: un póster que recuerda de qué vídeo salió, para poder
+// volver a elegir el fotograma. Ver la cabecera de video.ts.
+export {
+  insertVideo,
+  setVideoPoster,
+  isVideoElement,
+  getVideoMeta,
+  getSelectedVideo,
+  VIDEO_MARKER,
+} from './video';
+export type { VideoMeta, InsertVideoOptions } from './video';

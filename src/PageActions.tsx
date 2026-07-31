@@ -116,6 +116,29 @@ export function PageActions({
     goToPage(api, id);
   };
 
+  /** Igual que `btn` pero apagado: se ve, se explica al pasar el ratón, no actúa. */
+  const btnDisabled = (label: string, icon: ReactNode) => (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      disabled
+      style={{
+        all: 'unset',
+        cursor: 'not-allowed',
+        display: 'inline-flex',
+        alignItems: 'center',
+        lineHeight: 1,
+        padding: '2px 3px',
+        borderRadius: 4,
+        color: c.sub,
+        opacity: 0.35,
+      }}
+    >
+      {icon}
+    </button>
+  );
+
   const btn = (label: string, onClick: () => void, icon: ReactNode, danger = false) => (
     <button
       type="button"
@@ -180,6 +203,12 @@ export function PageActions({
         const id = addPage(api, size ?? pageSize, { afterPageId: page.id });
         select(id);
       }, <PlusIcon />)}
+      {/* Con una sola página el botón se ESCONDÍA. Desaparecer sin explicación
+          confunde tanto como un botón que no hace nada, así que se queda a la
+          vista, apagado y diciendo por qué. Bloqueada sí se oculta: ahí el
+          candado ya explica el estado. */}
+      {pageCount <= 1 && !page.locked &&
+        btnDisabled(L.pages.lastPage, <TrashIcon />)}
       {pageCount > 1 && !page.locked && (
         armedDelete ? (
           <button
