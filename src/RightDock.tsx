@@ -46,7 +46,9 @@ export function RightDock({
   const L = mergeLabels(labelsProp);
   const c = palette[theme];
   const [tab, setTab] = useState<Tab>('capas');
-  const [abierto, setAbierto] = useState(true);
+  // Arranca PLEGADO: en una escena con muchas capas el panel se comía media
+  // pantalla nada más abrir el diseño. Se despliega al pulsar una pestaña.
+  const [abierto, setAbierto] = useState(false);
 
   // La galería decide sola si tiene algo que enseñar (colores o logos); aquí
   // solo hace falta saber si merece una pestaña.

@@ -174,6 +174,16 @@ export function LayersPanel({
   const rows = [...members].reverse();
   const selected = api.getAppState().selectedElementIds;
 
+  // Ficheros de la escena, para pintar la miniatura de las capas de imagen.
+  // `getFiles()` devuelve el mapa vivo; la url puede ser de MediaMonster o un
+  // data URI heredado, y en los dos casos vale como `src`.
+  const files = api.getFiles() as Record<string, { dataURL?: string } | undefined>;
+  const thumb = (el: SceneElement): string | undefined => {
+    if (el.type !== 'image') return undefined;
+    const fileId = (el as { fileId?: string }).fileId;
+    return fileId ? files[fileId]?.dataURL : undefined;
+  };
+
   const patch = (id: string, changes: Partial<SceneElement>) => {
     const next = api
       .getSceneElements()
@@ -213,7 +223,12 @@ export function LayersPanel({
     const to = topFirst.indexOf(targetId);
     if (from < 0 || to < 0) return;
     topFirst.splice(to, 0, topFirst.splice(from, 1)[0]);
-    const bottomFirst = [...topFirst].reverse();
+    // El papel de la página TAMBIÉN es miembro del marco, aunque la lista no lo
+    // enseñe. `reorderPageMembers` añade al FINAL —o sea, arriba del todo— a
+    // cualquier miembro que no venga en la lista: sin nombrarlo aquí, arrastrar
+    // una capa mandaba el papel al frente y la página se quedaba en negro.
+    const paper = els.find((e) => e.frameId === activePageId && isPageBackground(e));
+    const bottomFirst = [...(paper ? [paper.id] : []), ...[...topFirst].reverse()];
     commitElements(api, reorderPageMembers(api, activePageId, bottomFirst));
   };
 
@@ -248,8 +263,19 @@ export function LayersPanel({
         // Empotrado dentro de una pestaña de la barra lateral, el panel no debe
         // flotar ni traer marco propio: la barra ya pone el suyo, y un panel
         // absoluto se saldría de la pestaña.
+        // `height: '100%'` NO servía. El panel es hijo de un contenedor flex
+        // cuya altura la reparte el propio flex (el dock solo declara un
+        // `max-height`), y un porcentaje contra una altura `auto` no resuelve:
+        // el panel crecía hasta el alto de su contenido —1313 px con una escena
+        // de 45 capas—, el dock lo recortaba con su `overflow: hidden` y la
+        // lista NUNCA llegaba a desbordar, así que no aparecía la barra de
+        // scroll y las capas de abajo eran inalcanzables. Medido con Playwright
+        // sobre una escena real, no supuesto.
+        //
+        // Con `flex` + `minHeight: 0` el panel se queda exactamente con el alto
+        // que le da el dock y el desbordamiento cae donde toca: en la lista.
         ...(embedded
-          ? { position: 'relative', width: '100%', height: '100%' }
+          ? { position: 'relative', width: '100%', flex: 1, minHeight: 0, maxHeight: '100%' }
           : {
               position: 'absolute' as const,
               top: 56,
@@ -346,8 +372,20 @@ export function LayersPanel({
                 opacity: hidden ? 0.5 : 1,
               }}
             >
-              <span style={{ width: 16, display: 'inline-flex', justifyContent: 'center' }}>
-                {typeIcon(el.type)}
+              <span style={{ width: 16, height: 16, display: 'inline-flex', justifyContent: 'center', alignItems: 'center' }}>
+                {/* La miniatura de la propia imagen en vez del icono genérico:
+                    en una escena con decenas de capas es lo único que permite
+                    saber CUÁL es cuál sin ir pinchando una por una. */}
+                {thumb(el) ? (
+                  <img
+                    src={thumb(el)}
+                    alt=""
+                    draggable={false}
+                    style={{ width: 16, height: 16, objectFit: 'cover', borderRadius: 3, display: 'block' }}
+                  />
+                ) : (
+                  typeIcon(el.type)
+                )}
               </span>
               <span
                 style={{
