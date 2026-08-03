@@ -386,6 +386,16 @@ export function Canvas2Editor({
     } as Canvas2Scene;
   });
 
+  /**
+   * ¿Queda por entrar la escena del host?
+   *
+   * Excalidraw aplica `initialData` de forma ASÍNCRONA (el prop admite incluso
+   * una promesa), así que hay una ventana en la que el api ya existe, `onChange`
+   * ya dispara y la escena TODAVÍA está vacía. Todo lo que mire la escena en esa
+   * ventana llega a la conclusión contraria a la verdad.
+   */
+  const pendingHydration = useRef(((initialData?.elements as unknown[] | undefined)?.length ?? 0) > 0);
+
   const emitScene = useDebouncedCallback((scene: Canvas2Scene) => {
     onSceneChange?.(scene);
   }, changeDebounceMs);
@@ -401,6 +411,16 @@ export function Canvas2Editor({
     let timer: ReturnType<typeof setTimeout> | null = null;
     const run = () => {
       if (didInitPages.current) return;
+      // DESTRUCTIVO si se salta: con la escena a medio hidratar `listPages` da
+      // cero, se crea una página en blanco y ese commit —`updateScene` sustituye
+      // la escena ENTERA— se lleva por delante el diseño que estaba entrando. El
+      // autoguardado del host lo persistía acto seguido: así se vaciaron cuatro
+      // componentes de la biblioteca (quedaron en marco + papel de 1080×1350).
+      // Se espera al siguiente `onChange`, que ya trae la escena puesta.
+      if (pendingHydration.current) {
+        if (api.getSceneElements().length === 0) return;
+        pendingHydration.current = false;
+      }
       didInitPages.current = true;
       unsub?.();
       if (timer) clearTimeout(timer);
