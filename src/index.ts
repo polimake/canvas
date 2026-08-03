@@ -50,7 +50,7 @@ export { usePageThumbnails } from './pageThumbnails';
 export type { FilesMap } from './pageThumbnails';
 
 // ─── Export: hidratación de imágenes remotas ─────────────────────────────────
-export { buildHydratedFiles } from './exportHydrate';
+export { buildHydratedFiles, clearHydrationCache } from './exportHydrate';
 export type { MediaFetcher, HydratedFiles } from './exportHydrate';
 
 // ─── Conversión desde el editor legacy ───────────────────────────────────────

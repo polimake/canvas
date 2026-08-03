@@ -132,7 +132,7 @@ export interface Canvas2EditorProps {
    * grupo Exportar del menú funcione también con escenas que apuntan al CDN.
    * Sin esto el rasterizado muere por canvas contaminado.
    */
-  hydrateFiles?: () => Promise<FilesMap>;
+  hydrateFiles?: (opts?: { output?: 'blob' | 'dataurl' }) => Promise<FilesMap>;
   /**
    * Ancho mínimo del editor, en px, a partir del cual la barra lateral se puede
    * anclar (el "pin" de Biblioteca).
@@ -657,6 +657,7 @@ export function Canvas2Editor({
           viewMode={viewMode}
           activeId={activePageId}
           onActiveChange={setActivePageId}
+          pageSize={pageSize}
           thumbnails={pageThumbnails}
           thumbnailFiles={pageThumbnailFiles}
           labels={labels}

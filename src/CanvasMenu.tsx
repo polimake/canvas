@@ -58,7 +58,7 @@ export interface CanvasMenuProps {
    * publicado hace diez segundos no incluiría una imagen añadida después: el
    * export saldría incompleto sin avisar.
    */
-  hydrateFiles?: () => Promise<FilesMap>;
+  hydrateFiles?: (opts?: { output?: 'blob' | 'dataurl' }) => Promise<FilesMap>;
   /**
    * Tipografías de la marca, para embeberlas en el SVG. Excalidraw mete las que
    * tiene REGISTRADAS, no las que sustituimos por `@font-face`, así que sin esto
@@ -147,7 +147,12 @@ export function CanvasMenu({
       const base = safeFilename(activePage?.name ?? 'diseño');
       // Los bytes de las imágenes remotas, traídos por el host. Sin esto el
       // canvas está contaminado y cualquier rasterizado muere.
-      const files = hydrateFiles ? await hydrateFiles() : undefined;
+      // El SVG necesita los bytes en base64: van DENTRO del fichero, y un
+      // `blob:` moriría con la pestaña. El resto rasteriza en un canvas, donde
+      // un `blob:` vale igual y sale mucho más barato.
+      const files = hydrateFiles
+        ? await hydrateFiles(kind === 'svg' ? { output: 'dataurl' } : undefined)
+        : undefined;
       if (kind === 'png') {
         downloadBlob(
           await exportScenePng(api, { pageId: activePageId ?? undefined, files }),

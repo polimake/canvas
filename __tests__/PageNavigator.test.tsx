@@ -127,6 +127,27 @@ describe('PageNavigator', () => {
     expect(a.name).toBe('Portada');
   });
 
+  // El "+" de `PageActions` se ancla a la esquina del marco y con zoom de
+  // trabajo queda fuera de pantalla: en un contenido recién creado no había
+  // ningún camino visible para crear la segunda página.
+  it('añade una página al final, del tamaño de la última', () => {
+    const { api, get } = tresPaginas();
+    render(<PageNavigator api={api as never} />);
+    fireEvent.click(screen.getByTestId('canvas2-add-page'));
+
+    const marcos = get().filter((e: { type: string }) => e.type === 'frame');
+    expect(marcos).toHaveLength(4);
+    const nueva = marcos[marcos.length - 1];
+    expect(nueva.width).toBe(1080);
+    expect(nueva.height).toBe(1350);
+  });
+
+  it('el revisor con enlace público no puede añadir páginas', () => {
+    const { api } = tresPaginas();
+    render(<PageNavigator api={api as never} viewMode />);
+    expect(screen.queryByTestId('canvas2-add-page')).toBeNull();
+  });
+
   it('acepta etiquetas del host sin perder las que no traduce', () => {
     const { api } = tresPaginas();
     render(<PageNavigator api={api as never} labels={{ dock: { layers: 'Layers' } }} />);

@@ -2,10 +2,19 @@
 
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import type { ExcalidrawImperativeAPI } from './excal';
-import { type PageInfo, listPages, renamePage, movePageTo, goToPage, fitAllPages } from './pages';
+import {
+  type PageInfo,
+  type PageSize,
+  addPage,
+  listPages,
+  renamePage,
+  movePageTo,
+  goToPage,
+  fitAllPages,
+} from './pages';
 import { usePageThumbnails, type FilesMap } from './pageThumbnails';
 import { PANEL_FONT, palette } from './theme';
-import { FitAllIcon, LockIcon } from './icons';
+import { FitAllIcon, LockIcon, PlusIcon } from './icons';
 import { mergeLabels, type PartialLabels } from './labels';
 import { DragPreview, hideNativeDragImage, type DragGrab } from './DragPreview';
 
@@ -27,6 +36,8 @@ export interface PageNavigatorProps {
   thumbnails?: boolean;
   /** Mapa de ficheros hidratado para poder rasterizar imágenes remotas. */
   thumbnailFiles?: FilesMap;
+  /** Tamaño de respaldo para "Añadir página" cuando no hay ninguna de la que heredar. */
+  pageSize?: PageSize;
   /** Textos, inyectados por el host (ver labels.ts). */
   labels?: PartialLabels;
 }
@@ -56,6 +67,7 @@ export function PageNavigator({
   labels: labelsProp,
   thumbnails = false,
   thumbnailFiles,
+  pageSize,
 }: PageNavigatorProps) {
   const c = palette[theme];
   const L = mergeLabels(labelsProp);
@@ -341,9 +353,49 @@ export function PageNavigator({
         </button>
       )}
 
-      {/* Aquí abajo SOLO van páginas. Las acciones de la página están en
-          `PageActions`, sobre el lienzo junto a su nombre; fondo, tamaño,
-          insertar texto y exportar, en el menú principal (`CanvasMenu`). */}
+      {/* Añadir página al FINAL del documento.
+          Aquí abajo van las acciones del DOCUMENTO (ver todas, añadir); las de
+          una página concreta —duplicar, bloquear, borrar, insertar después—
+          siguen en `PageActions`, sobre el lienzo junto a su nombre.
+
+          Vive aquí porque el único camino para crear una página era el "+" de
+          esa barra flotante, que se ancla a la esquina superior derecha del
+          marco: con zoom de trabajo se queda fuera de pantalla, así que en un
+          contenido recién creado no había forma de encontrarlo. Va con texto y
+          no solo con el icono, y fuera del carril con scroll, para que no se
+          esconda cuando el diseño tiene muchas páginas. */}
+      {!viewMode && (
+        <button
+          type="button"
+          data-testid="canvas2-add-page"
+          aria-label={L.pages.addAtEnd}
+          title={L.pages.addAtEnd}
+          onClick={() => {
+            const last = pages[pages.length - 1];
+            const size = last ? { width: last.width, height: last.height } : pageSize;
+            select(addPage(api, size));
+          }}
+          style={{
+            all: 'unset',
+            flexShrink: 0,
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+            padding: '5px 8px',
+            marginLeft: 2,
+            borderRadius: 6,
+            border: `1px dashed ${c.border}`,
+            color: c.sub,
+            fontSize: 11,
+            fontWeight: 600,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <PlusIcon />
+          {L.pages.addAtEnd}
+        </button>
+      )}
 
       {/* La pieza levantada. Va fuera de la tira (es un portal a <body>) para
           que no la recorte el `overflow-x` del carril de páginas. */}

@@ -68,7 +68,10 @@ export interface Canvas2Labels {
     dismiss: string;
   };
   pages: {
+    /** Insertar justo después de la página activa (barra sobre el lienzo). */
     add: string;
+    /** Añadir al final del documento (tira de páginas). */
+    addAtEnd: string;
     duplicate: string;
     rename: string;
     lock: string;
@@ -159,6 +162,7 @@ export const DEFAULT_LABELS: Canvas2Labels = {
   },
   pages: {
     add: 'Agregar página después',
+    addAtEnd: 'Añadir página',
     duplicate: 'Duplicar página',
     rename: 'Renombrar página',
     lock: 'Bloquear página',
