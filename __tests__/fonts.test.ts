@@ -27,9 +27,25 @@ describe('nombres de familia', () => {
     expect(fontFamilyAlias('helvetica')).toBe('helvetica (marca)');
   });
 
+  it('quita las cifras, que invalidarían el ctx.font del canvas', () => {
+    // Sin esto, `${nombre}, Segoe UI Emoji` no es un atajo `font` válido, el
+    // canvas cae a su 10px sans-serif y TODO el texto sale diminuto.
+    expect(fontFamilyAlias('Source Sans 3')).toBe('Source Sans');
+    expect(fontFamilyAlias('EB Garamond 400')).toBe('EB Garamond');
+    expect(fontFamilyAlias('Archivo2Bold')).toBe('ArchivoBold');
+    // El token vacío no deja un espacio doble detrás.
+    expect(fontFamilyAlias('Jost 300 Light')).toBe('Jost Light');
+  });
+
+  it('el alias de choque se decide DESPUÉS de quitar las cifras', () => {
+    expect(fontFamilyAlias('Nunito 700')).toBe('Nunito (marca)');
+  });
+
   it('un nombre vacío no produce familia', () => {
     expect(fontFamilyAlias('   ')).toBe('');
+    expect(fontFamilyAlias('400')).toBe('');
     expect(customFontFamilyId('')).toBe(0);
+    expect(customFontFamilyId('400')).toBe(0);
   });
 });
 

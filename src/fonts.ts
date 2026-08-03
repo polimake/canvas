@@ -122,12 +122,42 @@ export function normalizeFontName(raw: string): string {
 }
 
 /**
- * Nombre con el que se registra la familia: el suyo, salvo que choque con una
- * de Excalidraw. Función PURA del nombre — el convertidor y el editor la
- * calculan por separado y tienen que coincidir.
+ * Quita los dígitos del nombre de la familia. NO es cosmético.
+ *
+ * Excalidraw arma la fuente del canvas como `` `${nombre}, Segoe UI Emoji` `` —
+ * SIN comillas— y se la asigna a `ctx.font`, que es el atajo CSS `font`. En ese
+ * atajo un identificador suelto con una cifra ("Source Sans 3", "Gotham 400")
+ * no es un nombre de familia válido: el navegador DESCARTA la declaración
+ * entera, el canvas se queda con su `10px sans-serif` por defecto y TODO el
+ * texto sale diminuto en gris ignorando su `fontSize`. Se manifiesta como "la
+ * fuente no carga", aunque el `@font-face` esté perfecto (ahí sí va entrecomillado).
+ *
+ * Se quitan por token para no perder el resto del nombre: "Source Sans 3" →
+ * "Source Sans", "Archivo2Bold" → "ArchivoBold". Un token que se queda vacío
+ * desaparece en lugar de dejar un espacio doble.
+ *
+ * Se exporta —y no solo se usa desde `fontFamilyAlias`— porque el worker la
+ * necesita al SUBIR una tipografía propia: lo que se guarda en el brand kit
+ * tiene que ser ya el nombre bueno. Allí no vale `fontFamilyAlias` entero: el
+ * sufijo " (marca)" de las colisiones es cosa del registro en Excalidraw, no
+ * del nombre que se le enseña al usuario.
+ */
+export function stripFontDigits(name: string): string {
+  return name
+    .split(' ')
+    .map((token) => token.replace(/\p{Nd}/gu, ''))
+    .filter(Boolean)
+    .join(' ');
+}
+
+/**
+ * Nombre con el que se registra la familia: el suyo sin cifras (ver
+ * `stripDigits`), salvo que choque con una de Excalidraw. Función PURA del
+ * nombre — el convertidor y el editor la calculan por separado y tienen que
+ * coincidir.
  */
 export function fontFamilyAlias(name: string): string {
-  const limpio = normalizeFontName(name);
+  const limpio = stripFontDigits(normalizeFontName(name));
   if (!limpio) return '';
   return BUILTIN.has(limpio.toLowerCase()) ? `${limpio}${ALIAS_SUFFIX}` : limpio;
 }
