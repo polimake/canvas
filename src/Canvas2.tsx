@@ -24,8 +24,7 @@ import { ensurePagePapers } from './background';
 import { resolveBrandKit, type BrandKitInput, type Canvas2Brand } from './brand';
 import { buildFontFaceCss, dedupeFontFaces, type CustomFontFace } from './fonts';
 import { fontFamilyId, registerCustomFonts } from './fontRegistry';
-import { mergeLabels, type PartialLabels } from './labels';
-import { DuplicateIcon } from './icons';
+import type { PartialLabels } from './labels';
 
 /**
  * A serializable snapshot of the canvas. Same shape Excalidraw accepts as
@@ -151,9 +150,9 @@ export interface Canvas2EditorProps {
    */
   library?: ReactNode;
   /**
-   * Contenido del panel de componentes reutilizables (debajo del de biblioteca).
-   * Mismo seam que `library`: el host aporta la rejilla (los componentes viven
-   * en su API); canvas2 solo pone el marco. Sin contenido, no aparece.
+   * Contenido de la pestaña Componentes del dock de la derecha. Mismo seam que
+   * `library`: el host aporta la rejilla (los componentes viven en su API);
+   * canvas2 solo pone el marco. Sin contenido, no hay pestaña.
    */
   componentsPanel?: ReactNode;
   /**
@@ -617,7 +616,6 @@ export function Canvas2Editor({
           <CanvasMenu
             api={api}
             activePageId={activePageId}
-            theme={theme}
             viewMode={viewMode}
             hydrateFiles={hydrateFiles}
             // Las mismas familias (ya con su alias) que se declaran en
@@ -667,22 +665,14 @@ export function Canvas2Editor({
       <LibraryPanel theme={theme} viewMode={viewMode} labels={labels}>
         {library}
       </LibraryPanel>
-      {/* Componentes reutilizables: mismo marco, anclado bajo la biblioteca. */}
-      <LibraryPanel
-        theme={theme}
-        viewMode={viewMode}
-        labels={labels}
-        title={mergeLabels(labels).components.title}
-        anchorTop={100}
-        icon={<DuplicateIcon />}
-        testId="canvas2-components"
-      >
-        {componentsPanel}
-      </LibraryPanel>
 
-      {/* Capas y Marca comparten la esquina inferior derecha, en pestañas.
-          Capas salió de la barra lateral de Excalidraw al sustituir su
-          Biblioteca por la nuestra. */}
+      {/* Todo lo que modifica lo que estás mirando, en una pastilla flotante
+          arriba a la derecha y en pestañas: Diseño (marca + tamaño y fondo de la
+          página), Capas y Componentes.
+
+          Los componentes tenían su propio marco flotante debajo de la
+          biblioteca; entran aquí como una pestaña más. Tres paneles apilados en
+          el mismo borde era el motivo de que ninguno se entendiera. */}
       <RightDock
         api={api}
         activePageId={activePageId}
@@ -690,6 +680,8 @@ export function Canvas2Editor({
         viewMode={viewMode}
         brandKit={brandKit}
         layers={layers && pages}
+        design={pages}
+        componentsPanel={componentsPanel}
         labels={labels}
       />
       {pages && api && !viewMode && (
@@ -697,7 +689,6 @@ export function Canvas2Editor({
           api={api}
           activePageId={activePageId}
           theme={theme}
-          pageSize={pageSize}
           onActiveChange={setActivePageId}
           labels={labels}
         />

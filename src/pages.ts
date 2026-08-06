@@ -206,30 +206,42 @@ export function getPageSize(api: ExcalidrawImperativeAPI, pageId: string): PageS
 
 /**
  * Add a blank page. With `afterPageId` the page is inserted right after that
- * page (pages to the right shift over); otherwise it is appended at the end.
- * One undo entry; returns the new frame id.
+ * page and with `beforePageId` right before it (pages to the right shift over);
+ * with neither, it is appended at the end. One undo entry; returns the new
+ * frame id.
+ *
+ * `beforePageId` existe para el insertador de la tira, que ofrece una juntura
+ * ANTES de cada página —incluida la primera—. Sin él, insertar en cabeza había
+ * que hacerlo en dos pasos (crear al final + mover), o sea dos entradas de
+ * deshacer para un solo gesto.
  */
 export function addPage(
   api: ExcalidrawImperativeAPI,
   pageSize: PageSize = DEFAULT_PAGE_SIZE,
-  opts: { afterPageId?: string; capture?: CaptureMode } = {},
+  opts: { afterPageId?: string; beforePageId?: string; capture?: CaptureMode } = {},
 ): string {
   const elements = api.getSceneElements();
   const frames = framesInArray(elements);
-  const source = opts.afterPageId
-    ? frames.find((f) => f.id === opts.afterPageId)
-    : undefined;
+  const anchorId = opts.afterPageId ?? opts.beforePageId;
+  const source = anchorId ? frames.find((f) => f.id === anchorId) : undefined;
+  const before = source ? !opts.afterPageId : false;
 
   const id = createId();
+  // La x solo tiene que ser plausible: `packPagesInArray` reempaqueta la fila
+  // entera según el orden explícito de abajo.
   const x = source
-    ? source.x + source.width
+    ? before
+      ? source.x
+      : source.x + source.width
     : frames.length
       ? Math.max(...frames.map((f) => f.x + f.width)) + PAGE_GAP
       : 0;
   const y = source ? source.y : 0;
 
   const order = frames.map((f) => f.id);
-  const insertAt = source ? order.indexOf(source.id) + 1 : order.length;
+  const insertAt = source
+    ? order.indexOf(source.id) + (before ? 0 : 1)
+    : order.length;
   order.splice(insertAt, 0, id);
 
   const skeleton: Parameters<typeof convertToExcalidrawElements>[0] = [

@@ -148,6 +148,45 @@ describe('PageNavigator', () => {
     expect(screen.queryByTestId('canvas2-add-page')).toBeNull();
   });
 
+  // Crear en medio obligaba a crear al final y arrastrar hasta su sitio: dos
+  // gestos y dos entradas de deshacer para insertar una página.
+  it('la juntura inserta EN MEDIO, no al final', () => {
+    const { api, get } = tresPaginas();
+    render(<PageNavigator api={api as never} />);
+
+    // Hay una juntura ANTES de cada página; la segunda inserta entre a y b.
+    fireEvent.click(screen.getAllByTestId('canvas2-insert-page')[1]);
+
+    const orden = get()
+      .filter((e: { type: string }) => e.type === 'frame')
+      .sort((a: { x: number }, b: { x: number }) => a.x - b.x)
+      .map((f: { id: string }) => f.id);
+    expect(orden).toHaveLength(4);
+    expect(orden[0]).toBe('a');
+    expect(orden[2]).toBe('b');
+    expect(orden[3]).toBe('c');
+  });
+
+  it('la juntura de la primera página inserta en cabeza', () => {
+    const { api, get, commits } = tresPaginas();
+    render(<PageNavigator api={api as never} />);
+    fireEvent.click(screen.getAllByTestId('canvas2-insert-page')[0]);
+
+    const orden = get()
+      .filter((e: { type: string }) => e.type === 'frame')
+      .sort((a: { x: number }, b: { x: number }) => a.x - b.x)
+      .map((f: { id: string }) => f.id);
+    expect(orden.slice(1)).toEqual(['a', 'b', 'c']);
+    // Un solo gesto, una sola entrada de deshacer.
+    expect(commits).toHaveLength(1);
+  });
+
+  it('en modo lectura no hay junturas', () => {
+    const { api } = tresPaginas();
+    render(<PageNavigator api={api as never} viewMode />);
+    expect(screen.queryAllByTestId('canvas2-insert-page')).toHaveLength(0);
+  });
+
   it('acepta etiquetas del host sin perder las que no traduce', () => {
     const { api } = tresPaginas();
     render(<PageNavigator api={api as never} labels={{ dock: { layers: 'Layers' } }} />);

@@ -9,9 +9,7 @@ import {
   deletePage,
   setPageLocked,
   goToPage,
-  addPage,
   type PageInfo,
-  type PageSize,
 } from './pages';
 import { PANEL_FONT, palette } from './theme';
 import { mergeLabels, type PartialLabels } from './labels';
@@ -20,7 +18,6 @@ import {
   ChevronRightIcon,
   DuplicateIcon,
   LockIcon,
-  PlusIcon,
   TrashIcon,
   UnlockIcon,
 } from './icons';
@@ -45,8 +42,6 @@ export interface PageActionsProps {
   api: ExcalidrawImperativeAPI;
   activePageId?: string | null;
   theme?: 'light' | 'dark';
-  /** Tamaño para las páginas nuevas cuando no hay una activa de la que heredar. */
-  pageSize?: PageSize;
   onActiveChange?: (id: string) => void;
   /** Textos, inyectados por el host (ver labels.ts). */
   labels?: PartialLabels;
@@ -62,7 +57,6 @@ export function PageActions({
   api,
   activePageId,
   theme = 'light',
-  pageSize,
   onActiveChange,
   labels: labelsProp,
 }: PageActionsProps) {
@@ -198,11 +192,11 @@ export function PageActions({
         () => setPageLocked(api, page.id, !page.locked),
         page.locked ? <LockIcon /> : <UnlockIcon />,
       )}
-      {btn(L.pages.add, () => {
-        const size: PageSize | undefined = { width: page.width, height: page.height };
-        const id = addPage(api, size ?? pageSize, { afterPageId: page.id });
-        select(id);
-      }, <PlusIcon />)}
+      {/* Aquí había un "+" para insertar después de esta página. Se ha quitado:
+          esta barra se ancla a la esquina del marco y con el zoom de trabajo se
+          va fuera de pantalla, así que era el camino que nadie encontraba. Crear
+          páginas vive ahora en la tira de abajo —la juntura entre dos y la ficha
+          de puntos del final—, que está siempre a la vista. */}
       {/* Con una sola página el botón se ESCONDÍA. Desaparecer sin explicación
           confunde tanto como un botón que no hace nada, así que se queda a la
           vista, apagado y diciendo por qué. Bloqueada sí se oculta: ahí el

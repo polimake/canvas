@@ -37,9 +37,11 @@ export interface LibraryPanelProps {
   /** Textos, inyectados por el host (ver labels.ts). */
   labels?: PartialLabels;
   /**
-   * Anclaje vertical del panel/botón. Parametrizado porque el marco se reutiliza
-   * (mediateca arriba, componentes debajo) y dos instancias no pueden compartir
-   * la misma esquina.
+   * Anclaje vertical del panel/botón. Por defecto va en la FILA superior, el
+   * hueco que ocupaba el disparador de la Biblioteca de Excalidraw (que se
+   * oculta desde canvas2.css): es un botón de 36px y ahí no estorba a la barra
+   * de herramientas. El dock de Diseño/Capas/Componentes vive bajo esa fila, a
+   * 76, así que las dos piezas del lado derecho no se pisan.
    */
   anchorTop?: number;
   /** Icono del botón plegado; por defecto, el de la mediateca. */
@@ -54,7 +56,7 @@ export function LibraryPanel({
   viewMode = false,
   defaultCollapsed = true,
   labels: labelsProp,
-  anchorTop = 56,
+  anchorTop = 12,
   icon,
   testId = 'canvas2-library',
 }: LibraryPanelProps) {
@@ -107,15 +109,14 @@ export function LibraryPanel({
       data-canvas2-library=""
       style={{
         position: 'absolute',
-        // Por debajo de la fila de herramientas de Excalidraw, que ocupa el
-        // borde superior de lado a lado.
         top: anchorTop,
         right: 12,
         zIndex: 95,
         width: 320,
-        // Baja hasta justo encima del dock de Capas/Marca, que vive abajo a la
-        // derecha: la biblioteca es una rejilla y cuanto más alta, más se ve
-        // sin desplazar.
+        // Baja hasta justo encima de la tira de páginas: la biblioteca es una
+        // rejilla y cuanto más alta, más se ve sin desplazar. Abierta TAPA el
+        // dock de Diseño/Capas/Componentes, que queda debajo — es un cajón que
+        // se abre sobre el resto, y se cierra con su ✕.
         bottom: 96,
         display: 'flex',
         flexDirection: 'column',

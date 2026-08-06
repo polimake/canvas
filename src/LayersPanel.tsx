@@ -295,6 +295,9 @@ export function LayersPanel({
         overflow: 'hidden',
       }}
     >
+      {/* Empotrado y en solo lectura esta fila se queda sin rótulo (lo pone la
+          pestaña) y sin botones de alinear: sería un filo con nada dentro. */}
+      {(!embedded || !viewMode) && (
       <div
         style={{
           display: 'flex',
@@ -306,7 +309,10 @@ export function LayersPanel({
           borderBottom: `1px solid ${c.border}`,
         }}
       >
-        <span style={{ flex: 1 }}>Capas</span>
+        {/* Empotrado, el rótulo lo pone la pestaña del dock: repetirlo dejaba
+            "Capas" dos veces, una encima de la otra. La fila se queda por los
+            botones de alinear, que sí son de aquí. */}
+        <span style={{ flex: 1 }}>{embedded ? '' : 'Capas'}</span>
         {/* Align the current selection to the PAGE (Excalidraw's native align
             needs 2+ elements; to-artboard alignment is our overlay). */}
         {!viewMode && (
@@ -337,6 +343,7 @@ export function LayersPanel({
         </span>
         )}
       </div>
+      )}
 
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 4 }}>
         {rows.length === 0 && (

@@ -1,35 +1,44 @@
 'use client';
 
-import { useState, type CSSProperties } from 'react';
+import { useState, type CSSProperties, type ReactNode } from 'react';
 import type { ExcalidrawImperativeAPI } from './excal';
 import { LayersPanel } from './LayersPanel';
-import { BrandGallery } from './BrandGallery';
+import { DesignPanel } from './DesignPanel';
 import { PANEL_FONT, palette } from './theme';
 import type { BrandKitInput } from './brand';
 import { mergeLabels, type PartialLabels } from './labels';
 
 /**
- * Panel de la esquina inferior derecha, con pestañas.
+ * Pastilla flotante del lado derecho, arriba, con pestañas.
  *
- * Capas y Marca compartían esquina y se pisaban. En vez de apilarlos —que come
- * lienzo y deja uno siempre a medias— van en un solo panel con pestañas: se ve
- * uno cada vez y el sitio es predecible.
+ * Reúne todo lo que modifica lo que estás mirando: Diseño (marca + tamaño y
+ * fondo de la página), Capas y Componentes. Son pestañas y no secciones
+ * apiladas: se ve una cada vez y el sitio es predecible.
  *
- * Capas estaba antes dentro de la barra lateral de Excalidraw; se saca porque
- * esa barra desaparece con la Biblioteca propia.
+ * Flota, no se ancla. Anclarla al borde encogería la superficie de Excalidraw y
+ * obligaría a recentrar la tira de páginas cada vez que se abre; flotando, el
+ * lienzo no se entera y la pastilla en reposo es solo su fila de pestañas.
+ *
+ * Estaba abajo a la derecha con Capas y Marca. Se sube por dos motivos: esa
+ * esquina queda reservada, y con la tira de páginas justo al lado el panel
+ * competía con ella por la misma franja.
  */
 
-type Tab = 'capas' | 'marca';
+type Tab = 'diseno' | 'capas' | 'componentes';
 
 export interface RightDockProps {
   api: ExcalidrawImperativeAPI | null;
   activePageId: string | null;
   theme?: 'light' | 'dark';
   viewMode?: boolean;
-  /** `projects.brandKit` crudo. Sin marca, la pestaña no aparece. */
+  /** `projects.brandKit` crudo, para la pestaña Diseño. */
   brandKit?: BrandKitInput | null;
   /** Capas requiere el modelo de páginas: sin él no hay página activa que listar. */
   layers?: boolean;
+  /** Diseño requiere el modelo de páginas: tamaño y fondo son de UNA página. */
+  design?: boolean;
+  /** Rejilla de componentes del proyecto; la aporta el host. Sin ella, no hay pestaña. */
+  componentsPanel?: ReactNode;
   /** Textos, inyectados por el host (ver labels.ts). */
   labels?: PartialLabels;
 }
@@ -41,32 +50,44 @@ export function RightDock({
   viewMode = false,
   brandKit,
   layers = false,
+  design = false,
+  componentsPanel,
   labels: labelsProp,
 }: RightDockProps) {
   const L = mergeLabels(labelsProp);
   const c = palette[theme];
-  const [tab, setTab] = useState<Tab>('capas');
-  // Arranca PLEGADO: en una escena con muchas capas el panel se comía media
-  // pantalla nada más abrir el diseño. Se despliega al pulsar una pestaña.
+  const [tab, setTab] = useState<Tab>('diseno');
+  // Arranca PLEGADO, como pediste: en reposo es solo la fila de pestañas. Con
+  // una escena de muchas capas, abierto se comía media pantalla nada más entrar.
   const [abierto, setAbierto] = useState(false);
 
-  // La galería decide sola si tiene algo que enseñar (colores o logos); aquí
-  // solo hace falta saber si merece una pestaña.
-  const hayMarca = Boolean(brandKit && !viewMode);
-  const disponibles: Tab[] = [...(layers ? (['capas'] as Tab[]) : []), ...(hayMarca ? (['marca'] as Tab[]) : [])];
+  const hayDiseno = design && !viewMode;
+  const hayComponentes = Boolean(componentsPanel) && !viewMode;
+  const disponibles: Tab[] = [
+    ...(hayDiseno ? (['diseno'] as Tab[]) : []),
+    ...(layers ? (['capas'] as Tab[]) : []),
+    ...(hayComponentes ? (['componentes'] as Tab[]) : []),
+  ];
 
   if (!api || disponibles.length === 0) return null;
   const activa = disponibles.includes(tab) ? tab : disponibles[0];
 
+  const rotulo: Record<Tab, string> = {
+    diseno: L.dock.design,
+    capas: L.dock.layers,
+    componentes: L.dock.components,
+  };
+
   const tabStyle = (t: Tab): CSSProperties => ({
     all: 'unset',
     cursor: 'pointer',
-    padding: '4px 10px',
+    padding: '4px 9px',
     borderRadius: 6,
     fontSize: 12,
     fontWeight: 600,
-    color: activa === t ? c.fg : c.sub,
-    background: activa === t ? c.hover : 'transparent',
+    whiteSpace: 'nowrap',
+    color: abierto && activa === t ? c.fg : c.sub,
+    background: abierto && activa === t ? c.hover : 'transparent',
   });
 
   return (
@@ -76,10 +97,16 @@ export function RightDock({
       style={{
         position: 'absolute',
         right: 12,
-        bottom: 16,
+        // POR DEBAJO de la fila de herramientas, no a su altura. Medido en el
+        // navegador: `.App-menu_top` ocupa de y=18 a y=67, y la barra de
+        // herramientas va centrada y mide ~610px, así que abierta (248px) esta
+        // pastilla se metía debajo de su extremo derecho. 76 deja la fila
+        // entera para Excalidraw y ~9px de aire.
+        top: 76,
         zIndex: 95,
         width: abierto ? 248 : 'auto',
-        maxHeight: '52%',
+        // Hasta justo encima de la tira de páginas, que vive abajo y centrada.
+        maxHeight: 'calc(100% - 192px)',
         display: 'flex',
         flexDirection: 'column',
         borderRadius: 12,
@@ -95,7 +122,7 @@ export function RightDock({
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 4,
+          gap: 2,
           padding: 4,
           borderBottom: abierto ? `1px solid ${c.border}` : 'none',
           flexShrink: 0,
@@ -106,18 +133,25 @@ export function RightDock({
             key={t}
             type="button"
             onClick={() => {
+              // Pulsar la pestaña que ya está abierta la cierra: mismo gesto
+              // para ir y para volver, sin tener que apuntar a la flecha.
+              if (abierto && activa === t) {
+                setAbierto(false);
+                return;
+              }
               setTab(t);
               setAbierto(true);
             }}
             style={tabStyle(t)}
           >
-            {t === 'capas' ? L.dock.layers : L.dock.brand}
+            {rotulo[t]}
           </button>
         ))}
         <button
           type="button"
           onClick={() => setAbierto((v) => !v)}
           title={abierto ? L.dock.collapse : L.dock.expand}
+          aria-label={abierto ? L.dock.collapse : L.dock.expand}
           style={{
             all: 'unset',
             cursor: 'pointer',
@@ -140,14 +174,15 @@ export function RightDock({
               viewMode={viewMode}
               embedded
             />
+          ) : activa === 'componentes' ? (
+            <div style={{ width: '100%', minHeight: 0, overflowY: 'auto' }}>{componentsPanel}</div>
           ) : (
-            <BrandGallery
+            <DesignPanel
               api={api}
-              brandKit={brandKit}
-              theme={theme}
               activePageId={activePageId}
+              theme={theme}
               viewMode={viewMode}
-              embedded
+              brandKit={brandKit}
               labels={labelsProp}
             />
           )}

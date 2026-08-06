@@ -82,7 +82,7 @@ export type { Palette, Canvas2Theme } from './theme';
 // `Canvas2Editor` recibe `projects.brandKit` CRUDO y lo traduce dentro: si el
 // host tuviera que llamar a `resolveBrandKit`, importaría un valor de este
 // barrel y arrastraría Excalidraw al bundle de servidor.
-// `BrandGallery` la monta el propio editor, abajo a la derecha del lienzo.
+// `BrandGallery` la monta el propio editor, dentro de la pestaña Diseño.
 export { resolveBrandKit, EMPTY_BRAND } from './brand';
 export type { Canvas2Brand, BrandKitInput, BrandFontFace } from './brand';
 
@@ -103,9 +103,14 @@ export { registerCustomFont, registerCustomFonts, fontFamilyId } from './fontReg
 export type { RegisteredFont } from './fontRegistry';
 export { BrandGallery } from './BrandGallery';
 export type { BrandGalleryProps } from './BrandGallery';
-// Dock inferior derecho: Capas y Marca en pestañas. Lo monta Canvas2Editor.
+// Pastilla flotante de arriba a la derecha: Diseño, Capas y Componentes en
+// pestañas. La monta Canvas2Editor.
 export { RightDock } from './RightDock';
 export type { RightDockProps } from './RightDock';
+// Contenido de la pestaña Diseño: marca del cliente + tamaño y fondo de la
+// página activa.
+export { DesignPanel } from './DesignPanel';
+export type { DesignPanelProps } from './DesignPanel';
 // Marco de la biblioteca (arriba a la derecha). El CONTENIDO lo pone el host:
 // la mediateca vive en apps/web sobre @polimake/ui.
 export { LibraryPanel } from './LibraryPanel';

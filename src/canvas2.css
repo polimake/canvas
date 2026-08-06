@@ -79,17 +79,66 @@
 }
 
 /* Con la barra lateral ANCLADA, Excalidraw encoge su propia UI a
-   `calc(100% - var(--right-sidebar-width))`, pero nuestro cromo (galería de
-   marca y tira de páginas) se posiciona contra el contenedor completo y quedaría
-   debajo de la barra. Se desplaza el mismo ancho.
+   `calc(100% - var(--right-sidebar-width))`, pero nuestra tira de páginas se
+   centra contra el contenedor completo y quedaría medio debajo de la barra. Se
+   desplaza el mismo ancho.
 
    La anchura se lee de la variable de Excalidraw, con 302px de reserva por si
-   no llega hasta aquí por herencia. */
-[data-canvas2]:has(.sidebar--docked) [data-testid='canvas2-brand-gallery'] {
-  right: calc(var(--right-sidebar-width, 302px) + 12px);
-}
+   no llega hasta aquí por herencia.
+
+   El dock de la derecha no necesita regla: flota sobre el lienzo por su propia
+   esquina, y con la barra anclada lo que hay debajo es la barra, no el diseño. */
 [data-canvas2]:has(.sidebar--docked) [data-canvas2-pages] {
   left: calc(50% - var(--right-sidebar-width, 302px) / 2);
+}
+
+/* Insertar página en la juntura entre dos miniaturas de la tira. El "+" está
+   escondido en reposo (opacidad 0 en línea) y solo aparece al apuntar a la
+   juntura o al llegar con el teclado: una fila de páginas con un botón entre
+   cada dos se lee como una barra de herramientas, no como el documento.
+
+   Va en CSS y no en línea porque `:hover` y `:focus-visible` no existen en el
+   atributo `style`; el resto del aspecto sí vive con el componente. */
+[data-canvas2] .canvas2-page-insert:hover > span,
+[data-canvas2] .canvas2-page-insert:focus-visible > span {
+  opacity: 1 !important;
+  transform: scale(1) !important;
+}
+
+/* Filo vertical bajo el "+": marca DÓNDE va a caer la página nueva. */
+[data-canvas2] .canvas2-page-insert::before {
+  content: '';
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: 50%;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 2px;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+[data-canvas2] .canvas2-page-insert:hover::before,
+[data-canvas2] .canvas2-page-insert:focus-visible::before {
+  opacity: 0.3;
+}
+
+/* La ficha de puntos que cierra la tira ("añadir página"). */
+[data-canvas2] .canvas2-page-ghost {
+  transition: border-color 120ms ease, color 120ms ease;
+}
+[data-canvas2] button:hover > .canvas2-page-ghost,
+[data-canvas2] button:focus-visible > .canvas2-page-ghost {
+  border-style: solid;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-canvas2] .canvas2-page-insert > span,
+  [data-canvas2] .canvas2-page-insert::before,
+  [data-canvas2] .canvas2-page-ghost {
+    transition: none;
+  }
 }
 
 /* Hide the contextual hint strip under the toolbar ("Para mover el lienzo,

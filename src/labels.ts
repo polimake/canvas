@@ -72,6 +72,8 @@ export interface Canvas2Labels {
     add: string;
     /** Añadir al final del documento (tira de páginas). */
     addAtEnd: string;
+    /** Insertar en la juntura entre dos páginas de la tira. */
+    insertHere: string;
     duplicate: string;
     rename: string;
     lock: string;
@@ -85,7 +87,13 @@ export interface Canvas2Labels {
     fitAll: string;
   };
   dock: {
+    /** Pestaña que reúne marca y ajustes de la página. */
+    design: string;
     layers: string;
+    /** Pestaña de la biblioteca de componentes del proyecto. */
+    components: string;
+    /** Rótulo del bloque de ajustes de la página dentro de Diseño. */
+    page: string;
     brand: string;
     collapse: string;
     expand: string;
@@ -163,6 +171,7 @@ export const DEFAULT_LABELS: Canvas2Labels = {
   pages: {
     add: 'Agregar página después',
     addAtEnd: 'Añadir página',
+    insertHere: 'Insertar página aquí',
     duplicate: 'Duplicar página',
     rename: 'Renombrar página',
     lock: 'Bloquear página',
@@ -175,7 +184,10 @@ export const DEFAULT_LABELS: Canvas2Labels = {
     fitAll: 'Ver todas las páginas',
   },
   dock: {
+    design: 'Diseño',
     layers: 'Capas',
+    components: 'Componentes',
+    page: 'Página',
     brand: 'Marca',
     collapse: 'Contraer',
     expand: 'Desplegar',
