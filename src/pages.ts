@@ -12,12 +12,11 @@ import { PAGE_GAP } from './layout';
 /**
  * "Pages" / artboards on top of Excalidraw's infinite canvas.
  *
- * polimake-canvas is a fixed-size multi-page editor; Excalidraw is an infinite
+ * A design is a fixed-size, multi-page document; Excalidraw is an infinite
  * plane. We emulate pages with native Excalidraw **frames** laid out left to
  * right: each frame is a fixed-size artboard, content placed inside it belongs
  * to that page, and a frame clips + exports to its own bounds. This is a *soft*
- * boundary (the canvas stays pannable) — the realistic mapping discussed in the
- * plan.
+ * boundary — the canvas stays pannable.
  *
  * Every compound operation here commits EXACTLY ONE scene update (one undo
  * entry) via mutate.ts — building the final array with pure helpers
@@ -155,8 +154,7 @@ export function renumberPagesInArray(
 }
 
 /**
- * Build a blank scene containing a single page frame — the canvas2 analogue of
- * polimake-canvas's `createBlankEditorPages`. Feed the result to
+ * Build a blank scene containing a single page frame. Feed the result to
  * `Canvas2Editor`'s `initialScene`.
  */
 export function createBlankScene(

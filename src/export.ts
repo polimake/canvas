@@ -13,10 +13,9 @@ import {
 } from './svgFonts';
 
 /**
- * Image / document export — the canvas2 analogue of polimake-canvas's
- * `useExportCommands` (PNG via html-to-image, PDF via jspdf) and thumbnail
- * capture. Here PNG/SVG come natively from Excalidraw; per-page export uses the
- * frame as `exportingFrame` so output is clipped to that artboard.
+ * Image / document export plus thumbnail capture. PNG and SVG come natively
+ * from Excalidraw (no html-to-image rasterizing); per-page export passes the
+ * frame as `exportingFrame`, so output is clipped to that artboard.
  */
 
 export interface ExportOptions {

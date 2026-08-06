@@ -52,10 +52,9 @@ function pagesSignature(pages: PageInfo[]): string {
 const THUMB_W = 34;
 
 /**
- * Tira de páginas, abajo y centrada — el análogo del `PageControl` de
- * polimake-canvas. Lee las páginas (marcos) en vivo de la escena y sirve para
- * NAVEGAR: cambiar de página, reordenarlas arrastrando y renombrar con doble
- * clic. Todo lo demás vive donde se opera: las acciones de la página en
+ * Tira de páginas, abajo y centrada. Lee las páginas (marcos) en vivo de la
+ * escena y sirve para NAVEGAR: cambiar de página, reordenarlas arrastrando y
+ * renombrar con doble clic. Todo lo demás vive donde se opera: las acciones de la página en
  * `PageActions`, sobre el lienzo; fondo, tamaño y exportación en `CanvasMenu`.
  */
 export function PageNavigator({

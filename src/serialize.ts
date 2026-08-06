@@ -2,10 +2,9 @@ import { serializeAsJSON, type ExcalidrawImperativeAPI } from './excal';
 import type { Canvas2Scene } from './Canvas2';
 
 /**
- * Scene ↔ JSON persistence — the canvas2 analogue of polimake-canvas's
- * `serialize()` / minified `editorConfig`. We store Excalidraw's own canonical
- * JSON (via `serializeAsJSON`) rather than translating into a foreign layer
- * tree, so a saved scene round-trips losslessly.
+ * Scene ↔ JSON persistence. We store Excalidraw's own canonical JSON (via
+ * `serializeAsJSON`) rather than translating into a layer tree of our own, so a
+ * saved scene round-trips losslessly.
  */
 
 /** Serialize the current scene to a canonical JSON string for storage. */

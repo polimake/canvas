@@ -1,136 +1,58 @@
-# canvas2 ↔ polimake-canvas parity
+# @studio/canvas2 — reglas del paquete y huecos conocidos
 
-Audit date: 2026-07-28. canvas2 is the editor going forward; polimake-canvas
-(the DOM Canva clone) is frozen for legacy designs. This file maps every
-clone feature to its canvas2 status and carries the porting roadmap.
+Este fichero era el mapa de paridad contra el editor DOM anterior mientras los
+dos convivían. Ese editor se retiró el 2026-08-06 (ver
+[docs/retirada-polimake-canvas.md](../../docs/retirada-polimake-canvas.md)), así
+que la comparación ya no aplica: aquí quedan la regla estructural del paquete y
+la lista de lo que sigue sin construirse.
 
-## Ground rule: decoupled from Excalidraw (enforced)
+## Regla base: desacoplado de Excalidraw (con test que lo obliga)
 
-Everything in this package is an **overlay on stock `@excalidraw/excalidraw`**,
-and the boundary is structural, not just convention:
+Todo lo de este paquete es una **capa sobre `@excalidraw/excalidraw` de serie**,
+y la frontera es estructural, no una convención:
 
-- **`src/excal.ts` is the ONLY module that imports `@excalidraw/*`.** It
-  re-exports the component, the helpers (`exportToBlob/Canvas/Svg`,
-  `convertToExcalidrawElements`, `serializeAsJSON`, `CaptureUpdateAction`), the
-  public types, and the canonical derived aliases (`SceneElement`,
-  `SceneElements`, `FrameElement`). Every other file imports from `./excal`.
-- **The rule is test-enforced**: `__tests__/decoupling.test.ts` scans `src/`
-  and fails if any other file mentions `@excalidraw/` — a bypass can't land.
-- Only the public surface is used: component props, the imperative API
+- **`src/excal.ts` es el ÚNICO módulo que importa `@excalidraw/*`.** Reexporta el
+  componente, los ayudantes (`exportToBlob/Canvas/Svg`,
+  `convertToExcalidrawElements`, `serializeAsJSON`, `CaptureUpdateAction`), los
+  tipos públicos y los alias derivados canónicos (`SceneElement`,
+  `SceneElements`, `FrameElement`). Todo lo demás importa de `./excal`.
+- **La regla la vigila un test**: `__tests__/decoupling.test.ts` recorre `src/` y
+  falla si cualquier otro fichero menciona `@excalidraw/`. No hay forma de
+  colarse.
+- Solo se usa la superficie pública: props del componente, la API imperativa
   (`getSceneElements` / `updateScene` / `onChange` / `scrollToContent` /
-  `addFiles`), public helpers, the public types entry. No forked internals, no
-  patches, no reaching into Excalidraw's DOM.
-- Pages are plain native **frames**; our metadata rides on the public
-  `customData` field (e.g. the page-background marker).
-- The adapter is also what makes the package testable in node (the real
-  Excalidraw touches `window` at import time): tests mock `./excal` and drive
-  the overlay logic against a fake imperative API.
-- **Upgrade procedure**: bump the dependency → fix `src/excal.ts` until
-  `pnpm --filter @studio/canvas2 typecheck` is green → `pnpm --filter
-  @studio/canvas2 test` (28 unit tests) → re-run the Playwright smoke flow.
-  Behavioral drift in the public API surfaces in the adapter or the tests, not
-  scattered across the package.
+  `addFiles`), los ayudantes públicos y la entrada de tipos pública. Sin
+  internals bifurcados, sin parches, sin meter mano en el DOM de Excalidraw.
+- Las páginas son **marcos** nativos y nuestros metadatos viajan en el campo
+  público `customData` (por ejemplo la marca del fondo de página).
+- El adaptador es también lo que hace testeable el paquete en node (el Excalidraw
+  real toca `window` al importarse): los tests simulan `./excal` y ejercitan la
+  lógica de la capa contra una API imperativa falsa.
+- **Procedimiento de actualización**: subir la dependencia → arreglar
+  `src/excal.ts` hasta que `pnpm --filter @studio/canvas2 typecheck` esté en
+  verde → `pnpm --filter @studio/canvas2 test` → repetir el recorrido de humo con
+  Playwright. La deriva de comportamiento de la API pública aflora en el
+  adaptador o en los tests, no repartida por el paquete.
 
-## Status legend
+## Huecos: lo que todavía no existe
 
-✔ native — Excalidraw does it out of the box · ✔ ported — built here as an
-overlay · ◐ partial · ✗ roadmap — not built yet
+| Hueco | Nota |
+| --- | --- |
+| Gradientes (fondo de página / formas) | Excalidraw no los tiene; prioridad baja |
+| Efectos de texto (sombra, neón, contorno…) | No son nativos; serían filtros SVG — aplazado |
+| Capas de vídeo de verdad | Excalidraw no tiene elemento de vídeo. Hoy un vídeo entra como su PÓSTER, marcado con el vídeo del que salió para poder reelegir el fotograma (`video.ts`) |
+| Biblioteca de formas recortadas y marcos | Cabría como **librería** de Excalidraw (`.excalidrawlib`): cero código, datos puros |
+| Selector de tipografía en el panel | Las familias propias se registran bien (`src/fonts.ts`) y el diseño guarda las suyas en `editorConfig.fonts`, pero la tipografía llega del brand kit o del propio diseño: no se elige a mano |
 
-| Clone feature | canvas2 status | Where / notes |
-| --- | --- | --- |
-| Pages (add/duplicate/delete/rename) | ✔ ported | `pages.ts`, frames laid left→right, `PageNavigator` strip |
-| Page reorder | ✔ ported | `movePage` ◀ ▶ on the active chip (clone: movePageUp/Down) |
-| Render box / clipped artboard | ✔ ported | native frame clipping; export uses `exportingFrame` so ONLY frame content ships |
-| Page size + custom resize | ✔ ported, **better than clone** | per-PAGE size (clone is global-only); presets (Post 4:5, 1:1, Story 9:16, 16:9, miniatura YT, A4) + custom W×H + "escalar contenido" reflow (`resizePage`) |
-| Export PNG (page / all pages) | ✔ ported | `export.ts` + Exportar menu; exact design pixels by default (1080×1920 story → 1080×1920 file) |
-| Export PDF (all pages) | ✔ ported | jsPDF, one artboard per PDF page |
-| Export SVG | ✔ ported (clone lacks it) | vector out of the same frame clip |
-| Thumbnails (≤512px capture) | ✔ ported | `captureThumbnail` — host wiring to designs/R2 pending (see roadmap) |
-| Text layers + inline editing | ✔ native | double-click, wysiwyg, fonts, align |
-| Text presets (Título/Subtítulo/Cuerpo) | ✔ ported | `text.ts` + `+T` menu |
-| Page background color | ✔ ported | `background.ts`: locked full-bleed rect tagged `customData.c2='pageBackground'`, replace-not-stack |
-| Background image (cover + lock) | ✔ ported (earlier) | `imageOps.ts` `setAsBackground` / `extendToPage` |
-| Shapes (rect/ellipse/diamond/line/arrow/draw) | ✔ native | Excalidraw toolbar |
-| 51 clip-path shapes + 24 frames + components library | ✗ roadmap | could ship as an Excalidraw **library** (`.excalidrawlib`) — zero code, pure data |
-| Image layers, crop, replace | ✔ native | 0.18 has built-in image cropping |
-| Media browser (MediaMonster) | ◐ seam ready | `media.ts` `insertImageFromUrl/Blob` built; mounting the MM browser needs a project-scoped host (next phase) |
-| Video layers | ✗ roadmap | Excalidraw has no video element; needs a custom overlay or acceptance as image+poster |
-| Selection / multi-select / marquee | ✔ native | |
-| Group / ungroup | ✔ native | |
-| Z-order | ✔ native + ported | native context menu; per-page reorder in `LayersPanel` via `zorder.ts` |
-| Align / distribute (between elements) | ✔ native | context menu |
-| Align to PAGE (single selection) | ✔ ported | `align.ts` `alignToPage` + 6 buttons in the LayersPanel header (native align needs 2+ elements) |
-| Lock page (frame + all members) | ✔ ported | `setPageLocked` + 🔒 toggle on the active chip; locked pages hide the delete action |
-| Snap + alignment guides | ✔ ported default | native object snapping, now ON by default (`objectsSnapModeEnabled`) |
-| Lock / hide layers | ✔ ported | `LayersPanel` (hide = opacity 0 emulation) |
-| Layers panel | ✔ ported | right-docked, drag reorder, per-page |
-| Undo/redo history | ✔ native | includes our ops via `CaptureUpdateAction.IMMEDIATELY` |
-| Keyboard shortcuts | ✔ native | |
-| Copy/paste/duplicate | ✔ native | |
-| Color picker + eyedropper | ✔ native | |
-| Gradients (root/shape) | ✗ roadmap | Excalidraw has no gradients; low priority |
-| Text effects (shadow/neon/outline…) | ✗ roadmap | not native; would be CSS-free SVG filters — defer |
-| Fonts system (73 Google families, brand fonts) | ✅ | Familias propias registradas en `FONT_FAMILY` + `@font-face`; ver `src/fonts.ts`. El diseño guarda las suyas en `editorConfig.fonts`, así que es autosuficiente. Falta un selector de fuentes en el panel: hoy la tipografía llega del brand kit o del diseño migrado, no se elige a mano |
-| Zoom / fit / pinch | ✔ native | plus `goToPage` fit-to-frame |
-| JSON persistence | ✔ ported | `serialize.ts` = Excalidraw canonical JSON (lossless round-trip) |
-| Save to `designs` table + content `designId` | ✗ **next phase** | store scene JSON in `editorConfig` with `format:'excalidraw'` marker; server CRUD unchanged |
-| Autosave draft + unsaved guard | ✗ next phase | host-side, port pattern from `useContentCanvasEditor` |
-| blob-URL guard | n/a | Excalidraw inlines image bytes as dataURLs in `files` — the blob-URL failure mode doesn't exist |
-| Review comments overlay | ✗ roadmap | portal-style overlay like the clone's `data-polimake-*` slots, once canvas2 mounts in the content page |
-| Read-only / comment mode | ✔ native | `viewMode` prop already wired |
-| Templates + AI slot-fill | ✗ roadmap | frames with named elements as slots; pairs with the studio-mcp design tools |
+## Decisiones visuales que conviene no deshacer sin querer
 
-## Visual pass (same day, later still)
-
-- All chrome glyphs/emojis replaced with an inline SVG icon set (`icons.tsx`,
-  no icon-library dependency, currentColor strokes).
-- Pages sit **flush against each other** (`PAGE_GAP = 0`), Canva-style.
-- Pages are **straight-edged**: Excalidraw draws frame outlines with rounded
-  corners and no public radius knob, so the native outline is disabled
-  (`frameRendering.outline: false`) and every page carries a locked,
-  sharp-cornered white "paper" rect (roughness 0, hairline border) as its
-  visual. The paper auto-creates on new pages, stretches exactly on resize,
-  is hidden from the layers list, and `ensurePagePapers` migrates legacy
-  scenes (which also get re-packed flush on load).
-
-## Hardening pass (same day, later)
-
-- `src/excal.ts` adapter created; all 12 modules rewired through it (duplicated
-  `SceneElement`/`SceneElements`/`FrameElement` aliases deduped into the
-  adapter). Import specifiers are extensionless (`./excal`) — Turbopack
-  consumes this package as raw TS source and does not resolve `.js`-suffixed
-  specifiers to `.ts` files.
-- Vitest suite added (28 tests): the decoupling guard plus behavior specs for
-  `resizePage` math (center remap + uniform k + fontSize), `relayoutPages`
-  packing/no-op, `movePage`, `duplicatePage` id remapping, `setPageLocked`,
-  page-background replace-not-stack, `alignToPage` (all six alignments, locked
-  and cross-page exclusion), and z-order reordering.
-- New parity ports: `alignToPage` (+ LayersPanel buttons) and page lock
-  (+ chip toggle).
-
-## What was added on 2026-07-28
-
-`resizePage` + `relayoutPages` + `movePage` + `getPageSize` + size presets
-(`PAGE_SIZE_PRESETS`), export menu UI (PNG page/all, SVG, PDF) + `downloadBlob`,
-text presets (`insertTextPreset`), page background color
-(`setPageBackgroundColor`/`getPageBackground`), snapping on by default, and the
-hydration-race fix (first page ships inside `initialData`; legacy frameless
-scenes get a page after hydration settles).
-
-Runtime-verified with Playwright against `/canvas` (dev): fresh boot shows
-Página 1 at 1640×924 · add → Página 2 · Story preset → strip reads 1080×1920 ·
-insert Título + blue background · export PNG → file is exactly 1080×1920 named
-after the page · move-left + reload → order and sizes persist.
-
-## Suggested port order (next)
-
-1. **Persistence to `designs`** + content `designId` + thumbnails via
-   `captureThumbnail` → the design-thumbnail upload endpoint (makes canvas2 the
-   real editor).
-2. **MediaMonster browser** in a project-scoped host, feeding
-   `insertImageFromUrl`.
-3. **Shape/frame/component libraries** as `.excalidrawlib` data.
-4. **Templates with named slots** + studio-mcp tools
-   (`list_design_templates`, `create_design_from_template`).
-5. Review-comments overlay when canvas2 replaces the Lienzo tab.
-6. Video layers (or a deliberate "poster-only on canvas" decision).
+- Las páginas van **pegadas** entre sí (`PAGE_GAP = 0`).
+- Las páginas son **de esquina viva**: Excalidraw dibuja el contorno de los
+  marcos redondeado y no expone radio, así que el contorno nativo está apagado
+  (`frameRendering.outline: false`) y cada página lleva un rectángulo "papel"
+  blanco, bloqueado y de esquina recta (rugosidad 0, borde de un pelo) como
+  visual. El papel se crea solo en cada página nueva, se estira exacto al
+  redimensionar, se oculta de la lista de capas, y `ensurePagePapers` lo añade a
+  las escenas que vienen sin él.
+- Los glifos del cromo son un juego de iconos SVG en línea (`icons.tsx`), sin
+  dependencia de ninguna librería de iconos.

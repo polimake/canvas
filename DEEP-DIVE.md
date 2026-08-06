@@ -1,5 +1,17 @@
 # canvas2 deep-dive — synthesized audit (6 dimensions, adversarially verified)
 
+> **INSTANTÁNEA CADUCADA (julio 2026).** Se escribió cuando el editor DOM
+> anterior seguía vivo y canvas2 aún no persistía en `designs`. Todo lo que aquí
+> se plantea como coexistencia —el marcador `format:'excalidraw'`, el rodeo al
+> saneador de HTML, la política de "canvas2 nunca guarda sobre un diseño del
+> clon", el montaje enrutado por formato— ya está hecho o ha dejado de aplicar:
+> el editor anterior se retiró el 2026-08-06 (ver
+> [docs/retirada-polimake-canvas.md](../../docs/retirada-polimake-canvas.md)).
+> Se conserva porque el resto del backlog (disciplina de `versionNonce`, higiene
+> de `onSceneChange`, página activa según el encuadre, concurrencia optimista en
+> el PATCH, `window.prompt`) sigue siendo válido y verificado. **Comprueba contra
+> el código antes de actuar sobre cualquier punto.**
+
 All entries below survived verification. Corrections from the adversarial pass are folded in. File paths and Excalidraw API names are verified against the installed `@excalidraw/excalidraw` 0.18.1.
 
 ---

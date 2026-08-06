@@ -115,9 +115,9 @@ function sceneSignature(api: ExcalidrawImperativeAPI, pageId: string | null): st
 }
 
 /**
- * Right-docked layers panel — the canvas2 analogue of polimake-canvas's Capas
- * tab. Lists the active page's elements (top of stack first) with reorder /
- * visibility / lock / delete, plus image "Fondo"/"Extender" actions. Excalidraw
+ * Right-docked layers panel. Lists the active page's elements (top of stack
+ * first) with reorder / visibility / lock / delete, plus image
+ * "Fondo"/"Extender" actions. Excalidraw
  * has no per-element hidden flag, so visibility is emulated with `opacity: 0`.
  */
 export function LayersPanel({
