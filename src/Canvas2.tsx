@@ -25,6 +25,7 @@ import { resolveBrandKit, type BrandKitInput, type Canvas2Brand } from './brand'
 import { buildFontFaceCss, dedupeFontFaces, type CustomFontFace } from './fonts';
 import { fontFamilyId, registerCustomFonts } from './fontRegistry';
 import type { PartialLabels } from './labels';
+import { copyDropEffect } from './dropEffect';
 
 /**
  * A serializable snapshot of the canvas. Same shape Excalidraw accepts as
@@ -518,7 +519,10 @@ export function Canvas2Editor({
       onDragOver={(e) => {
         if (!onMediaDrop || !e.dataTransfer.types.includes(mediaDropType)) return;
         e.preventDefault();
-        e.dataTransfer.dropEffect = 'copy';
+        // NO se fija 'copy' a secas: si el origen marcó el arrastre solo como
+        // 'move', pedir 'copy' lo anula y el navegador ya no emite `drop` —
+        // sueltas y no pasa nada, sin error y sin pista. Ver `copyDropEffect`.
+        e.dataTransfer.dropEffect = copyDropEffect(e.dataTransfer.effectAllowed);
       }}
       onDrop={(e) => {
         if (!onMediaDrop) return;
