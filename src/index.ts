@@ -25,6 +25,7 @@ export {
   relayoutPages,
   packPagesInArray,
   renumberPagesInArray,
+  adoptStrayFramesInArray,
   movePage,
   movePageTo,
   isPageLocked,
@@ -135,6 +136,11 @@ export type { ExportOptions } from './export';
 export {
   insertImageFromBlob,
   insertImageFromUrl,
+  insertImageWithPreview,
+  replaceImageFromUrl,
+  resolveInsertPageId,
+  cascadePoints,
+  imageAtScenePoint,
   externalizeInlineImages,
   buildPersistableFiles,
   findInlineImageIds,
@@ -143,6 +149,7 @@ export {
 } from './media';
 export type {
   InsertImageOptions,
+  ImageHit,
   MediaUploader,
   FileEntry,
   ExternalizeResult,

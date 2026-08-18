@@ -249,9 +249,14 @@ describe('convertToPages', () => {
   });
 
   it('sobre un documento ya paginado y alineado no escribe nada', () => {
+    // Marcado con su orden de documento: eso es lo que hace canónica a la
+    // escena. Sin la marca queda la migración pendiente y sí hay que escribir.
     const { api, commits } = fakeApi([
-      frame('a', 0, 0, 1000, 1000, { name: 'Página 1' }),
-      frame('b', 1000 + PAGE_GAP, 0, 1000, 1000, { name: 'Página 2' }),
+      frame('a', 0, 0, 1000, 1000, { name: 'Página 1', customData: { c2page: { index: 0 } } }),
+      frame('b', 1000 + PAGE_GAP, 0, 1000, 1000, {
+        name: 'Página 2',
+        customData: { c2page: { index: 1 } },
+      }),
     ]);
     convertToPages(api as any);
     expect(commits).toHaveLength(0);

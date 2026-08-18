@@ -24,6 +24,19 @@ const {
 // desincroniza del real y los tests dejan de comprobar el layout de verdad.
 const GAP = PAGE_GAP;
 
+/** Un marco YA marcado con su posición de documento (escena migrada). */
+function ordered(
+  id: string,
+  index: number,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  extra: Record<string, unknown> = {},
+) {
+  return frame(id, x, y, width, height, { customData: { c2page: { index } }, ...extra });
+}
+
 describe('pages on frames', () => {
   it('addPage appends flush to the right with the requested size and a paper sheet', () => {
     const { api, get } = fakeApi([frame('p1', 0, 0, 1000, 800)]);
@@ -184,12 +197,27 @@ describe('pages on frames', () => {
     expect(m2.x - p2.x).toBe(700 - 660);
   });
 
-  it('relayoutPages is a no-op when already packed', () => {
-    const scene = [frame('p1', 0, 0, 500, 500), frame('p2', 500 + GAP, 0, 500, 500)];
+  it('relayoutPages is a no-op when already packed AND already marked', () => {
+    const scene = [ordered('p1', 0, 0, 0, 500, 500), ordered('p2', 1, 500 + GAP, 0, 500, 500)];
     const { api, get } = fakeApi(scene);
     const before = get();
     relayoutPages(api as any);
     expect(get()).toBe(before); // no updateScene call → same reference
+  });
+
+  it('relayoutPages marks a legacy (unmarked) scene ONCE and then settles', () => {
+    // La migración tiene que converger: si cada pasada volviera a escribir, la
+    // normalización continua se dispararía a sí misma sin parar.
+    const { api, get, commits } = fakeApi([
+      frame('p1', 0, 0, 500, 500),
+      frame('p2', 500 + GAP, 0, 500, 500),
+    ]);
+    relayoutPages(api as any, 'never');
+    expect(commits).toHaveLength(1);
+    const after = get();
+    relayoutPages(api as any, 'never');
+    expect(commits).toHaveLength(1);
+    expect(get()).toBe(after);
   });
 
   it('setPageLocked locks the frame and every member; listPages reflects it', () => {
@@ -274,6 +302,71 @@ describe('single-undo + ordering guarantees', () => {
     ]);
     deletePage(api as any, 'a');
     expect(listPages(api as any).map((p) => p.name)).toEqual(['Página 1', 'Portada']);
+  });
+
+  it('el orden lo manda la marca guardada, no la x: arrastrar no reordena', () => {
+    // La página 3 se empuja a la izquierda de la 2. Antes, el siguiente
+    // reempaquetado (o la simple recarga) consolidaba ese cambio de orden.
+    const { api } = fakeApi([
+      ordered('a', 0, 0, 0, 500, 500, { name: 'Página 1' }),
+      ordered('b', 1, 500 + GAP, 0, 500, 500, { name: 'Página 2' }),
+      ordered('c', 2, 400, 0, 500, 500, { name: 'Página 3' }),
+    ]);
+    relayoutPages(api as any);
+    const now = listPages(api as any);
+    expect(now.map((p) => p.id)).toEqual(['a', 'b', 'c']);
+    expect(now.map((p) => p.name)).toEqual(['Página 1', 'Página 2', 'Página 3']);
+    expect(now[2].x).toBe((500 + GAP) * 2);
+  });
+
+  it('devuelve a la fila una página arrastrada fuera, con su contenido', () => {
+    const { api } = fakeApi([
+      ordered('a', 0, 0, 0, 500, 500),
+      ordered('b', 1, 500 + GAP, 380, 500, 500),
+      member('mb', 'b', 500 + GAP + 40, 420, 20, 20),
+    ]);
+    relayoutPages(api as any);
+    const els = api.getSceneElements();
+    const b = els.find((e: any) => e.id === 'b');
+    const mb = els.find((e: any) => e.id === 'mb');
+    expect(b.y).toBe(0);
+    // El miembro viaja con su marco: su desplazamiento relativo no cambia.
+    expect(mb.y - b.y).toBe(40);
+  });
+
+  it('addPage hereda la y de la fila en vez de plantarse en 0', () => {
+    const { api } = fakeApi([ordered('a', 0, 0, 900, 500, 500)]);
+    const id = addPage(api as any, { width: 500, height: 500 });
+    const added = api.getSceneElements().find((e: any) => e.id === id);
+    expect(added.y).toBe(900);
+  });
+
+  it('adopta un marco dibujado a mano: le da nombre y número de página', () => {
+    // La herramienta de marco de Excalidraw (tecla F) sigue accesible, y todo
+    // marco de la escena ES una página para este modelo.
+    const { api } = fakeApi([
+      ordered('a', 0, 0, 0, 500, 500, { name: 'Página 1' }),
+      frame('stray', 500 + GAP, 0, 300, 300, { name: 'Frame 1' }),
+    ]);
+    relayoutPages(api as any);
+    expect(listPages(api as any).map((p) => p.name)).toEqual(['Página 1', 'Página 2']);
+  });
+
+  it('NO renombra en bloque una escena antigua: los nombres del usuario sobreviven', () => {
+    const { api } = fakeApi([
+      frame('a', 0, 0, 500, 500, { name: 'Portada' }),
+      frame('b', 500 + GAP, 0, 500, 500, { name: 'Cierre' }),
+    ]);
+    relayoutPages(api as any);
+    expect(listPages(api as any).map((p) => p.name)).toEqual(['Portada', 'Cierre']);
+  });
+
+  it('addPage recorta un tamaño imposible en vez de crear un marco de 0×0', () => {
+    const { api } = fakeApi([]);
+    const id = addPage(api as any, { width: 0, height: Number.NaN });
+    const added = api.getSceneElements().find((e: any) => e.id === id);
+    expect(added.width).toBe(1080);
+    expect(added.height).toBe(1350);
   });
 
   it('element patches bump version so the history store can diff them', () => {

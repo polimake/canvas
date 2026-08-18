@@ -45,12 +45,18 @@ import { commitElements, patchElement } from './mutate';
  */
 
 export interface InsertImageOptions {
-  /** Place the image onto this page (frame). Defaults to the first page. */
+  /**
+   * Página (marco) donde dejar la imagen. Es el respaldo: con `at`, manda la
+   * página bajo el punto de suelte. Sin ninguno de los dos, la primera.
+   */
   pageId?: string;
   /**
    * Punto de la ESCENA donde centrar la imagen. Lo usa el arrastre desde la
    * biblioteca: sin esto todo cae en el centro de la página y soltar en un sitio
    * concreto no significaría nada. Sin él, se centra en la página.
+   *
+   * También DECIDE la página: se usa la que contiene el punto. Ver
+   * `insertImageByReference` para por qué no basta con colocarla ahí.
    */
   at?: { x: number; y: number };
 }
@@ -98,13 +104,156 @@ function frames(api: ExcalidrawImperativeAPI): FrameElement[] {
     .sort((a, b) => a.x - b.x);
 }
 
+/**
+ * Cuánto se espera a que el CDN devuelva la imagen antes de rendirse.
+ *
+ * Sin tope, un `<img>` cuya URL nunca responde deja la promesa colgada PARA
+ * SIEMPRE: quien inserta se queda con su indicador girando y sin error que
+ * enseñar, que en pantalla es idéntico a que la aplicación se haya quedado
+ * muerta. Con tope, se falla y se puede avisar.
+ */
+const IMAGE_LOAD_TIMEOUT_MS = 20_000;
+
 function loadImageSize(src: string): Promise<{ width: number; height: number }> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
-    img.onerror = () => reject(new Error('No se pudo cargar la imagen'));
+    const stop = () => {
+      clearTimeout(timer);
+      img.onload = null;
+      img.onerror = null;
+    };
+    const timer = setTimeout(() => {
+      stop();
+      // Cortar la descarga en curso: si no, el navegador sigue tirando de red
+      // por una imagen que ya nadie va a usar.
+      img.src = '';
+      reject(new Error('La imagen tardó demasiado en cargar'));
+    }, IMAGE_LOAD_TIMEOUT_MS);
+    img.onload = () => {
+      stop();
+      // Un 0×0 es un `load` que miente (SVG sin dimensiones intrínsecas, o una
+      // respuesta vacía que el decodificador acepta). Insertarla daría un
+      // elemento de tamaño cero: invisible, pero ahí, y no hay forma de
+      // agarrarlo con el ratón para borrarlo.
+      if (!img.naturalWidth || !img.naturalHeight) {
+        reject(new Error('La imagen no tiene dimensiones utilizables'));
+        return;
+      }
+      resolve({ width: img.naturalWidth, height: img.naturalHeight });
+    };
+    img.onerror = () => {
+      stop();
+      reject(new Error('No se pudo cargar la imagen'));
+    };
     img.src = src;
   });
+}
+
+/** Página cuyo rectángulo contiene el punto, si alguna lo contiene. */
+function pageAtPoint(pages: FrameElement[], at: { x: number; y: number }): FrameElement | null {
+  return (
+    pages.find(
+      (f) => at.x >= f.x && at.x <= f.x + f.width && at.y >= f.y && at.y <= f.y + f.height,
+    ) ?? null
+  );
+}
+
+/** LA regla de qué página recibe una inserción. Una sola, y aquí. */
+function resolvePage(api: ExcalidrawImperativeAPI, opts?: InsertImageOptions): FrameElement | null {
+  const pages = frames(api);
+  return (
+    (opts?.at ? pageAtPoint(pages, opts.at) : null) ||
+    (opts?.pageId ? pages.find((f) => f.id === opts.pageId) : null) ||
+    pages[0] ||
+    null
+  );
+}
+
+/**
+ * Página donde CAERÍA una inserción con estas opciones, sin insertar nada.
+ *
+ * La necesita el host para decidir ANTES de empezar: si esa página está
+ * bloqueada, un lote de cinco archivos tiene que rebotar con un aviso, no con
+ * cinco. Usa exactamente la misma regla que la inserción real — es la misma
+ * función — para que no puedan discrepar.
+ */
+export function resolveInsertPageId(
+  api: ExcalidrawImperativeAPI,
+  opts?: InsertImageOptions,
+): string | null {
+  return resolvePage(api, opts)?.id ?? null;
+}
+
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(Math.max(value, min), Math.max(min, max));
+
+/**
+ * Puntos escalonados para soltar VARIOS archivos de una vez.
+ *
+ * Uno encima de otro no es una inserción múltiple, es una que parece fallida:
+ * la de arriba tapa al resto y no hay forma de saber que entraron cuatro. Se
+ * escalonan como una baraja abierta.
+ *
+ * El paso va en unidades de ESCENA y sale del tamaño de la página (4% del lado
+ * corto), no de píxeles de pantalla: así se ve igual de abierto en una story
+ * vertical que en un A4, y no depende del zoom que tengas puesto.
+ *
+ * La dirección la decide el cuadrante donde sueltas. Escalonando siempre hacia
+ * abajo-derecha, soltar cerca de esa esquina empujaba todas las copias contra el
+ * borde, donde el recorte a la página las volvía a apilar en el mismo sitio —
+ * justo el amontonamiento que esto viene a evitar.
+ */
+export function cascadePoints(
+  api: ExcalidrawImperativeAPI,
+  at: { x: number; y: number },
+  count: number,
+): { x: number; y: number }[] {
+  if (count <= 1) return [at];
+  const page = resolvePage(api, { at });
+  const box = page
+    ? { x: page.x, y: page.y, w: page.width, h: page.height }
+    : { x: at.x - 400, y: at.y - 300, w: 800, h: 600 };
+  const step = Math.min(box.w, box.h) * 0.04;
+  const dx = at.x > box.x + box.w / 2 ? -step : step;
+  const dy = at.y > box.y + box.h / 2 ? -step : step;
+  return Array.from({ length: count }, (_, i) => ({ x: at.x + dx * i, y: at.y + dy * i }));
+}
+
+/** Rectángulo de una imagen de la escena, para dibujar sobre ella. */
+export interface ImageHit {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * La imagen que hay bajo un punto de la escena, si hay alguna.
+ *
+ * Se recorre al revés porque la escena está ordenada de atrás hacia delante:
+ * la que el usuario ve bajo el puntero es la ÚLTIMA que lo contiene, no la
+ * primera. Sirve para el intercambio con Mayúsculas y para dibujar el marco que
+ * lo anuncia mientras arrastras.
+ */
+export function imageAtScenePoint(
+  api: ExcalidrawImperativeAPI,
+  at: { x: number; y: number },
+): ImageHit | null {
+  const elements = api.getSceneElements();
+  for (let i = elements.length - 1; i >= 0; i -= 1) {
+    const el = elements[i] as SceneElement & { fileId?: string };
+    if (el.type !== 'image' || el.isDeleted || !el.fileId) continue;
+    if (
+      at.x >= el.x &&
+      at.x <= el.x + el.width &&
+      at.y >= el.y &&
+      at.y <= el.y + el.height
+    ) {
+      return { id: el.id, x: el.x, y: el.y, width: el.width, height: el.height };
+    }
+  }
+  return null;
 }
 
 /** dataURL → Blob, para poder subir a MM lo que Excalidraw inlineó. */
@@ -124,6 +273,13 @@ export function dataUrlToBlob(dataUrl: string): Blob {
  * PRIVADA A PROPÓSITO. Es el único sitio que escribe en el mapa de ficheros, y
  * no se exporta para que no exista ninguna forma pública de meter un `data:`
  * en la escena. Todo insert público entra por aquí con una URL remota.
+ *
+ * Devuelve el id del ELEMENTO creado, no el del fichero: quien inserta lo
+ * siguiente que quiere es operar sobre lo insertado (marcarlo como vídeo,
+ * mandarlo al fondo, seleccionarlo), y todas esas funciones piden un id de
+ * elemento. Devolver el `fileId` compilaba igual —los dos son `string`— y dejó
+ * dos funciones mudas: `insertVideo` no llegaba a marcar nunca el vídeo y
+ * `setAsBackground` no encontraba la portada que acababa de entrar.
  */
 function insertImageByReference(
   api: ExcalidrawImperativeAPI,
@@ -137,8 +293,15 @@ function insertImageByReference(
     { id: fileId, dataURL: file.url, mimeType, created: Date.now() },
   ] as Parameters<ExcalidrawImperativeAPI['addFiles']>[0]);
 
-  const pages = frames(api);
-  const target = (opts?.pageId && pages.find((f) => f.id === opts.pageId)) || pages[0] || null;
+  // La página la manda el PUNTO donde se suelta; la activa es solo el respaldo
+  // para cuando no hay punto (clic en la mediateca).
+  //
+  // Y es una regla dura, no una preferencia: Excalidraw RECORTA cada elemento
+  // contra el marco al que dice pertenecer, así que un `frameId` de la página 1
+  // con las coordenadas de la página 3 no sale "en el sitio raro" — no sale.
+  // Sueltas la foto sobre la página que estás mirando, desaparece, y no hay
+  // error, ni hueco, ni nada que mirar.
+  const target = resolvePage(api, opts);
   const box = target
     ? { x: target.x, y: target.y, w: target.width, h: target.height }
     : { x: 0, y: 0, w: 800, h: 600 };
@@ -147,9 +310,16 @@ function insertImageByReference(
   const fit = Math.min((box.w * 0.9) / file.width, (box.h * 0.9) / file.height, 1);
   const w = Math.max(1, file.width * fit);
   const h = Math.max(1, file.height * fit);
-  // Con punto de suelte, la imagen se centra AHÍ; si no, en la página.
-  const x = opts?.at ? opts.at.x - w / 2 : box.x + (box.w - w) / 2;
-  const y = opts?.at ? opts.at.y - h / 2 : box.y + (box.h - h) / 2;
+  // Con punto de suelte, la imagen se centra AHÍ; si no, en la página. Y en los
+  // dos casos se mete DENTRO de la página: soltar pegado al borde (o fuera de
+  // toda página, en el gris) dejaba la mitad de la foto recortada por el marco,
+  // que es la misma pantalla que "no ha pasado nada".
+  const x = opts?.at
+    ? clamp(opts.at.x - w / 2, box.x, box.x + box.w - w)
+    : box.x + (box.w - w) / 2;
+  const y = opts?.at
+    ? clamp(opts.at.y - h / 2, box.y, box.y + box.h - h)
+    : box.y + (box.h - h) / 2;
 
   const skeleton = [
     { type: 'image', fileId, x, y, width: w, height: h, status: 'saved' },
@@ -158,12 +328,18 @@ function insertImageByReference(
   const created = convertToExcalidrawElements(skeleton, { regenerateIds: false }).map((el) =>
     target ? { ...el, frameId: target.id } : el,
   );
+  const elementId = (created[0] as { id: string }).id;
 
-  commitElements(api, [
-    ...api.getSceneElements(),
-    ...(created as unknown as readonly SceneElement[]),
-  ]);
-  return fileId;
+  commitElements(
+    api,
+    [...api.getSceneElements(), ...(created as unknown as readonly SceneElement[])],
+    'undoable',
+    // Seleccionada al entrar: lo que se acaba de insertar es justo lo que se va
+    // a mover o redimensionar, y sin selección hay que ir a cazarla con el ratón
+    // (y en una página llena, encontrarla).
+    { selectedElementIds: { [elementId]: true } },
+  );
+  return elementId;
 }
 
 /**
@@ -172,6 +348,8 @@ function insertImageByReference(
  * No descarga nada: la URL se guarda tal cual en el mapa de ficheros. (Antes
  * esta función hacía justo lo contrario —`fetch` + inline a base64—, que es
  * precisamente lo que la regla prohíbe.)
+ *
+ * @returns el id del ELEMENTO insertado (ver `insertImageByReference`).
  */
 export async function insertImageFromUrl(
   api: ExcalidrawImperativeAPI,
@@ -198,6 +376,8 @@ export async function insertImageFromUrl(
  *
  * El `uploader` es obligatorio por diseño. Sin él no hay inserción: es lo que
  * impide que exista una ruta "rápida" que se salte MM.
+ *
+ * @returns el id del ELEMENTO insertado (ver `insertImageByReference`).
  */
 export async function insertImageFromBlob(
   api: ExcalidrawImperativeAPI,
@@ -213,6 +393,157 @@ export async function insertImageFromBlob(
     throw new Error('El MediaUploader devolvió un data: URL en vez de una URL de MediaMonster.');
   }
   return insertImageFromUrl(api, url, opts);
+}
+
+/**
+ * Cambia el ARCHIVO de una imagen ya colocada, conservando su sitio.
+ *
+ * Es rellenar un hueco de plantilla: la foto que ya está maquetada (posición,
+ * tamaño, capa, página) se queda donde está y solo pasa a apuntar a otra. Sin
+ * esto había que borrar, volver a insertar y recolocar a ojo.
+ *
+ * NO se estira la imagen nueva hasta llenar la caja vieja: una foto vertical en
+ * un hueco horizontal saldría deformada, y Excalidraw no sabe recortar. Se
+ * conserva el CENTRO y se mete dentro de la caja anterior con su propia
+ * proporción, que es lo más parecido a "el mismo sitio, el mismo tamaño" que se
+ * puede hacer sin mentir sobre la imagen.
+ *
+ * Como en `externalizeInlineImages`, el fichero entra con un id NUEVO:
+ * `addFiles` ignora en silencio todo id que ya exista, así que reaprovechar el
+ * anterior dejaría el elemento apuntando a la imagen vieja.
+ *
+ * @returns `false` si ese id no es una imagen de la escena.
+ */
+export async function replaceImageFromUrl(
+  api: ExcalidrawImperativeAPI,
+  elementId: string,
+  url: string,
+): Promise<boolean> {
+  if (isInlineDataUrl(url)) {
+    throw new Error(
+      'replaceImageFromUrl recibió un data: URL. Los bytes van a MediaMonster; sube primero.',
+    );
+  }
+  const previo = api.getSceneElements().find((e) => e.id === elementId);
+  if (!previo || previo.type !== 'image') return false;
+
+  const { width, height } = await loadImageSize(url);
+  const mimeType = url.endsWith('.webp')
+    ? 'image/webp'
+    : url.endsWith('.png')
+      ? 'image/png'
+      : 'image/jpeg';
+
+  const fileId = createFileId();
+  api.addFiles([
+    { id: fileId, dataURL: url, mimeType, created: Date.now() },
+  ] as Parameters<ExcalidrawImperativeAPI['addFiles']>[0]);
+
+  const fit = Math.min(previo.width / width, previo.height / height);
+  const w = Math.max(1, width * fit);
+  const h = Math.max(1, height * fit);
+  const x = previo.x + (previo.width - w) / 2;
+  const y = previo.y + (previo.height - h) / 2;
+
+  commitElements(
+    api,
+    api.getSceneElements().map((el) =>
+      el.id === elementId
+        ? patchElement(el, { fileId, x, y, width: w, height: h } as Partial<SceneElement>)
+        : el,
+    ),
+    'undoable',
+    { selectedElementIds: { [elementId]: true } },
+  );
+  return true;
+}
+
+/** Bytes locales → dataURL, para poder pintar antes de que MM responda. */
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error('No se pudo leer el archivo'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+/**
+ * Inserta bytes locales PINTANDO YA y cambiando a MediaMonster al terminar.
+ *
+ * Para lo que se arrastra desde el escritorio. `insertImageFromBlob` sube
+ * primero y pinta después, que es correcto y se siente roto: sueltas una foto de
+ * 8 MB y el lienzo se queda igual varios segundos, sin nada que mirar y sin
+ * saber si el gesto ha contado. Aquí la foto aparece en el sitio donde la
+ * soltaste con sus propios bytes, y cuando la subida termina el elemento pasa a
+ * apuntar a la URL de MM sin que se note.
+ *
+ * NO abre un agujero en la regla, aunque lo parezca. La única forma de entrar
+ * sigue siendo con un `MediaUploader`: no existe —ni se exporta— una función
+ * que acepte un `data:` de fuera. Y el base64 no sobrevive al final de esta
+ * función pase lo que pase: si la subida sale bien se sustituye, y si falla se
+ * BORRA el elemento. Nunca queda un base64 al que el guardado tenga que
+ * enfrentarse.
+ *
+ * La ventana en la que sí existe dura lo que la subida. Si justo ahí cae un
+ * autoguardado, `externalizeInlineImages` lo sube por su cuenta y deja un
+ * duplicado en la mediateca — feo, pero la regla aguanta y el diseño se guarda.
+ *
+ * El cambio de fichero entra como `'never'` en el historial: es fontanería, y un
+ * Ctrl+Z que devolviera el elemento al base64 recién sustituido sería justo lo
+ * que la regla prohíbe.
+ *
+ * @returns el id del ELEMENTO, ya apuntando a MediaMonster.
+ */
+export async function insertImageWithPreview(
+  api: ExcalidrawImperativeAPI,
+  blob: Blob,
+  uploader: MediaUploader,
+  opts?: InsertImageOptions & { filename?: string },
+): Promise<string> {
+  if (typeof uploader !== 'function') {
+    throw new Error('insertImageWithPreview requiere un MediaUploader: las imágenes van a MediaMonster.');
+  }
+  const filename = opts?.filename ?? `canvas-${Date.now()}.png`;
+  const local = await blobToDataUrl(blob);
+  const { width, height } = await loadImageSize(local);
+  const elementId = insertImageByReference(
+    api,
+    { url: local, mimeType: blob.type || 'image/png', width, height },
+    opts,
+  );
+
+  let url: string;
+  try {
+    url = await uploader(blob, filename);
+    if (isInlineDataUrl(url)) {
+      throw new Error('El MediaUploader devolvió un data: URL en vez de una URL de MediaMonster.');
+    }
+  } catch (e) {
+    // Fuera de la escena: quedarse es quedarse en base64, y eso bloquea el
+    // guardado del diseño ENTERO, no solo el de esta foto.
+    commitElements(
+      api,
+      api.getSceneElements().filter((el) => el.id !== elementId),
+      'never',
+    );
+    throw e;
+  }
+
+  const fileId = createFileId();
+  api.addFiles([
+    { id: fileId, dataURL: url, mimeType: blob.type || 'image/png', created: Date.now() },
+  ] as Parameters<ExcalidrawImperativeAPI['addFiles']>[0]);
+  commitElements(
+    api,
+    api
+      .getSceneElements()
+      .map((el) =>
+        el.id === elementId ? patchElement(el, { fileId } as Partial<SceneElement>) : el,
+      ),
+    'never',
+  );
+  return elementId;
 }
 
 /** Ids del mapa de ficheros que todavía llevan los bytes dentro. */

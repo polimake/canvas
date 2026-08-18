@@ -20,12 +20,14 @@ import { RightDock } from './RightDock';
 import { LibraryPanel } from './LibraryPanel';
 import type { FilesMap } from './pageThumbnails';
 import { addPage, createBlankScene, goToPage, listPages, relayoutPages, type PageSize } from './pages';
+import { commitElements } from './mutate';
 import { ensurePagePapers } from './background';
 import { resolveBrandKit, type BrandKitInput, type Canvas2Brand } from './brand';
 import { buildFontFaceCss, dedupeFontFaces, type CustomFontFace } from './fonts';
 import { fontFamilyId, registerCustomFonts } from './fontRegistry';
 import type { PartialLabels } from './labels';
 import { copyDropEffect } from './dropEffect';
+import { imageAtScenePoint, type ImageHit } from './media';
 
 /**
  * A serializable snapshot of the canvas. Same shape Excalidraw accepts as
@@ -167,10 +169,32 @@ export interface Canvas2EditorProps {
    * Recibe el payload tal cual venía en el `dataTransfer` (tipo
    * {@link MEDIA_DROP_TYPE}) y el punto en coordenadas de ESCENA. canvas2 no
    * interpreta el payload: no sabe de ficheros de media, solo de dónde ha caído.
+   *
+   * Con `replaceElementId` la intención no es añadir sino SUSTITUIR el archivo
+   * de esa imagen conservando su sitio (Mayúsculas + soltar encima de una que ya
+   * está). El lienzo detecta el gesto porque es quien sabe qué hay bajo el
+   * puntero; qué archivo entra sigue siendo cosa del host.
    */
-  onMediaDrop?: (payload: string, at: { x: number; y: number }) => void;
+  onMediaDrop?: (
+    payload: string,
+    at: { x: number; y: number },
+    target?: { replaceElementId: string },
+  ) => void;
   /** Tipo de dataTransfer a escuchar. Por defecto {@link MEDIA_DROP_TYPE}. */
   mediaDropType?: string;
+  /**
+   * Se sueltan ficheros del SISTEMA (escritorio, otra pestaña) sobre el lienzo.
+   *
+   * Con este manejador puesto, canvas2 intercepta el suelte antes de que lo vea
+   * Excalidraw. Lo de serie es meter la imagen como base64 dentro de la escena,
+   * que aquí no vale: los bytes viven en MediaMonster y el guardado se aborta si
+   * llegan a la fila. El host sube y luego inserta (ver `insertImageWithPreview`,
+   * que además pinta al instante con los bytes locales).
+   *
+   * Solo se le pasan imágenes; lo demás se deja pasar a Excalidraw, para no
+   * romper el importar una escena `.excalidraw` arrastrándola.
+   */
+  onFilesDrop?: (files: File[], at: { x: number; y: number }) => void;
   /**
    * Textos del editor. canvas2 no lleva i18n dentro (no puede depender del
    * `react-i18next` de apps/web), así que el host inyecta lo que tenga
@@ -221,6 +245,18 @@ export interface Canvas2EditorProps {
  * distintas y tener que descubrirlo probando.
  */
 export const MEDIA_DROP_TYPE = 'application/x-canvas2-media';
+
+/**
+ * ¿El puntero está sobre el lienzo de verdad, o sobre uno de nuestros paneles?
+ *
+ * Todo el cromo de canvas2 (tira de páginas, dock, biblioteca, acciones de
+ * página) es hermano de `<Excalidraw>` dentro del mismo envoltorio, y el
+ * envoltorio es quien escucha el soltar. `.excalidraw` es la raíz que monta
+ * Excalidraw: lo que no cuelgue de ella es cromo nuestro y no es zona de suelte.
+ */
+function isOverCanvas(target: EventTarget | null): boolean {
+  return target instanceof Element && Boolean(target.closest('.excalidraw'));
+}
 
 function brandDefaults(brand?: Canvas2Brand) {
   if (!brand) return {};
@@ -289,6 +325,7 @@ export function Canvas2Editor({
   onActivePageChange,
   onMediaDrop,
   mediaDropType = MEDIA_DROP_TYPE,
+  onFilesDrop,
   labels,
   resolveVideoSrc,
   releaseVideoSrc,
@@ -343,6 +380,51 @@ export function Canvas2Editor({
   // agree on which artboard actions target. It FOLLOWS the user: chip clicks,
   // viewport panning, and selection all update it.
   const [activePageId, setActivePageId] = useState<string | null>(null);
+
+  /**
+   * Imagen que un soltar con Mayúsculas SUSTITUIRÍA, mientras arrastras.
+   *
+   * Guarda el rectángulo en coordenadas de escena; el marco se dibuja
+   * convirtiéndolo a pantalla en el render, para que siga pegado a la imagen si
+   * el lienzo se mueve debajo.
+   */
+  const [swapTarget, setSwapTarget] = useState<ImageHit | null>(null);
+
+  /**
+   * Punto de la escena bajo el puntero de un evento de arrastre.
+   *
+   * `viewportCoordsToSceneCoords` YA resta el origen del contenedor (usa
+   * `offsetLeft`/`offsetTop` del appState), así que restarlo también aquí
+   * desplazaba lo insertado tanto como el editor distara del borde de la ventana
+   * — en esta pantalla, la columna entera de la izquierda.
+   *
+   * Lo que sí se hace es MEDIR el origen ahora en vez de fiarse del que
+   * Excalidraw tenga cacheado: solo lo recalcula cuando su contenedor cambia de
+   * TAMAÑO, así que un panel que se abre al lado y lo desplaza sin encogerlo
+   * deja ese valor viejo y el punto de suelte se va.
+   */
+  const scenePointOf = useCallback(
+    (e: { clientX: number; clientY: number; currentTarget: Element }) => {
+      const state = apiRef.current?.getAppState();
+      if (!state) return null;
+      const box = e.currentTarget.getBoundingClientRect();
+      return viewportCoordsToSceneCoords(
+        { clientX: e.clientX, clientY: e.clientY },
+        { ...state, offsetLeft: box.left, offsetTop: box.top },
+      );
+    },
+    [],
+  );
+
+  /** La imagen bajo el puntero, solo si se está pidiendo sustituir (Mayúsculas). */
+  const hitAt = useCallback(
+    (e: { clientX: number; clientY: number; currentTarget: Element; shiftKey: boolean }) => {
+      if (!e.shiftKey || !apiRef.current) return null;
+      const at = scenePointOf(e);
+      return at ? imageAtScenePoint(apiRef.current, at) : null;
+    },
+    [scenePointOf],
+  );
 
   // La página activa se decide dentro (clic en la tira, paneo, selección), así
   // que el host solo puede enterarse si se le avisa.
@@ -402,7 +484,7 @@ export function Canvas2Editor({
 
   // Pages init — driven by Excalidraw's FIRST onChange (which only fires once
   // hydration has committed; the old 100ms settle-poll guessed at timing), with
-  // a timeout fallback for scenes that never produce a change tick. Legacy
+  // a bounded retry for scenes that never produce a change tick. Legacy
   // scenes get their paper sheets and flush packing in history-invisible
   // commits so the first Ctrl+Z can't undo the migration.
   useEffect(() => {
@@ -439,13 +521,74 @@ export function Canvas2Editor({
         return existing[0].id;
       });
     };
+    /**
+     * Reintento acotado en vez de un único plazo.
+     *
+     * El respaldo anterior disparaba una sola vez a los 1500 ms y, si la escena
+     * seguía vacía, `run` volvía a salirse por la guarda de hidratación y ahí se
+     * acababa todo: sin más `onChange` el editor se quedaba SIN NINGUNA página
+     * —ni tira, ni acciones, ni forma de crear una— hasta recargar. Pasa cuando
+     * el `editorConfig` guardado trae elementos que Excalidraw acaba
+     * descartando al hidratar.
+     *
+     * Al vencer el plazo no se elige entre las dos malas salidas (crear encima,
+     * que borraría el diseño si la hidratación llega tarde, o quedarse sin
+     * páginas): se REPONEN los elementos que el host entregó y se inicializa
+     * sobre ellos.
+     */
+    const RETRY_MS = 250;
+    const DEADLINE_MS = 5000;
+    let waited = 0;
+    const tick = () => {
+      run();
+      if (didInitPages.current) return;
+      waited += RETRY_MS;
+      if (waited < DEADLINE_MS) {
+        timer = setTimeout(tick, RETRY_MS);
+        return;
+      }
+      pendingHydration.current = false;
+      const rescue = (initialData?.elements ?? []) as readonly SceneElement[];
+      if (rescue.length && api.getSceneElements().length === 0) {
+        commitElements(api, rescue, 'never');
+      }
+      run();
+    };
     unsub = api.onChange(run);
-    timer = setTimeout(run, 1500);
+    timer = setTimeout(tick, RETRY_MS);
     return () => {
       unsub?.();
       if (timer) clearTimeout(timer);
     };
-  }, [pages, api, pageSize]);
+  }, [pages, api, pageSize, initialData]);
+
+  /**
+   * Normalización continua de la fila de páginas.
+   *
+   * `relayoutPages` solo corría al abrir, así que todo lo que pasara después se
+   * quedaba: un marco dibujado con la herramienta de Excalidraw (la tecla `F`
+   * sigue viva) entraba como página fantasma —sin papel, sin nombre de página y
+   * sin renumerar— y una página arrastrada fuera de la fila no volvía nunca.
+   *
+   * Va con retardo y por el flanco de salida: mientras se arrastra, `onChange`
+   * no para de disparar y el temporizador se reinicia, así que la página no se
+   * recoloca bajo el cursor sino al soltar. Los commits son invisibles al
+   * historial: es la forma canónica de la escena, no una edición del usuario.
+   */
+  const normalizePages = useDebouncedCallback(() => {
+    const live = apiRef.current;
+    if (!live || !didInitPages.current) return;
+    ensurePagePapers(live, 'never');
+    relayoutPages(live, 'never');
+  }, 600);
+
+  useEffect(() => {
+    // En solo lectura no hay nada que se pueda salir de la fila, y la migración
+    // de una escena antigua ya la hace la inicialización de arriba: normalizar
+    // aquí solo emitiría cambios de escena en una sesión que no edita.
+    if (!pages || !api || viewMode) return;
+    return api.onChange(normalizePages);
+  }, [pages, api, viewMode, normalizePages]);
 
   // Viewport-following: after a pan/zoom settles, the page occupying the most
   // visible area becomes the active page — so Exportar/Texto/Fondo/Tamaño act
@@ -516,30 +659,81 @@ export function Canvas2Editor({
       // Soltar desde la biblioteca. Se escucha en el envoltorio y no dentro de
       // Excalidraw porque su lienzo ya tiene su propio manejador de drop (para
       // ficheros del sistema) y no admite tipos ajenos.
+      // FASE DE CAPTURA, a propósito: el manejador de suelte de Excalidraw está
+      // en un div HIJO, así que en la fase de burbuja va PRIMERO y ya habría
+      // metido la imagen como base64 dentro de la escena. Capturando arriba y
+      // cortando la propagación, Excalidraw ni se entera.
+      onDragOverCapture={(e) => {
+        if (!onFilesDrop || viewMode) return;
+        if (!Array.from(e.dataTransfer.types ?? []).includes('Files')) return;
+        if (!isOverCanvas(e.target)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        e.dataTransfer.dropEffect = 'copy';
+      }}
+      onDropCapture={(e) => {
+        if (!onFilesDrop || viewMode || !isOverCanvas(e.target)) return;
+        // Solo imágenes. Un `.excalidraw` o un PDF sigue su camino hasta
+        // Excalidraw, que sabe qué hacer con ellos y nosotros no.
+        const imagenes = Array.from(e.dataTransfer.files ?? []).filter((f) =>
+          f.type.startsWith('image/'),
+        );
+        if (imagenes.length === 0) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const at = scenePointOf(e);
+        if (!at) return;
+        onFilesDrop(imagenes, at);
+      }}
       onDragOver={(e) => {
-        if (!onMediaDrop || !e.dataTransfer.types.includes(mediaDropType)) return;
+        if (!onMediaDrop || viewMode) return;
+        if (!e.dataTransfer.types.includes(mediaDropType)) return;
+        if (!isOverCanvas(e.target)) {
+          if (swapTarget) setSwapTarget(null);
+          return;
+        }
         e.preventDefault();
         // NO se fija 'copy' a secas: si el origen marcó el arrastre solo como
         // 'move', pedir 'copy' lo anula y el navegador ya no emite `drop` —
         // sueltas y no pasa nada, sin error y sin pista. Ver `copyDropEffect`.
         e.dataTransfer.dropEffect = copyDropEffect(e.dataTransfer.effectAllowed);
+        // Mayúsculas sostenido = sustituir la imagen de debajo en vez de añadir
+        // otra encima. Se calcula en CADA `dragover` (y no solo al soltar)
+        // porque un modificador que no se ve no lo descubre nadie: el marco que
+        // se dibuja sobre la imagen candidata ES la forma de enterarse de que
+        // existe el gesto.
+        //
+        // Solo se avisa a React cuando cambia la imagen apuntada: `dragover` se
+        // dispara con cada temblor del ratón y `hitAt` devuelve un objeto nuevo
+        // cada vez, así que sin la comparación por id esto repintaba el editor
+        // entero durante todo el arrastre.
+        const hit = hitAt(e);
+        setSwapTarget((prev) => (prev?.id === hit?.id ? prev : hit));
+      }}
+      // Salir del envoltorio con el arrastre puesto tiene que apagar el marco;
+      // si no, se queda encendido sobre una imagen que ya no es el destino.
+      onDragLeave={(e) => {
+        if (swapTarget && !e.currentTarget.contains(e.relatedTarget as Node | null)) {
+          setSwapTarget(null);
+        }
       }}
       onDrop={(e) => {
-        if (!onMediaDrop) return;
+        if (!onMediaDrop || viewMode) return;
+        setSwapTarget(null);
+        // Los paneles (tira de páginas, dock, biblioteca) viven DENTRO de este
+        // mismo envoltorio, así que sin este filtro soltar sobre uno de ellos
+        // contaba como soltar en el lienzo y la imagen aparecía en el punto de
+        // la escena que hubiera detrás del panel — casi siempre fuera de toda
+        // página. Al no marcar el `dragover`, además, el cursor ya avisa de que
+        // ahí no se puede soltar.
+        if (!isOverCanvas(e.target)) return;
         const payload = e.dataTransfer.getData(mediaDropType);
         if (!payload) return;
         e.preventDefault();
-        const state = api?.getAppState();
-        if (!state) return;
-        // El puntero llega en coordenadas de VENTANA; hay que restar el origen
-        // del envoltorio antes de convertir, o la imagen cae desplazada tanto
-        // como el editor esté separado del borde de la página.
-        const box = e.currentTarget.getBoundingClientRect();
-        const at = viewportCoordsToSceneCoords(
-          { clientX: e.clientX - box.left, clientY: e.clientY - box.top },
-          state,
-        );
-        onMediaDrop(payload, at);
+        const at = scenePointOf(e);
+        if (!at) return;
+        const hit = e.shiftKey ? hitAt(e) : null;
+        onMediaDrop(payload, at, hit ? { replaceElementId: hit.id } : undefined);
       }}
     >
       <Excalidraw
@@ -631,6 +825,35 @@ export function Canvas2Editor({
           />
         ) : null}
       </Excalidraw>
+      {/* Marco de «suelta aquí y sustituyo esta». Es lo ÚNICO que anuncia que
+          Mayúsculas + soltar hace algo distinto: un modificador sin señal en
+          pantalla no lo encuentra nadie. Se dibuja sobre la imagen candidata,
+          convirtiendo su rectángulo de escena a pantalla en cada render
+          (`(escena + scroll) × zoom`, ya relativo a este envoltorio porque el
+          contenedor de Excalidraw lo llena por completo). */}
+      {swapTarget && api ? (
+        (() => {
+          const s = api.getAppState();
+          const z = s.zoom.value;
+          return (
+            <div
+              data-testid="canvas2-swap-target"
+              style={{
+                position: 'absolute',
+                left: (swapTarget.x + s.scrollX) * z,
+                top: (swapTarget.y + s.scrollY) * z,
+                width: swapTarget.width * z,
+                height: swapTarget.height * z,
+                border: '2px solid #6965db',
+                borderRadius: 4,
+                background: 'rgba(105,101,219,0.16)',
+                pointerEvents: 'none',
+                zIndex: 90,
+              }}
+            />
+          );
+        })()
+      ) : null}
       {/* Selector del fotograma de portada: aparece al seleccionar un vídeo. */}
       <VideoFramePicker
         api={api}

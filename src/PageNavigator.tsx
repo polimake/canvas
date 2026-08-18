@@ -83,6 +83,8 @@ export function PageNavigator({
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   /** Punto de agarre y tamaño de la pieza, para la tarjeta que sigue al cursor. */
   const [grab, setGrab] = useState<DragGrab | null>(null);
+  /** Se ha intentado crear una página y ha fallado (ver `createPage`). */
+  const [addFailed, setAddFailed] = useState(false);
   const chipRefs = useRef(new Map<string, HTMLDivElement>());
   const pageThumbs = usePageThumbnails(api, { enabled: thumbnails, files: thumbnailFiles });
   const lastElementsRef = useRef<unknown>(null);
@@ -116,6 +118,24 @@ export function PageNavigator({
     setLocalActiveId(id);
     onActiveChange?.(id);
     goToPage(api, id);
+  };
+
+  /**
+   * Crear una página sin dejar el botón mudo.
+   *
+   * Un fallo dentro de `addPage` escapaba del manejador, y React NO recoge los
+   * errores de eventos (los error boundaries solo ven el render): el editor
+   * seguía en pie y el botón parecía simplemente muerto, sin nada que mirar. Se
+   * captura, se deja rastro en consola para quien depure y se dice en pantalla.
+   */
+  const createPage = (size: PageSize | undefined, opts?: { beforePageId?: string }) => {
+    try {
+      setAddFailed(false);
+      select(addPage(api, size, opts));
+    } catch (err) {
+      console.error('[canvas2] no se ha podido crear la página', err);
+      setAddFailed(true);
+    }
   };
 
   // El renombrado se dispara con doble clic en el chip; el marco del lienzo
@@ -195,7 +215,9 @@ export function PageNavigator({
             data-testid="canvas2-insert-page"
             aria-label={L.pages.insertHere}
             title={L.pages.insertHere}
-            onClick={() => select(addPage(api, { width: page.width, height: page.height }, { beforePageId: page.id }))}
+            onClick={() =>
+              createPage({ width: page.width, height: page.height }, { beforePageId: page.id })
+            }
             style={{
               all: 'unset',
               alignSelf: 'stretch',
@@ -401,8 +423,7 @@ export function PageNavigator({
           title={L.pages.addAtEnd}
           onClick={() => {
             const last = pages[pages.length - 1];
-            const size = last ? { width: last.width, height: last.height } : pageSize;
-            select(addPage(api, size));
+            createPage(last ? { width: last.width, height: last.height } : pageSize);
           }}
           style={{
             all: 'unset',
@@ -475,6 +496,32 @@ export function PageNavigator({
           >
             <FitAllIcon />
           </button>
+        </div>
+      )}
+
+      {/* Por qué no ha aparecido la página. Va sobre la tira y no dentro del
+          carril: el carril tiene scroll horizontal y el aviso acabaría fuera de
+          la vista justo cuando hace falta. Se va solo al siguiente intento. */}
+      {addFailed && (
+        <div
+          role="status"
+          data-testid="canvas2-add-page-failed"
+          style={{
+            position: 'absolute',
+            bottom: '100%',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            marginBottom: 6,
+            whiteSpace: 'nowrap',
+            padding: '4px 8px',
+            borderRadius: 6,
+            fontSize: 11,
+            fontWeight: 600,
+            color: '#fff',
+            background: '#e03131',
+          }}
+        >
+          {L.pages.addFailed}
         </div>
       )}
 

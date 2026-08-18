@@ -74,6 +74,8 @@ export interface Canvas2Labels {
     addAtEnd: string;
     /** Insertar en la juntura entre dos páginas de la tira. */
     insertHere: string;
+    /** El intento de crear una página ha fallado (si no, el botón parece muerto). */
+    addFailed: string;
     duplicate: string;
     rename: string;
     lock: string;
@@ -172,6 +174,7 @@ export const DEFAULT_LABELS: Canvas2Labels = {
     add: 'Agregar página después',
     addAtEnd: 'Añadir página',
     insertHere: 'Insertar página aquí',
+    addFailed: 'No se pudo crear la página',
     duplicate: 'Duplicar página',
     rename: 'Renombrar página',
     lock: 'Bloquear página',

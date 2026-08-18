@@ -76,11 +76,68 @@ function createId(): string {
 
 type FrameElement = Extract<SceneElement, { type: 'frame' }>;
 
+/**
+ * El orden del documento vive en el marco, no en su `x`.
+ *
+ * Deducirlo de la posición era barato pero frágil: los marcos se pueden
+ * arrastrar (Excalidraw dibuja su rótulo y tira de él), así que empujar una
+ * página 20 px a la izquierda la colaba delante de su vecina y el siguiente
+ * reempaquetado —o la simple recarga, que llama a `relayoutPages`— consolidaba
+ * ese cambio de orden que nadie había pedido. Se guarda en `customData`, el
+ * mismo canal público que ya usa el papel de fondo (Excalidraw lo devuelve tal
+ * cual), y la `x` pasa a ser una CONSECUENCIA del orden en vez de su origen.
+ */
+const PAGE_MARKER = 'c2page';
+
+interface PageMarker {
+  index: number;
+}
+
+function pageOrderOf(el: SceneElement): number | null {
+  const raw = (el.customData as { [PAGE_MARKER]?: PageMarker } | undefined)?.[PAGE_MARKER]?.index;
+  return typeof raw === 'number' && Number.isFinite(raw) ? raw : null;
+}
+
+/**
+ * Los marcos, en orden de documento.
+ *
+ * Manda la marca guardada, pero SOLO si la llevan todas: con una sola sin
+ * marcar no hay forma de intercalarla entre índices (¿va antes o después de la
+ * 3?), así que se cae en bloque a ordenar por `x` —el comportamiento histórico—
+ * y el siguiente `packPagesInArray` vuelve a marcarlas todas. Eso cubre a la vez
+ * las escenas antiguas (ninguna marcada) y el marco que alguien acaba de dibujar
+ * a mano (una sin marcar).
+ */
 function framesInArray(elements: readonly SceneElement[]): FrameElement[] {
-  return elements
-    .filter((e): e is FrameElement => e.type === 'frame')
+  const frames = elements.filter((e): e is FrameElement => e.type === 'frame');
+  const marked = frames.length > 0 && frames.every((f) => pageOrderOf(f) !== null);
+  return frames
     .slice()
-    .sort((a, b) => a.x - b.x);
+    .sort(
+      marked
+        ? (a, b) => (pageOrderOf(a) as number) - (pageOrderOf(b) as number)
+        : (a, b) => a.x - b.x,
+    );
+}
+
+/** Lado mínimo de una página, en px de escena. */
+const MIN_PAGE_SIDE = 16;
+
+/**
+ * Un tamaño de página utilizable.
+ *
+ * `addPage` aceptaba lo que le dieran, así que un `pageSize` mal calculado por
+ * el host producía un marco de 0×0: no se puede seleccionar, no se exporta y no
+ * aparece en la tira más que como una raya. Se recorta aquí, una sola vez, en
+ * lugar de repetir la comprobación en cada sitio que crea páginas.
+ */
+function usableSize(size: PageSize | null | undefined): PageSize {
+  const side = (v: number | undefined, fallback: number) =>
+    typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.max(MIN_PAGE_SIDE, v) : fallback;
+  return {
+    width: side(size?.width, DEFAULT_PAGE_SIZE.width),
+    height: side(size?.height, DEFAULT_PAGE_SIZE.height),
+  };
 }
 
 function getFrames(api: ExcalidrawImperativeAPI): FrameElement[] {
@@ -88,42 +145,97 @@ function getFrames(api: ExcalidrawImperativeAPI): FrameElement[] {
 }
 
 /**
- * PURE: re-pack pages flush left → right, preserving `order` (default:
- * current x order) and anchoring the strip at the current leftmost x.
- * Members travel with their frame. Returns the SAME array reference when
- * nothing moves.
+ * PURE: re-pack pages flush left → right, preserving `order` (default: current
+ * document order) and anchoring the strip at the current leftmost x and at the
+ * y de la PRIMERA página. Members travel with their frame. De paso graba en cada
+ * marco su posición (ver `PAGE_MARKER`), que es lo que hace que el orden
+ * sobreviva a un arrastre. Returns the SAME array reference when nothing moves.
+ *
+ * La `y` se alinea igual que la `x` porque si no la fila se desmigaja sin vuelta
+ * atrás: nada la reponía, así que una página arrastrada hacia abajo se quedaba
+ * ahí para siempre y `addPage` colocaba además la nueva en `y = 0` aunque la
+ * fila entera viviera en otra altura.
  */
 export function packPagesInArray(
   elements: readonly SceneElement[],
   orderedFrameIds?: string[],
 ): readonly SceneElement[] {
-  const byX = framesInArray(elements);
-  if (byX.length < 2) return elements;
+  const known = framesInArray(elements);
+  if (known.length === 0) return elements;
   const order = orderedFrameIds
     ? orderedFrameIds
-        .map((id) => byX.find((f) => f.id === id))
+        .map((id) => known.find((f) => f.id === id))
         .filter((f): f is FrameElement => Boolean(f))
-    : byX;
+    : known;
   if (order.length === 0) return elements;
 
-  const shiftByFrame = new Map<string, number>();
-  let cursor = Math.min(...order.map((f) => f.x));
-  for (const frame of order) {
-    const dx = cursor - frame.x;
-    if (Math.abs(dx) > 0.01) shiftByFrame.set(frame.id, dx);
-    cursor += frame.width + PAGE_GAP;
+  interface Move {
+    dx: number;
+    dy: number;
+    index: number;
   }
-  if (shiftByFrame.size === 0) return elements;
+  const moves = new Map<string, Move>();
+  const anchorY = order[0].y;
+  let cursor = Math.min(...order.map((f) => f.x));
+  order.forEach((frame, index) => {
+    const dx = cursor - frame.x;
+    const dy = anchorY - frame.y;
+    cursor += frame.width + PAGE_GAP;
+    const stale = pageOrderOf(frame) !== index;
+    if (Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01 || stale) {
+      moves.set(frame.id, { dx, dy, index });
+    }
+  });
+  if (moves.size === 0) return elements;
 
   return elements.map((e) => {
-    const dx =
-      e.type === 'frame'
-        ? shiftByFrame.get(e.id)
-        : e.frameId
-          ? shiftByFrame.get(e.frameId)
-          : undefined;
-    return dx ? patchElement(e, { x: e.x + dx }) : e;
+    const isFrame = e.type === 'frame';
+    const move = moves.get(isFrame ? e.id : (e.frameId ?? ''));
+    if (!move) return e;
+    const updates: Record<string, unknown> = {};
+    if (Math.abs(move.dx) > 0.01) updates.x = e.x + move.dx;
+    if (Math.abs(move.dy) > 0.01) updates.y = e.y + move.dy;
+    if (isFrame && pageOrderOf(e) !== move.index) {
+      updates.customData = {
+        ...((e.customData as Record<string, unknown> | undefined) ?? {}),
+        [PAGE_MARKER]: { index: move.index },
+      };
+    }
+    return Object.keys(updates).length
+      ? patchElement(e, updates as Partial<SceneElement>)
+      : e;
   });
+}
+
+/**
+ * PURE: da nombre de página a los marcos que han entrado por su cuenta.
+ *
+ * La herramienta de marco de Excalidraw sigue accesible (la tecla `F` no se
+ * puede desactivar), y todo marco de la escena ES una página para este modelo:
+ * salía en la tira, se exportaba y se llevaba su hueco en la fila, pero con el
+ * nombre por defecto de Excalidraw, que `renumberPagesInArray` no reconoce y por
+ * tanto nunca renumeraba.
+ *
+ * Solo actúa cuando el documento YA está marcado y aparece un marco sin marcar:
+ * si no lo está NINGUNO estamos ante una escena antigua recién abierta, y
+ * renombrarla en bloque borraría los nombres que haya puesto el usuario.
+ */
+export function adoptStrayFramesInArray(
+  elements: readonly SceneElement[],
+): readonly SceneElement[] {
+  const frames = elements.filter((e): e is FrameElement => e.type === 'frame');
+  const strays = frames.filter((f) => pageOrderOf(f) === null);
+  if (strays.length === 0 || strays.length === frames.length) return elements;
+
+  const strayIds = new Set(strays.map((f) => f.id));
+  let n = 0;
+  return elements.map((e) =>
+    strayIds.has(e.id)
+      ? // El número da igual: al llevar el patrón por defecto, `renumberPagesInArray`
+        // le pone el de su posición real en el mismo commit.
+        patchElement(e, { name: `Página ${++n}` } as Partial<SceneElement>)
+      : e,
+  );
 }
 
 /**
@@ -160,6 +272,7 @@ export function renumberPagesInArray(
 export function createBlankScene(
   pageSize: PageSize = DEFAULT_PAGE_SIZE,
 ): { elements: SceneElements } {
+  const size = usableSize(pageSize);
   const id = createId();
   const skeleton: Parameters<typeof convertToExcalidrawElements>[0] = [
     {
@@ -168,15 +281,16 @@ export function createBlankScene(
       name: 'Página 1',
       x: 0,
       y: 0,
-      width: pageSize.width,
-      height: pageSize.height,
+      width: size.width,
+      height: size.height,
       children: [],
+      customData: { [PAGE_MARKER]: { index: 0 } },
     },
   ];
   const frame = convertToExcalidrawElements(skeleton, { regenerateIds: false });
   const paper = buildPageBackground(
     id,
-    { x: 0, y: 0, width: pageSize.width, height: pageSize.height },
+    { x: 0, y: 0, width: size.width, height: size.height },
     PAPER_COLOR,
   );
   return {
@@ -220,6 +334,7 @@ export function addPage(
   pageSize: PageSize = DEFAULT_PAGE_SIZE,
   opts: { afterPageId?: string; beforePageId?: string; capture?: CaptureMode } = {},
 ): string {
+  const size = usableSize(pageSize);
   const elements = api.getSceneElements();
   const frames = framesInArray(elements);
   const anchorId = opts.afterPageId ?? opts.beforePageId;
@@ -236,7 +351,9 @@ export function addPage(
     : frames.length
       ? Math.max(...frames.map((f) => f.x + f.width)) + PAGE_GAP
       : 0;
-  const y = source ? source.y : 0;
+  // La y se hereda de la fila, no es 0: un documento cuyas páginas viven a otra
+  // altura recibía la nueva descolgada del resto.
+  const y = source ? source.y : (frames[0]?.y ?? 0);
 
   const order = frames.map((f) => f.id);
   const insertAt = source
@@ -251,13 +368,13 @@ export function addPage(
       name: `Página ${insertAt + 1}`,
       x,
       y,
-      width: pageSize.width,
-      height: pageSize.height,
+      width: size.width,
+      height: size.height,
       children: [],
     },
   ];
   const created = convertToExcalidrawElements(skeleton, { regenerateIds: false });
-  const paper = buildPageBackground(id, { x, y, width: pageSize.width, height: pageSize.height }, PAPER_COLOR);
+  const paper = buildPageBackground(id, { x, y, width: size.width, height: size.height }, PAPER_COLOR);
 
   let combined: readonly SceneElement[] = [
     ...elements,
@@ -356,17 +473,25 @@ export function deletePage(api: ExcalidrawImperativeAPI, pageId: string): boolea
 }
 
 /**
- * Re-pack the live scene flush left → right (see packPagesInArray). `capture`
- * defaults to undoable; load-time migrations pass 'never'.
+ * Deja la escena en su forma canónica: adopta los marcos que hayan entrado por
+ * fuera, reempaqueta la fila (x, y y marca de orden) y renumera. Un solo commit,
+ * y NINGUNO cuando ya estaba bien —de ahí que las tres primitivas devuelvan la
+ * misma referencia si no tocan nada—, que es lo que permite llamarla desde cada
+ * cambio de escena sin llenar el historial de entradas vacías.
+ *
+ * `capture` por defecto es undoable; las migraciones de carga y la normalización
+ * continua pasan 'never'.
  */
 export function relayoutPages(
   api: ExcalidrawImperativeAPI,
   capture: CaptureMode = 'undoable',
 ): void {
   const elements = api.getSceneElements();
-  const packed = packPagesInArray(elements);
-  if (packed === elements) return;
-  commitElements(api, packed, capture);
+  let next = adoptStrayFramesInArray(elements);
+  next = packPagesInArray(next);
+  next = renumberPagesInArray(next, framesInArray(next).map((f) => f.id));
+  if (next === elements) return;
+  commitElements(api, next, capture);
 }
 
 /** Whether a page (its frame) is locked. */
@@ -464,7 +589,12 @@ export function resizePage(
   const frame = elements.find(
     (e): e is FrameElement => e.id === pageId && e.type === 'frame',
   );
-  if (!frame || size.width <= 0 || size.height <= 0) return;
+  if (!frame) return;
+  // Un 0 o un NaN aquí NO se recorta como en `addPage`: pedir un tamaño
+  // imposible es un error de quien llama, y encoger la página a 16 px sería
+  // menos recuperable que no hacer nada.
+  if (!Number.isFinite(size.width) || !Number.isFinite(size.height)) return;
+  if (size.width <= 0 || size.height <= 0) return;
 
   const sx = size.width / frame.width;
   const sy = size.height / frame.height;
@@ -534,7 +664,10 @@ export function duplicatePage(
     dx: source.width + PAGE_GAP,
   });
 
-  const cloneId = idMap.get(pageId)!;
+  // Sin el marco clonado no hay página que insertar: seguir metía un `undefined`
+  // en el orden y el reempaquetado se degradaba en silencio.
+  const cloneId = idMap.get(pageId);
+  if (!cloneId) return null;
   for (const clone of clones) {
     if (clone.id === cloneId) {
       (clone as Record<string, unknown>).name = `${source.name ?? 'Página'} (copia)`;

@@ -3,7 +3,7 @@ import { excalMock, fakeApi, frame, member } from './helpers';
 
 vi.mock('../src/excal', () => excalMock);
 
-const { isVideoElement, getVideoMeta, getSelectedVideo, setVideoPoster, VIDEO_MARKER } =
+const { isVideoElement, getVideoMeta, getSelectedVideo, setVideoPoster, insertVideo, VIDEO_MARKER } =
   await import('../src/video.js');
 
 /**
@@ -130,5 +130,36 @@ describe('getVideoMeta', () => {
   it('null si el elemento no existe', () => {
     const { api } = fakeApi([frame('p1', 0, 0, 200, 200)]);
     expect(getVideoMeta(api, 'nope')).toBeNull();
+  });
+});
+
+describe('insertVideo', () => {
+  it('deja el póster MARCADO como vídeo', async () => {
+    // El fallo que cubre: `insertImageFromUrl` devolvía el id del FICHERO y aquí
+    // se buscaba un ELEMENTO con ese id. No casaba nunca, así que la marca no se
+    // escribía — y sin marca no hay selector de fotograma ni vínculo con el mp4:
+    // un vídeo insertado quedaba como una foto suelta, en silencio.
+    const original = (globalThis as { Image?: unknown }).Image;
+    (globalThis as { Image?: unknown }).Image = class {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      naturalWidth = 200;
+      naturalHeight = 100;
+      set src(_v: string) {
+        setTimeout(() => this.onload?.(), 0);
+      }
+    };
+    try {
+      const scene = fakeApi([frame('p1', 0, 0, 400, 400)]);
+      const id = await insertVideo(scene.api, 'https://cdn/poster.png', 'https://cdn/video.mp4', {
+        mediaFileId: 'mf9',
+        name: 'clip',
+      });
+      const meta = getVideoMeta(scene.api, id);
+      expect(meta?.src).toBe('https://cdn/video.mp4');
+      expect(meta?.mediaFileId).toBe('mf9');
+    } finally {
+      (globalThis as { Image?: unknown }).Image = original;
+    }
   });
 });
