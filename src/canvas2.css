@@ -1,6 +1,34 @@
 /* canvas2 overrides for Excalidraw chrome — scoped to our editor wrapper
    ([data-canvas2]) so they can't leak to other Excalidraw instances. */
 
+/* El acento de Excalidraw es su morado (#6965db claro / #a8a5ff oscuro), y sale
+   por la herramienta activa, los botones, las casillas y los diálogos. Se
+   repinta con el azul de Polimake — los mismos valores que la ranura `active` de
+   theme.ts, para que el cromo propio y el suyo no vayan a dos colores.
+
+   Se sobrescribe la familia ENTERA de `--color-primary*` que declara su hoja de
+   estilos: dejar una sola fuera deja un morado asomando en el hover o en el
+   fondo de una fila seleccionada. En claro los tonos «darker/darkest» oscurecen
+   (hasta el Azul Marino #1c2d9d) y «light» son tintes sobre blanco; en oscuro va
+   al revés, aclarando sobre el azul del tema, igual que hace Excalidraw. */
+[data-canvas2] .excalidraw {
+  --color-primary: #3a39f5;
+  --color-primary-hover: #1c2d9d;
+  --color-primary-darker: #1c2d9d;
+  --color-primary-darkest: #1c2d9d;
+  --color-primary-light: #e7e7fe;
+  --color-primary-light-darker: #dcdbfd;
+}
+
+[data-canvas2] .excalidraw.theme--dark {
+  --color-primary: #6c86ff;
+  --color-primary-hover: #8298ff;
+  --color-primary-darker: #7b92ff;
+  --color-primary-darkest: #8ca1ff;
+  --color-primary-light: #404b7f;
+  --color-primary-light-darker: #394169;
+}
+
 /* Keep the hamburger (main) menu in its default top-left spot, but stack it
    above the rest of the chrome. It's the first child of `.App-menu_top__left`
    and already has an inline `position: relative`, so a z-index applies. */

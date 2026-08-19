@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import type { ExcalidrawImperativeAPI } from './excal';
 import { BrandGallery } from './BrandGallery';
 import { PAGE_SIZE_PRESETS, listPages, resizePage, goToPage, type PageInfo, type PageSize } from './pages';
 import { getPageBackground, setPageBackgroundColor } from './background';
-import type { BrandKitInput } from './brand';
+import { resolveBrandKit, type BrandKitInput } from './brand';
 import { PANEL_FONT, palette } from './theme';
 import { mergeLabels, type PartialLabels } from './labels';
 
@@ -24,8 +24,9 @@ import { mergeLabels, type PartialLabels } from './labels';
 const SIZE_MIN = 100;
 const SIZE_MAX = 8000;
 
-/** Colores de fondo a un clic; el selector cubre el resto. */
-const BG_SWATCHES = ['#ffffff', '#f8f9fa', '#fff9db', '#ffe3e3', '#d3f9d8', '#d0ebff', '#1e1e1e'];
+/** Cierran la fila de fondos a un clic, detrás de los colores del cliente: son
+ *  los dos que valen para cualquier marca. El selector cubre el resto. */
+const BG_NEUTROS = ['#ffffff', '#1e1e1e'];
 
 export interface DesignPanelProps {
   api: ExcalidrawImperativeAPI;
@@ -54,6 +55,18 @@ export function DesignPanel({
   const [customH, setCustomH] = useState('');
 
   const activePage = pages.find((p) => p.id === activePageId) ?? null;
+
+  // Los fondos del cliente delante: la paleta de la marca es la que se acaba
+  // usando, no una tira de pasteles genéricos. `resolveBrandKit` ya devuelve hex
+  // en minúsculas y sin repetir, así que el `includes` basta para que un kit que
+  // traiga el blanco no lo pinte dos veces.
+  const bgSwatches = useMemo(() => {
+    const out: string[] = [];
+    for (const color of [...resolveBrandKit(brandKit).palette, ...BG_NEUTROS]) {
+      if (!out.includes(color)) out.push(color);
+    }
+    return out;
+  }, [brandKit]);
 
   // La escena cambia por debajo (deshacer, otra pestaña, redimensionar desde el
   // lienzo), así que suscribirse sale más barato que recalcular en cada render.
@@ -225,7 +238,7 @@ export function DesignPanel({
 
           <div style={{ ...rotulo, marginTop: 3 }}>{L.menu.background}</div>
           <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 5 }}>
-            {BG_SWATCHES.map((color) => (
+            {bgSwatches.map((color) => (
               <button
                 key={color}
                 type="button"

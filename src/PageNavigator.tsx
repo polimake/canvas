@@ -517,8 +517,8 @@ export function PageNavigator({
             borderRadius: 6,
             fontSize: 11,
             fontWeight: 600,
-            color: '#fff',
-            background: '#e03131',
+            color: c.dangerFg,
+            background: c.danger,
           }}
         >
           {L.pages.addFailed}

@@ -28,6 +28,7 @@ import { fontFamilyId, registerCustomFonts } from './fontRegistry';
 import type { PartialLabels } from './labels';
 import { copyDropEffect } from './dropEffect';
 import { imageAtScenePoint, type ImageHit } from './media';
+import { palette } from './theme';
 
 /**
  * A serializable snapshot of the canvas. Same shape Excalidraw accepts as
@@ -835,6 +836,7 @@ export function Canvas2Editor({
         (() => {
           const s = api.getAppState();
           const z = s.zoom.value;
+          const acento = palette[theme ?? 'light'].active;
           return (
             <div
               data-testid="canvas2-swap-target"
@@ -844,9 +846,9 @@ export function Canvas2Editor({
                 top: (swapTarget.y + s.scrollY) * z,
                 width: swapTarget.width * z,
                 height: swapTarget.height * z,
-                border: '2px solid #6965db',
+                border: `2px solid ${acento}`,
                 borderRadius: 4,
-                background: 'rgba(105,101,219,0.16)',
+                background: `${acento}29`,
                 pointerEvents: 'none',
                 zIndex: 90,
               }}

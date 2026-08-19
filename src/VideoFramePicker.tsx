@@ -260,7 +260,7 @@ export function VideoFramePicker({
           </div>
           </>
           )}
-          {fallo && <span style={{ color: '#e03131' }}>{L.video.failed}</span>}
+          {fallo && <span style={{ color: c.danger }}>{L.video.failed}</span>}
         </div>
       )}
     </div>
