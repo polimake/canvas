@@ -18,6 +18,7 @@ import { CanvasMenu } from './CanvasMenu';
 import { PageActions } from './PageActions';
 import { RightDock } from './RightDock';
 import { LibraryPanel } from './LibraryPanel';
+import { useIsNarrow } from './narrow';
 import type { FilesMap } from './pageThumbnails';
 import { addPage, createBlankScene, goToPage, listPages, relayoutPages, type PageSize } from './pages';
 import { commitElements } from './mutate';
@@ -377,6 +378,11 @@ export function Canvas2Editor({
 
   const apiRef = useRef<ExcalidrawImperativeAPI | null>(null);
   const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null);
+  // Nuestro cromo flotante (tira de páginas, dock) se coloca por píxeles sobre
+  // el lienzo, así que tiene que saber cuándo Excalidraw ha cambiado a su
+  // distribución de móvil y ha puesto sus propias islas justo ahí. Ver narrow.ts.
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const narrow = useIsNarrow(rootRef);
   // Active page, lifted here so PageNavigator, inserts and LayersPanel all
   // agree on which artboard actions target. It FOLLOWS the user: chip clicks,
   // viewport panning, and selection all update it.
@@ -654,8 +660,10 @@ export function Canvas2Editor({
 
   return (
     <div
+      ref={rootRef}
       className={className}
       data-canvas2=""
+      data-canvas2-narrow={narrow ? '' : undefined}
       style={{ position: 'relative', width: '100%', height: '100%' }}
       // Soltar desde la biblioteca. Se escucha en el envoltorio y no dentro de
       // Excalidraw porque su lienzo ya tiene su propio manejador de drop (para
@@ -881,6 +889,7 @@ export function Canvas2Editor({
         <PageNavigator
           api={api}
           theme={theme}
+          narrow={narrow}
           viewMode={viewMode}
           activeId={activePageId}
           onActiveChange={setActivePageId}
@@ -906,6 +915,7 @@ export function Canvas2Editor({
         api={api}
         activePageId={activePageId}
         theme={theme}
+        narrow={narrow}
         viewMode={viewMode}
         brandKit={brandKit}
         layers={layers && pages}

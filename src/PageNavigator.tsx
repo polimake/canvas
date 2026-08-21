@@ -23,6 +23,8 @@ export interface PageNavigatorProps {
   theme?: 'light' | 'dark';
   /** Read-only mode: la tira sigue navegando; se ocultan renombrar y reordenar. */
   viewMode?: boolean;
+  /** Excalidraw está en su distribución de móvil: ver `narrow.ts`. */
+  narrow?: boolean;
   /** Controlled active page id. When provided, the strip reflects it instead of
    *  its own local state (so it can stay in sync with the LayersPanel). */
   activeId?: string | null;
@@ -61,6 +63,7 @@ export function PageNavigator({
   api,
   theme = 'light',
   viewMode = false,
+  narrow = false,
   activeId: controlledActiveId,
   onActiveChange,
   labels: labelsProp,
@@ -171,7 +174,11 @@ export function PageNavigator({
       data-canvas2-pages=""
       style={{
         position: 'absolute',
-        bottom: 16,
+        // 16 se solapaba con la isla inferior de Excalidraw en su distribución
+        // de móvil: medido en un iPhone de 390, la isla ocupa de y=781 a y=830 y
+        // la tira iba de 745 a 829 — encima, y además con más z-index, así que
+        // la tapaba. 74 la deja justo por arriba.
+        bottom: narrow ? 74 : 16,
         left: '50%',
         transform: 'translateX(-50%)',
         zIndex: 100,

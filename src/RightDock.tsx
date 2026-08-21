@@ -30,6 +30,8 @@ export interface RightDockProps {
   api: ExcalidrawImperativeAPI | null;
   activePageId: string | null;
   theme?: 'light' | 'dark';
+  /** Excalidraw está en su distribución de móvil: ver `narrow.ts`. */
+  narrow?: boolean;
   viewMode?: boolean;
   /** `projects.brandKit` crudo, para la pestaña Diseño. */
   brandKit?: BrandKitInput | null;
@@ -47,6 +49,7 @@ export function RightDock({
   api,
   activePageId,
   theme = 'light',
+  narrow = false,
   viewMode = false,
   brandKit,
   layers = false,
@@ -96,7 +99,12 @@ export function RightDock({
       data-canvas2-dock=""
       style={{
         position: 'absolute',
-        right: 12,
+        // A la IZQUIERDA en estrecho. Con la distribución de móvil de Excalidraw
+        // el borde derecho lo ocupa su `mobile-misc-tools-container` (medido:
+        // top 85-155, pegado al borde), y esta pastilla se le echaba encima —
+        // en un iPhone de 390 y también en una tableta de 820, porque el corte
+        // de Excalidraw está en 861 y no en los 768 que usa la app.
+        ...(narrow ? { left: 12 } : { right: 12 }),
         // POR DEBAJO de la fila de herramientas, no a su altura. Medido en el
         // navegador: `.App-menu_top` ocupa de y=18 a y=67, y la barra de
         // herramientas va centrada y mide ~610px, así que abierta (248px) esta
@@ -105,8 +113,11 @@ export function RightDock({
         top: 76,
         zIndex: 95,
         width: abierto ? 248 : 'auto',
+        // Nunca más ancha que el lienzo: 248px en un teléfono de 390 se comía
+        // dos tercios de la pantalla.
+        maxWidth: 'calc(100% - 24px)',
         // Hasta justo encima de la tira de páginas, que vive abajo y centrada.
-        maxHeight: 'calc(100% - 192px)',
+        maxHeight: `calc(100% - ${narrow ? 250 : 192}px)`,
         display: 'flex',
         flexDirection: 'column',
         borderRadius: 12,
