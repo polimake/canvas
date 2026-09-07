@@ -35,7 +35,6 @@ Además, en la raíz del paquete y **fuera** de esta carpeta:
 - `DEEP-DIVE.md` — auditoría de julio de 2026. **Instantánea caducada**, lo dice
   en su propia cabecera; comprueba contra el código antes de actuar sobre nada
   de ahí.
-- `DESIGN-GUIDE.md` — criterio visual para construir escenas.
 
 ## Estado
 
