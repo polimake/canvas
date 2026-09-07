@@ -1,7 +1,21 @@
-/** Shared inline-style palette for canvas2's own chrome (PageNavigator,
- *  AssetSidebar, LayersPanel). Surfaces sit alongside Excalidraw's light/dark
- *  UI, while the accent and the destructive colour track @polimake/tokens
- *  (--primary, --destructive). */
+/** La paleta —en estilos en linea— del cromo propio de canvas2: PageNavigator,
+ *  AssetSidebar, LayersPanel.
+ *
+ *  Antes copiaba las superficies de Excalidraw para que los paneles no
+ *  desentonaran con su interfaz, y con ellas venia su morado (#6965db). Ahora
+ *  son los colores de Polimake: los paneles son nuestros, y lo de Excalidraw
+ *  que se queda es el lienzo, que no se toca.
+ *
+ *  El claro y el oscuro van separados a mano y NO salen de `var()`, porque
+ *  quien elige aqui es el tema del lienzo, que puede no ser el de la app.
+ *
+ *  La excepcion son `danger` y `dangerFg`, que si pasan por token con el hex
+ *  de respaldo detras. Es a proposito y tiene un precio: en un host que
+ *  defina `--color-destructive` el rojo lo pone el tema de la APP, asi que un
+ *  lienzo claro dentro de una app oscura se lleva el rojo oscuro. Se acepta
+ *  porque es exactamente lo que el escritorio ya hacia —usaba la variable a
+ *  pelo en LayersPanel y PageActions— y asi el paquete tambien pinta en un
+ *  host que no declare nada. */
 
 export type Canvas2Theme = 'light' | 'dark';
 
@@ -20,7 +34,9 @@ export interface Palette {
    *  así que va tinta negra: el blanco de siempre se quedaba en 2,9:1. */
   dangerFg: string;
   /** Aviso no bloqueante (elementos fuera de página). Ámbar en los dos temas:
-   *  la paleta base es gris y sin un color propio el aviso no se lee como tal. */
+   *  la paleta base es gris y sin un color propio el aviso no se lee como tal.
+   *  Es una de las tres excepciones legítimas al monocromo, con el acierto y
+   *  el error. */
   warnBg: string;
   warnBorder: string;
   warnText: string;
@@ -29,35 +45,37 @@ export interface Palette {
 export const palette: Record<Canvas2Theme, Palette> = {
   light: {
     bg: '#ffffff',
-    fg: '#1b1b1f',
-    sub: '#5b5b66',
-    border: 'rgba(0,0,0,0.12)',
+    fg: '#1a1a1a',
+    sub: '#4a4a4f',
+    border: '#d7d7da',
     active: '#3a39f5',
     activeFg: '#ffffff',
-    hover: 'rgba(0,0,0,0.05)',
-    danger: '#e7000b',
-    dangerFg: '#ffffff',
-    warnBg: '#fff8e6',
-    warnBorder: 'rgba(180,120,0,0.35)',
-    warnText: '#6b4a00',
+    hover: '#e2e1e2',
+    danger: 'var(--color-destructive, #e7000b)',
+    dangerFg: 'var(--color-state-ink, #ffffff)',
+    warnBg: 'rgba(138,90,0,0.10)',
+    warnBorder: 'rgba(138,90,0,0.35)',
+    warnText: '#8a5a00',
   },
+  // El azul de marca es ilegal sobre negro: #3a39f5 sobre #1a1a1a saca 2,56.
+  // En oscuro el acento sube a #6e6ef8.
   dark: {
-    bg: '#232329',
-    fg: '#e3e3e8',
-    sub: '#9b9ba5',
-    border: 'rgba(255,255,255,0.12)',
-    active: '#6c86ff',
-    activeFg: '#1a1a1a',
-    hover: 'rgba(255,255,255,0.07)',
-    danger: '#ff6467',
-    dangerFg: '#1a1a1a',
-    warnBg: '#3a3324',
-    warnBorder: 'rgba(255,196,84,0.35)',
-    warnText: '#f5dfae',
+    bg: '#1b1b1f',
+    fg: '#ffffff',
+    sub: '#9a9aa2',
+    border: '#2c2c32',
+    active: '#6e6ef8',
+    activeFg: '#0d0d18',
+    hover: '#26262b',
+    danger: 'var(--color-destructive, #ff6467)',
+    dangerFg: 'var(--color-state-ink, #1a1a1a)',
+    warnBg: 'rgba(227,163,58,0.12)',
+    warnBorder: 'rgba(227,163,58,0.35)',
+    warnText: '#e3a33a',
   },
 };
 
 /** La app declara `--font-funnel-sans` en el `<html>`; el respaldo del `var()`
  *  deja una pila de sistema limpia para quien consuma el paquete fuera de ella. */
 export const PANEL_FONT =
-  'var(--font-funnel-sans, system-ui), system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+  'var(--font-funnel-sans, "Funnel Sans"), "Funnel Sans", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';

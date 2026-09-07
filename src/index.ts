@@ -57,6 +57,37 @@ export type { MediaFetcher, HydratedFiles } from './exportHydrate';
 // ─── Conversión desde el editor legacy ───────────────────────────────────────
 export { legacyToScene, parseLegacyText } from './legacy';
 export type { ConversionReport, ConversionTier, ConversionNote, LegacyScene } from './legacy';
+
+// ─── Importación desde Photoshop ─────────────────────────────────────────────
+// El convertidor es PURO: recibe un documento ya parseado, no bytes. Quien lee
+// el .psd es `scripts/import-psd.ts`, que es el único sitio con `ag-psd`.
+// `listImagePlaceholders` es la otra mitad del contrato: localiza los huecos que
+// dejó la importación para cambiarlos por fotos de MediaMonster.
+export {
+  psdToScene,
+  listImagePlaceholders,
+  psdColorToHex,
+  splitPostScriptFont,
+  flattenBezierPath,
+  groupStyleRuns,
+  resetPsdIdCounter,
+  postScriptStyleToCss,
+  countSubpaths,
+  PSD_IMAGE_MARKER,
+  DEFAULT_MAX_SUBPATHS,
+} from './psd';
+export type {
+  PsdDocument,
+  PsdLayer,
+  PsdScene,
+  PsdReport,
+  PsdNote,
+  PsdTier,
+  PsdAssetSlot,
+  PsdImportOptions,
+  PsdImagePlaceholder,
+  PsdFontSource,
+} from './psd';
 export type { CaptureMode } from './mutate';
 export { PAGE_ALIGNMENTS, alignToPage } from './align';
 export type { PageAlignment } from './align';
@@ -118,7 +149,8 @@ export { LibraryPanel } from './LibraryPanel';
 export type { LibraryPanelProps } from './LibraryPanel';
 
 // ─── Persistence (scene ↔ JSON) ───────────────────────────────────────────────
-export { serializeScene, parseScene } from './serialize';
+export { serializeScene, parseScene, restoreScene } from './serialize';
+export type { StoredScene } from './serialize';
 
 // ─── Export (PNG / SVG / PDF / thumbnail) ─────────────────────────────────────
 export {
@@ -127,6 +159,11 @@ export {
   exportScenePdf,
   captureThumbnail,
   downloadBlob,
+  // Render/contar una escena GUARDADA sin montar el editor (rejillas de
+  // previsualización: la galería de /gallery, un selector de plantillas).
+  exportStoredSceneSvg,
+  exportStoredScenePng,
+  storedScenePageCount,
 } from './export';
 export type { ExportOptions } from './export';
 
@@ -158,7 +195,7 @@ export type {
 
 // ─── Componentes reutilizables ───────────────────────────────────────────────
 // Motor puro en components.ts (lo comparte el worker vía el subpath
-// '@studio/canvas2/components'); la integración con la escena viva, aquí.
+// '@pm/canvas2/components'); la integración con la escena viva, aquí.
 export {
   cloneSceneElements,
   listSlots,

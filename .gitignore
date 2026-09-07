@@ -1,0 +1,10 @@
+node_modules/
+*.tsbuildinfo
+
+# `dist/` NO se ignora, y es a proposito.
+#
+# Este paquete se consume como submodulo: quien lo clona quiere usarlo, no
+# compilarlo. La build viaja con la version —se hace una vez, al publicar— y
+# asi el escritorio no necesita ni vite ni cadena de compilacion para arrancar.
+# Si algun dia se publica a un registro, esto se puede revisar; mientras sea
+# submodulo, el dist es parte de la entrega.

@@ -13,7 +13,7 @@ import { createPortal } from 'react-dom';
  *
  * Es un hermano SIMPLIFICADO del `Drag3DPreview` de la web (calendario, kanban,
  * workflows): mismo gesto —levantar la pieza y llevarla pegada al puntero— sin
- * la física de inclinación. No se comparte código a propósito: `@studio/canvas2`
+ * la física de inclinación. No se comparte código a propósito: `@pm/canvas2`
  * no puede depender de `apps/web`, y llevar el componente a un sitio común
  * obligaría al calendario a arrastrar Excalidraw en su bundle. Duplicar setenta
  * líneas sale más barato que cualquiera de las dos.
