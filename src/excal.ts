@@ -29,6 +29,11 @@ export {
   exportToCanvas,
   exportToSvg,
   serializeAsJSON,
+  // Escena GUARDADA → escena válida: rellena lo que un fichero puede no traer
+  // (índices fraccionarios, alturas de línea, defaults de appState). El editor
+  // lo hace solo con `initialData`; quien renderiza una escena sin montar el
+  // editor —las miniaturas de la galería— tiene que llamarlo a mano.
+  restore,
   // Excalidraw's own immutable element patch — bumps version/versionNonce so
   // the history store actually records the change (see src/mutate.ts).
   newElementWith,

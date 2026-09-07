@@ -249,7 +249,7 @@ export function LayersPanel({
         lineHeight: 1,
         padding: '3px 3px',
         borderRadius: 4,
-        color: danger ? '#e03131' : 'inherit',
+        color: danger ? 'var(--color-destructive)' : 'inherit',
         opacity: 0.8,
       }}
     >

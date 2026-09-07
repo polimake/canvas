@@ -4,7 +4,9 @@ import {
   exportToSvg,
   type ExcalidrawImperativeAPI,
   type FrameElement,
+  type SceneElement,
 } from './excal';
+import { restoreScene, type StoredScene } from './serialize';
 import {
   appendFontFacesToSvg,
   buildFontFaceCss,
@@ -110,12 +112,14 @@ export async function exportSceneSvg(
     fontFetcher?: (url: string) => Promise<Blob>;
   },
 ): Promise<SVGSVGElement> {
-  const svg = await exportToSvg({
-    elements: api.getSceneElements(),
-    appState: exportAppState(api, opts),
-    files: opts?.files ?? api.getFiles(),
-    exportingFrame: findFrame(api, opts?.pageId),
-  });
+  const svg = await sinRuidoDeFuentes<SVGSVGElement>(() =>
+    exportToSvg({
+      elements: api.getSceneElements(),
+      appState: exportAppState(api, opts),
+      files: opts?.files ?? api.getFiles(),
+      exportingFrame: findFrame(api, opts?.pageId),
+    }),
+  );
 
   const faces = opts?.fontFaces ?? [];
   if (!faces.length) return svg;
@@ -124,6 +128,160 @@ export async function exportSceneSvg(
     ? (await inlineFontFaces(faces, opts.fontFetcher)).faces
     : faces;
   return appendFontFacesToSvg(svg, buildFontFaceCss(resueltas));
+}
+
+/**
+ * Al exportar, Excalidraw intenta embeber los `@font-face` de las fuentes que
+ * tiene en su registro privado (`Fonts.registered`) — donde las familias
+ * propias no pueden estar (ver fonts.ts: solo escribimos en `FONT_FAMILY`).
+ * Por cada familia nuestra suelta un `console.error` "Couldn't find registered
+ * fonts for font-family «id»" que para nosotros es ruido esperado: el SVG se
+ * inyecta inline y resuelve los `@font-face` de la página (o se embeben aparte
+ * vía `fontFaces`, ver svgFonts.ts). Se silencia SOLO ese mensaje y solo
+ * mientras dura la exportación, con contador porque la rejilla de la galería
+ * lanza varias exportaciones solapadas.
+ */
+let exportacionesSilenciadas = 0;
+let consoleErrorReal: typeof console.error | null = null;
+async function sinRuidoDeFuentes<T>(fn: () => Promise<T>): Promise<T> {
+  if (exportacionesSilenciadas === 0) {
+    consoleErrorReal = console.error;
+    console.error = (...args: unknown[]) => {
+      if (
+        typeof args[0] === 'string' &&
+        args[0].startsWith("Couldn't find registered fonts for font-family")
+      ) {
+        return;
+      }
+      consoleErrorReal?.(...args);
+    };
+  }
+  exportacionesSilenciadas += 1;
+  try {
+    return await fn();
+  } finally {
+    exportacionesSilenciadas -= 1;
+    if (exportacionesSilenciadas === 0 && consoleErrorReal) {
+      console.error = consoleErrorReal;
+      consoleErrorReal = null;
+    }
+  }
+}
+
+/**
+ * Render a STORED scene to SVG without mounting an editor.
+ *
+ * The api-based exporters above all need a live `ExcalidrawImperativeAPI`, so
+ * previewing N saved designs at once (a gallery grid, a template picker) would
+ * mean N mounted editors. This takes the JSON straight from storage instead.
+ *
+ * Goes through `restoreScene` (serialize.ts) for the same reason the editor
+ * does: a stored file may lack fields the renderer needs (fractional `index`,
+ * `lineHeight`) or carry text boxes narrower than the real glyphs, and
+ * `exportToSvg` draws exactly what it is handed. Sharing that one entry point
+ * is also what keeps a preview identical to what opening the file shows.
+ *
+ * With `pageIndex` only that page (frame) is drawn, clipped to its bounds;
+ * pages are counted left→right, like everywhere else in this package.
+ */
+export async function exportStoredSceneSvg(
+  scene: StoredScene,
+  opts?: { pageIndex?: number; background?: boolean; darkMode?: boolean },
+): Promise<SVGSVGElement> {
+  const restored = restoreScene(scene);
+  const elements = (restored.elements ?? []) as readonly SceneElement[];
+
+  const pages = elements
+    .filter((e): e is FrameElement => e.type === 'frame')
+    .slice()
+    .sort((a, b) => a.x - b.x);
+
+  const viewBackgroundColor = (scene.appState as { viewBackgroundColor?: string } | undefined)
+    ?.viewBackgroundColor;
+
+  return sinRuidoDeFuentes<SVGSVGElement>(() =>
+    exportToSvg({
+      elements: elements as never,
+      appState: {
+        exportBackground: opts?.background ?? true,
+        exportWithDarkMode: opts?.darkMode ?? false,
+        viewBackgroundColor,
+      },
+      files: (restored.files ?? {}) as never,
+      exportingFrame: opts?.pageIndex === undefined ? null : (pages[opts.pageIndex] ?? null),
+    }),
+  );
+}
+
+/**
+ * Render a STORED scene to a PNG blob without mounting an editor.
+ *
+ * El hermano de `exportStoredSceneSvg`, y existe por el mismo motivo: poder
+ * dibujar una escena guardada sin montar un editor por cada una. Lo que cambia
+ * es a qué se dibuja, y eso trae una condición que el SVG no tiene.
+ *
+ * EL CANVAS SE CONTAMINA
+ *
+ * El PNG sale de un `<canvas>`, así que toda imagen de la escena tiene que ser
+ * cargable SIN contaminarlo o `toBlob()` muere con `SecurityError`. Excalidraw
+ * carga las imágenes sin `crossOrigin` (ver exportHydrate.ts), de modo que
+ * cualquier URL de otro origen contamina aunque el servidor mande CORS. Quien
+ * llame tiene que entregar la escena con las imágenes ya en un origen propio
+ * —o pasarlas por `files`—; aquí no se puede arreglar, porque para entonces el
+ * canvas ya está sucio.
+ *
+ * Las tipografías, en cambio, salen gratis: el canvas resuelve las familias
+ * contra las del documento, así que basta con haberlas cargado antes (lo que
+ * hace `ensureDesignFonts`). Es el SVG el que necesitaba embeberlas.
+ */
+export async function exportStoredScenePng(
+  scene: StoredScene,
+  opts?: {
+    pageIndex?: number;
+    background?: boolean;
+    darkMode?: boolean;
+    /** Acota el lado mayor. Para miniaturas: una story a escala 1 son 1080×1920. */
+    maxWidthOrHeight?: number;
+    /** Sustituye el mapa de ficheros de la escena (imágenes ya inlineadas). */
+    files?: Parameters<typeof exportToBlob>[0]['files'];
+  },
+): Promise<Blob> {
+  const restored = restoreScene(scene);
+  const elements = (restored.elements ?? []) as readonly SceneElement[];
+
+  const pages = elements
+    .filter((e): e is FrameElement => e.type === 'frame')
+    .slice()
+    .sort((a, b) => a.x - b.x);
+
+  const viewBackgroundColor = (scene.appState as { viewBackgroundColor?: string } | undefined)
+    ?.viewBackgroundColor;
+
+  return sinRuidoDeFuentes<Blob>(() =>
+    exportToBlob({
+      elements: elements as never,
+      appState: {
+        exportBackground: opts?.background ?? true,
+        exportWithDarkMode: opts?.darkMode ?? false,
+        viewBackgroundColor,
+      },
+      files: (opts?.files ?? restored.files ?? {}) as never,
+      exportingFrame: opts?.pageIndex === undefined ? null : (pages[opts.pageIndex] ?? null),
+      ...(opts?.maxWidthOrHeight
+        ? { maxWidthOrHeight: opts.maxWidthOrHeight }
+        : { getDimensions: dimensions({ scale: 1 }) }),
+      mimeType: 'image/png',
+    }),
+  );
+}
+
+/** How many pages a stored scene has, without restoring or rendering it. */
+export function storedScenePageCount(scene: StoredScene): number {
+  if (!Array.isArray(scene.elements)) return 0;
+  return scene.elements.filter(
+    (e) => (e as { type?: string; isDeleted?: boolean } | null)?.type === 'frame'
+      && !(e as { isDeleted?: boolean }).isDeleted,
+  ).length;
 }
 
 /**

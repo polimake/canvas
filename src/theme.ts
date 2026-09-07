@@ -1,6 +1,14 @@
-/** Shared inline-style palette for canvas2's own chrome (PageNavigator,
- *  AssetSidebar, LayersPanel). Values mirror Excalidraw's light/dark surfaces so
- *  our panels sit visually alongside its UI. */
+/** La paleta —en estilos en linea— del cromo propio de canvas2: PageNavigator,
+ *  AssetSidebar, LayersPanel.
+ *
+ *  Antes copiaba las superficies de Excalidraw para que los paneles no
+ *  desentonaran con su interfaz, y con ellas venia su morado (#6965db). Ahora
+ *  son los colores de Polimake: los paneles son nuestros, y lo de Excalidraw
+ *  que se queda es el lienzo, que no se toca.
+ *
+ *  El claro y el oscuro siguen separados a mano en vez de salir de `var()`
+ *  porque quien elige aqui es el tema del lienzo, que puede no ser el de la
+ *  app. */
 
 export type Canvas2Theme = 'light' | 'dark';
 
@@ -13,7 +21,9 @@ export interface Palette {
   activeFg: string;
   hover: string;
   /** Aviso no bloqueante (elementos fuera de página). Ámbar en los dos temas:
-   *  la paleta base es gris y sin un color propio el aviso no se lee como tal. */
+   *  la paleta base es gris y sin un color propio el aviso no se lee como tal.
+   *  Es una de las tres excepciones legítimas al monocromo, con el acierto y
+   *  el error. */
   warnBg: string;
   warnBorder: string;
   warnText: string;
@@ -22,29 +32,31 @@ export interface Palette {
 export const palette: Record<Canvas2Theme, Palette> = {
   light: {
     bg: '#ffffff',
-    fg: '#1b1b1f',
-    sub: '#5b5b66',
-    border: 'rgba(0,0,0,0.12)',
-    active: '#6965db',
+    fg: '#1a1a1a',
+    sub: '#4a4a4f',
+    border: '#d7d7da',
+    active: '#3a39f5',
     activeFg: '#ffffff',
-    hover: 'rgba(0,0,0,0.05)',
-    warnBg: '#fff8e6',
-    warnBorder: 'rgba(180,120,0,0.35)',
-    warnText: '#6b4a00',
+    hover: '#e2e1e2',
+    warnBg: 'rgba(138,90,0,0.10)',
+    warnBorder: 'rgba(138,90,0,0.35)',
+    warnText: '#8a5a00',
   },
+  // El azul de marca es ilegal sobre negro: #3a39f5 sobre #1a1a1a saca 2,56.
+  // En oscuro el acento sube a #6e6ef8.
   dark: {
-    bg: '#232329',
-    fg: '#e3e3e8',
-    sub: '#9b9ba5',
-    border: 'rgba(255,255,255,0.12)',
-    active: '#a8a5ff',
-    activeFg: '#1b1b1f',
-    hover: 'rgba(255,255,255,0.07)',
-    warnBg: '#3a3324',
-    warnBorder: 'rgba(255,196,84,0.35)',
-    warnText: '#f5dfae',
+    bg: '#1b1b1f',
+    fg: '#ffffff',
+    sub: '#9a9aa2',
+    border: '#2c2c32',
+    active: '#6e6ef8',
+    activeFg: '#0d0d18',
+    hover: '#26262b',
+    warnBg: 'rgba(227,163,58,0.12)',
+    warnBorder: 'rgba(227,163,58,0.35)',
+    warnText: '#e3a33a',
   },
 };
 
 export const PANEL_FONT =
-  'system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+  '"Funnel Sans", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';

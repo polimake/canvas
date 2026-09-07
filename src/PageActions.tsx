@@ -153,7 +153,7 @@ export function PageActions({
         lineHeight: 1,
         padding: '2px 3px',
         borderRadius: 4,
-        color: danger ? '#e03131' : c.sub,
+        color: danger ? 'var(--color-destructive)' : c.sub,
       }}
     >
       {icon}
@@ -226,8 +226,8 @@ export function PageActions({
               borderRadius: 4,
               fontSize: 11,
               fontWeight: 700,
-              color: '#fff',
-              background: '#e03131',
+              color: 'var(--color-state-ink)',
+              background: 'var(--color-destructive)',
             }}
           >
             {L.pages.confirmDelete}
