@@ -5,8 +5,16 @@
 		"declaration": true,
 		"emitDeclarationOnly": true,
 		"declarationMap": true,
-		"outDir": "dist"
+		"outDir": "dist",
+		"rootDir": "./src"
 	},
-	"include": ["src/**/*.ts", "src/**/*.tsx"],
-	"exclude": ["node_modules", "dist", "__tests__"]
+	"include": [
+		"src/**/*.ts",
+		"src/**/*.tsx"
+	],
+	"exclude": [
+		"node_modules",
+		"dist",
+		"__tests__"
+	]
 }

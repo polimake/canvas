@@ -195,7 +195,7 @@ export type {
 
 // ─── Componentes reutilizables ───────────────────────────────────────────────
 // Motor puro en components.ts (lo comparte el worker vía el subpath
-// '@pm/canvas2/components'); la integración con la escena viva, aquí.
+// '@pm/canvas/components'); la integración con la escena viva, aquí.
 export {
   cloneSceneElements,
   listSlots,

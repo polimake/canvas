@@ -11,7 +11,7 @@ import { defineConfig } from 'vite';
  * transforma TSX ajeno por defecto. Así que se publica compilado.
  *
  * Las tres entradas son las que ya existían en `exports`; se mantienen para no
- * romper a nadie: `@pm/canvas2`, `/components` y `/fonts`. `components` es el
+ * romper a nadie: `@pm/canvas`, `/components` y `/fonts`. `components` es el
  * motor puro y lo importa también un worker, así que tiene que seguir siendo
  * una entrada de verdad y no un trozo del barrel: si se cuela por `index`, el
  * worker se traga Excalidraw entero.

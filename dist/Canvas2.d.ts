@@ -92,7 +92,7 @@ export interface Canvas2EditorProps {
      * dentro con `resolveBrandKit()`.
      *
      * La prop es el blob CRUDO y no la marca ya resuelta a propósito: resolverla
-     * en el host obligaría a importar un valor de `@pm/canvas2`, y ese barrel
+     * en el host obligaría a importar un valor de `@pm/canvas`, y ese barrel
      * arrastra Excalidraw al bundle de servidor ("window is not defined"). Con el
      * crudo, el host solo pasa datos.
      *
