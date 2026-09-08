@@ -137,6 +137,12 @@ export interface Canvas2EditorProps {
      */
     componentsPanel?: ReactNode;
     /**
+     * Contenido de la pestaña Agente del dock. Mismo seam que `componentsPanel`:
+     * el host trae un asistente que sepa trabajar sobre esta escena; canvas2
+     * solo le da el sitio. Sin contenido, no hay pestaña.
+     */
+    agentPanel?: ReactNode;
+    /**
      * "Guardar página como componente" del menú. La subida es cosa del host
      * (POST a su API + miniatura); canvas2 solo ofrece la entrada de menú.
      */
@@ -233,7 +239,7 @@ export declare const MEDIA_DROP_TYPE = "application/x-canvas2-media";
  * this behind a `next/dynamic(..., { ssr: false })` boundary in the host app
  * (see apps/web/src/app/canvas/page.tsx).
  */
-export declare function Canvas2Editor({ className, initialScene, onSceneChange, viewMode, theme, langCode, onReady, nativeImageExport, fontOverrides, changeDebounceMs, pages, pageSize, layers, pageThumbnails, pageThumbnailFiles, brandKit, hydrateFiles, dockedSidebarBreakpoint, library, componentsPanel, onSaveComponent, onActivePageChange, onMediaDrop, mediaDropType, onFilesDrop, labels, resolveVideoSrc, releaseVideoSrc, onPickVideoFrame, }: Canvas2EditorProps): import("react").JSX.Element;
+export declare function Canvas2Editor({ className, initialScene, onSceneChange, viewMode, theme, langCode, onReady, nativeImageExport, fontOverrides, changeDebounceMs, pages, pageSize, layers, pageThumbnails, pageThumbnailFiles, brandKit, hydrateFiles, dockedSidebarBreakpoint, library, componentsPanel, agentPanel, onSaveComponent, onActivePageChange, onMediaDrop, mediaDropType, onFilesDrop, labels, resolveVideoSrc, releaseVideoSrc, onPickVideoFrame, }: Canvas2EditorProps): import("react").JSX.Element;
 /** Backwards-compatible alias — the bare wrapper is now a controlled editor. */
 export declare const Canvas2: typeof Canvas2Editor;
 export default Canvas2Editor;

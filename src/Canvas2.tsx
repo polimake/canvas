@@ -161,6 +161,12 @@ export interface Canvas2EditorProps {
    */
   componentsPanel?: ReactNode;
   /**
+   * Contenido de la pestaña Agente del dock. Mismo seam que `componentsPanel`:
+   * el host trae un asistente que sepa trabajar sobre esta escena; canvas2
+   * solo le da el sitio. Sin contenido, no hay pestaña.
+   */
+  agentPanel?: ReactNode;
+  /**
    * "Guardar página como componente" del menú. La subida es cosa del host
    * (POST a su API + miniatura); canvas2 solo ofrece la entrada de menú.
    */
@@ -323,6 +329,7 @@ export function Canvas2Editor({
   dockedSidebarBreakpoint = 820,
   library,
   componentsPanel,
+  agentPanel,
   onSaveComponent,
   onActivePageChange,
   onMediaDrop,
@@ -921,6 +928,7 @@ export function Canvas2Editor({
         layers={layers && pages}
         design={pages}
         componentsPanel={componentsPanel}
+        agentPanel={agentPanel}
         labels={labels}
       />
       {pages && api && !viewMode && (
