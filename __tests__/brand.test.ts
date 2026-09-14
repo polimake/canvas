@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveBrandKit, EMPTY_BRAND } from '../src/brand';
+import { resolveBrandKit, EMPTY_BRAND } from '../src/core/brand';
 
 /**
  * Fixtures copiadas literalmente de `projects.brandKit` en producción. Las dos

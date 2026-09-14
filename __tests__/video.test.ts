@@ -1,10 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
 import { excalMock, fakeApi, frame, member } from './helpers';
 
-vi.mock('../src/excal', () => excalMock);
+vi.mock('../src/core/excal', () => excalMock);
 
 const { isVideoElement, getVideoMeta, getSelectedVideo, setVideoPoster, insertVideo, VIDEO_MARKER } =
-  await import('../src/video.js');
+  await import('../src/core/video.js');
 
 /**
  * Un vídeo en el lienzo es su PÓSTER (una imagen) que además recuerda de qué

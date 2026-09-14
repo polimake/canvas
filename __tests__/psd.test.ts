@@ -10,8 +10,8 @@ import {
   PSD_IMAGE_MARKER,
   type PsdDocument,
   type PsdLayer,
-} from '../src/psd';
-import { PAGE_GAP } from '../src/layout';
+} from '../src/converters/psd';
+import { PAGE_GAP } from '../src/core/layout';
 
 /**
  * El convertidor de PSD se testea con documentos a mano —no con ficheros— a

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { DEFAULT_LABELS, mergeLabels, type Canvas2Labels } from '../src/labels';
+import { DEFAULT_LABELS, mergeLabels, type Canvas2Labels } from '../src/ui/labels';
 
 describe('mergeLabels', () => {
   it('sin etiquetas del host devuelve las de serie tal cual', () => {

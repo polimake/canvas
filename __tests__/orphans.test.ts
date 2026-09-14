@@ -1,10 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
 import { excalMock, fakeApi, frame, member } from './helpers';
 
-vi.mock('../src/excal', () => excalMock);
+vi.mock('../src/core/excal', () => excalMock);
 
-const { adoptLooseIntoPage, looseElements } = await import('../src/paginate.js');
-const { deletePage, fitAllPages } = await import('../src/pages.js');
+const { adoptLooseIntoPage, looseElements } = await import('../src/core/paginate.js');
+const { deletePage, fitAllPages } = await import('../src/core/pages.js');
 
 /**
  * Elementos fuera de toda página: el fallo silencioso de canvas2.

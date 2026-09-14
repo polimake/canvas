@@ -3,14 +3,14 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor, act } from '@testing-library/react';
 import { excalMock, fakeApi, frame, member } from './helpers';
 
-vi.mock('../src/excal', () => excalMock);
+vi.mock('../src/core/excal', () => excalMock);
 
 const insertImageFromUrl = vi.fn();
-vi.mock('../src/media', () => ({
+vi.mock('../src/core/media', () => ({
   insertImageFromUrl: (...args: unknown[]) => insertImageFromUrl(...args),
 }));
 
-const { BrandGallery } = await import('../src/BrandGallery.js');
+const { BrandGallery } = await import('../src/ui/BrandGallery.js');
 
 afterEach(() => {
   cleanup();

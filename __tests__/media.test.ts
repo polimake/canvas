@@ -10,7 +10,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { excalMock, fakeApi, frame } from './helpers';
 
-vi.mock('../src/excal', () => excalMock);
+vi.mock('../src/core/excal', () => excalMock);
 
 const {
   buildPersistableFiles,
@@ -25,7 +25,7 @@ const {
   cascadePoints,
   imageAtScenePoint,
   dataUrlToBlob,
-} = await import('../src/media');
+} = await import('../src/core/media');
 
 const SRC = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'src');
 

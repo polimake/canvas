@@ -1,15 +1,15 @@
-export { Canvas2Editor, Canvas2, default } from './Canvas2';
-export type { Canvas2EditorProps, Canvas2Scene, Canvas2Api } from './Canvas2';
+export { Canvas2Editor, Canvas2, default } from './ui/Canvas2';
+export type { Canvas2EditorProps, Canvas2Scene, Canvas2Api } from './ui/Canvas2';
 // Tipo de dataTransfer para soltar media de la biblioteca sobre el lienzo.
-export { MEDIA_DROP_TYPE } from './Canvas2';
+export { MEDIA_DROP_TYPE } from './ui/Canvas2';
 
 // ─── Pages / artboards (frames-as-pages) ──────────────────────────────────────
-export { PageNavigator } from './PageNavigator';
-export type { PageNavigatorProps } from './PageNavigator';
+export { PageNavigator } from './ui/PageNavigator';
+export type { PageNavigatorProps } from './ui/PageNavigator';
 // Tarjeta que sigue al cursor al arrastrar, con el mismo gesto que el
 // calendario. Se exporta por si un host quiere el mismo levantado.
-export { DragPreview, hideNativeDragImage } from './DragPreview';
-export type { DragPreviewProps, DragGrab } from './DragPreview';
+export { DragPreview, hideNativeDragImage } from './ui/DragPreview';
+export type { DragPreviewProps, DragGrab } from './ui/DragPreview';
 export {
   DEFAULT_PAGE_SIZE,
   PAGE_SIZE_PRESETS,
@@ -31,8 +31,8 @@ export {
   isPageLocked,
   setPageLocked,
   goToPage,
-} from './pages';
-export type { PageInfo, PageSize, PageSizePreset } from './pages';
+} from './core/pages';
+export type { PageInfo, PageSize, PageSizePreset } from './core/pages';
 // Paginar una escena que llegó sin páginas (importada, pegada, arrastrada).
 export {
   convertToPages,
@@ -40,27 +40,27 @@ export {
   paginateSceneInArray,
   clusterLooseElements,
   looseElements,
-} from './paginate';
-export type { PaginateOptions, PaginateResult } from './paginate';
+} from './core/paginate';
+export type { PaginateOptions, PaginateResult } from './core/paginate';
 // Separación entre páginas. El host la necesita para razonar sobre el layout
 // sin duplicar el número.
-export { PAGE_GAP } from './layout';
-export { patchElement, commitElements } from './mutate';
+export { PAGE_GAP } from './core/layout';
+export { patchElement, commitElements } from './core/mutate';
 // Miniaturas por página para tiras de navegación (host o PageNavigator).
-export { usePageThumbnails } from './pageThumbnails';
-export type { FilesMap } from './pageThumbnails';
+export { usePageThumbnails } from './ui/pageThumbnails';
+export type { FilesMap } from './ui/pageThumbnails';
 
 // ─── Export: hidratación de imágenes remotas ─────────────────────────────────
-export { buildHydratedFiles, clearHydrationCache } from './exportHydrate';
-export type { MediaFetcher, HydratedFiles } from './exportHydrate';
+export { buildHydratedFiles, clearHydrationCache } from './core/exportHydrate';
+export type { MediaFetcher, HydratedFiles } from './core/exportHydrate';
 
 // ─── Conversión desde el editor legacy ───────────────────────────────────────
-export { legacyToScene, parseLegacyText } from './legacy';
-export type { ConversionReport, ConversionTier, ConversionNote, LegacyScene } from './legacy';
+export { legacyToScene, parseLegacyText } from './converters/legacy';
+export type { ConversionReport, ConversionTier, ConversionNote, LegacyScene } from './converters/legacy';
 
 // ─── Importación desde Photoshop ─────────────────────────────────────────────
 // El convertidor es PURO: recibe un documento ya parseado, no bytes. Quien lee
-// el .psd es `scripts/import-psd.ts`, que es el único sitio con `ag-psd`.
+// los bytes está en la entrada separada `@pm/canvas/parsers`.
 // `listImagePlaceholders` es la otra mitad del contrato: localiza los huecos que
 // dejó la importación para cambiarlos por fotos de MediaMonster.
 export {
@@ -75,7 +75,7 @@ export {
   countSubpaths,
   PSD_IMAGE_MARKER,
   DEFAULT_MAX_SUBPATHS,
-} from './psd';
+} from './converters/psd';
 export type {
   PsdDocument,
   PsdLayer,
@@ -87,36 +87,36 @@ export type {
   PsdImportOptions,
   PsdImagePlaceholder,
   PsdFontSource,
-} from './psd';
-export type { CaptureMode } from './mutate';
-export { PAGE_ALIGNMENTS, alignToPage } from './align';
-export type { PageAlignment } from './align';
+} from './converters/psd';
+export type { CaptureMode } from './core/mutate';
+export { PAGE_ALIGNMENTS, alignToPage } from './core/align';
+export type { PageAlignment } from './core/align';
 
 // ─── Layers panel + image ops ─────────────────────────────────────────────────
-export { LayersPanel } from './LayersPanel';
-export type { LayersPanelProps } from './LayersPanel';
+export { LayersPanel } from './ui/LayersPanel';
+export type { LayersPanelProps } from './ui/LayersPanel';
 // Menú principal del editor (fondo de página, tamaño, exportar). Lo monta
 // Canvas2Editor; se exporta para hosts que compongan su propio editor.
-export { CanvasMenu } from './CanvasMenu';
-export type { CanvasMenuProps } from './CanvasMenu';
+export { CanvasMenu } from './ui/CanvasMenu';
+export type { CanvasMenuProps } from './ui/CanvasMenu';
 // Acciones de la página activa, flotando sobre el lienzo junto a su nombre.
-export { PageActions } from './PageActions';
-export type { PageActionsProps } from './PageActions';
-export { setAsBackground, extendToPage } from './imageOps';
-export { reorderPageMembers, sendMemberToBack } from './zorder';
-export { palette, PANEL_FONT } from './theme';
+export { PageActions } from './ui/PageActions';
+export type { PageActionsProps } from './ui/PageActions';
+export { setAsBackground, extendToPage } from './core/imageOps';
+export { reorderPageMembers, sendMemberToBack } from './core/zorder';
+export { palette, PANEL_FONT } from './ui/theme';
 // Contrato de textos: canvas2 no lleva i18n dentro, el host inyecta.
-export { DEFAULT_LABELS, mergeLabels } from './labels';
-export type { Canvas2Labels, PartialLabels } from './labels';
-export type { Palette, Canvas2Theme } from './theme';
+export { DEFAULT_LABELS, mergeLabels } from './ui/labels';
+export type { Canvas2Labels, PartialLabels } from './ui/labels';
+export type { Palette, Canvas2Theme } from './ui/theme';
 
 // ─── Identidad de marca ───────────────────────────────────────────────────────
 // `Canvas2Editor` recibe `projects.brandKit` CRUDO y lo traduce dentro: si el
 // host tuviera que llamar a `resolveBrandKit`, importaría un valor de este
 // barrel y arrastraría Excalidraw al bundle de servidor.
 // `BrandGallery` la monta el propio editor, dentro de la pestaña Diseño.
-export { resolveBrandKit, EMPTY_BRAND } from './brand';
-export type { Canvas2Brand, BrandKitInput, BrandFontFace } from './brand';
+export { resolveBrandKit, EMPTY_BRAND } from './core/brand';
+export type { Canvas2Brand, BrandKitInput, BrandFontFace } from './core/brand';
 
 // ─── Tipografías propias ──────────────────────────────────────────────────────
 // El id numérico de familia es una función PURA del nombre, así que el
@@ -129,28 +129,28 @@ export {
   buildFontFaceCss,
   dedupeFontFaces,
   EXCALIDRAW_BUILTIN_FAMILIES,
-} from './fonts';
-export type { CustomFontFace } from './fonts';
-export { registerCustomFont, registerCustomFonts, fontFamilyId } from './fontRegistry';
-export type { RegisteredFont } from './fontRegistry';
-export { BrandGallery } from './BrandGallery';
-export type { BrandGalleryProps } from './BrandGallery';
+} from './core/fonts';
+export type { CustomFontFace } from './core/fonts';
+export { registerCustomFont, registerCustomFonts, fontFamilyId } from './core/fontRegistry';
+export type { RegisteredFont } from './core/fontRegistry';
+export { BrandGallery } from './ui/BrandGallery';
+export type { BrandGalleryProps } from './ui/BrandGallery';
 // Pastilla flotante de arriba a la derecha: Diseño, Capas y Componentes en
 // pestañas. La monta Canvas2Editor.
-export { RightDock } from './RightDock';
-export type { RightDockProps } from './RightDock';
+export { RightDock } from './ui/RightDock';
+export type { RightDockProps } from './ui/RightDock';
 // Contenido de la pestaña Diseño: marca del cliente + tamaño y fondo de la
 // página activa.
-export { DesignPanel } from './DesignPanel';
-export type { DesignPanelProps } from './DesignPanel';
+export { DesignPanel } from './ui/DesignPanel';
+export type { DesignPanelProps } from './ui/DesignPanel';
 // Marco de la biblioteca (arriba a la derecha). El CONTENIDO lo pone el host:
 // la mediateca vive en apps/web sobre @polimake/ui.
-export { LibraryPanel } from './LibraryPanel';
-export type { LibraryPanelProps } from './LibraryPanel';
+export { LibraryPanel } from './ui/LibraryPanel';
+export type { LibraryPanelProps } from './ui/LibraryPanel';
 
 // ─── Persistence (scene ↔ JSON) ───────────────────────────────────────────────
-export { serializeScene, parseScene, restoreScene } from './serialize';
-export type { StoredScene } from './serialize';
+export { serializeScene, parseScene, restoreScene } from './core/serialize';
+export type { StoredScene } from './core/serialize';
 
 // ─── Export (PNG / SVG / PDF / thumbnail) ─────────────────────────────────────
 export {
@@ -164,8 +164,8 @@ export {
   exportStoredSceneSvg,
   exportStoredScenePng,
   storedScenePageCount,
-} from './export';
-export type { ExportOptions } from './export';
+} from './core/export';
+export type { ExportOptions } from './core/export';
 
 // ─── Media (imágenes: SIEMPRE en MediaMonster, nunca base64 en el diseño) ─────
 // No se exporta ningún insertador por dataURL: la única forma de meter una
@@ -183,7 +183,7 @@ export {
   findInlineImageIds,
   isInlineDataUrl,
   dataUrlToBlob,
-} from './media';
+} from './core/media';
 export type {
   InsertImageOptions,
   ImageHit,
@@ -191,7 +191,7 @@ export type {
   FileEntry,
   ExternalizeResult,
   PersistableFiles,
-} from './media';
+} from './core/media';
 
 // ─── Componentes reutilizables ───────────────────────────────────────────────
 // Motor puro en components.ts (lo comparte el worker vía el subpath
@@ -205,7 +205,7 @@ export {
   appendComponentToEditorConfig,
   measureWrappedText,
   fitImageInBox,
-} from './components';
+} from './core/components';
 export type {
   ComponentElement,
   ComponentFileEntry,
@@ -214,18 +214,18 @@ export type {
   InstantiatedComponent,
   SlotValue,
   SlotValues,
-} from './components';
-export { insertComponentIntoScene, extractPageForComponent } from './insertComponent';
+} from './core/components';
+export { insertComponentIntoScene, extractPageForComponent } from './core/insertComponent';
 
 // ─── Text presets + page background ───────────────────────────────────────────
-export { TEXT_PRESETS, insertTextPreset, contrastTextColor } from './text';
-export type { TextPreset, TextPresetKey } from './text';
+export { TEXT_PRESETS, insertTextPreset, contrastTextColor } from './core/text';
+export type { TextPreset, TextPresetKey } from './core/text';
 export {
   getPageBackground,
   setPageBackgroundColor,
   ensurePagePapers,
   isPageBackground,
-} from './background';
+} from './core/background';
 
 // Vídeo en el lienzo: un póster que recuerda de qué vídeo salió, para poder
 // volver a elegir el fotograma. Ver la cabecera de video.ts.
@@ -236,5 +236,5 @@ export {
   getVideoMeta,
   getSelectedVideo,
   VIDEO_MARKER,
-} from './video';
-export type { VideoMeta, InsertVideoOptions } from './video';
+} from './core/video';
+export type { VideoMeta, InsertVideoOptions } from './core/video';

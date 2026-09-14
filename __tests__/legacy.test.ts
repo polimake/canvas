@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { legacyToScene, parseLegacyText } from '../src/legacy';
-import { customFontFamilyId } from '../src/fonts';
-import { PAGE_GAP } from '../src/layout';
+import { legacyToScene, parseLegacyText } from '../src/converters/legacy';
+import { customFontFamilyId } from '../src/core/fonts';
+import { PAGE_GAP } from '../src/core/layout';
 
 /**
  * Fixtures recortadas de filas reales de `designs` en producción (Paella Power),

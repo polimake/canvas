@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { excalMock, fakeApi, frame, member } from './helpers';
-import { PAGE_GAP } from '../src/layout';
+import { PAGE_GAP } from '../src/core/layout';
 
-vi.mock('../src/excal', () => excalMock);
+vi.mock('../src/core/excal', () => excalMock);
 
 const {
   addPage,
@@ -17,7 +17,7 @@ const {
   relayoutPages,
   setPageLocked,
   isPageLocked,
-} = await import('../src/pages.js');
+} = await import('../src/core/pages.js');
 
 
 // Se importa de la fuente en vez de duplicarlo: un GAP a mano en el test se

@@ -3,9 +3,9 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { excalMock, fakeApi, frame } from './helpers';
 
-vi.mock('../src/excal', () => excalMock);
+vi.mock('../src/core/excal', () => excalMock);
 
-const { RightDock } = await import('../src/RightDock.js');
+const { RightDock } = await import('../src/ui/RightDock.js');
 
 afterEach(cleanup);
 

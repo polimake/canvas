@@ -1,4 +1,4 @@
-# Integrar `@studio/canvas2`
+# Integrar `@pm/canvas`
 
 Este documento es **un** ejemplo de integración, no la forma obligatoria. El
 paquete define los componentes; dónde los colocas y cómo los conectas con tu
@@ -9,13 +9,16 @@ o en un panel propio.
 ## Lo mínimo que funciona
 
 ```tsx
+'use client';
+
 import dynamic from 'next/dynamic';
+import '@pm/canvas/styles.css';
 
 // Excalidraw toca `window` al importarse: el editor SIEMPRE va tras una
 // frontera de solo-cliente. En Next es esto; en Vite/Electron basta con no
 // importarlo desde código que corra en Node.
 const Canvas2 = dynamic(
-  () => import('@studio/canvas2').then((m) => m.Canvas2Editor),
+  () => import('@pm/canvas/ui').then((m) => m.Canvas2Editor),
   { ssr: false },
 );
 
@@ -141,7 +144,7 @@ base64 dentro de la escena. Eso hincha la fila y, en studio, aborta el guardado.
 ### Componentes reutilizables (`componentsPanel`)
 
 Mismo patrón. canvas2 trae el **motor** completo en el subpath puro
-`@studio/canvas2/components` (extraer un fragmento, detectar slots,
+`@pm/canvas/components` (extraer un fragmento, detectar slots,
 instanciarlo), y monta la pestaña; la rejilla con miniaturas la pintas tú,
 porque los componentes viven en tu API.
 
@@ -176,7 +179,7 @@ solo tocan el `appState` (por ejemplo, la selección).
 | Síntoma | Causa |
 | --- | --- |
 | `window is not defined` al construir | El editor se importó desde código de servidor. Falta la frontera de solo-cliente. |
-| El editor sale sin estilos | Falta el CSS del paquete, o el bundler se lo comió: `sideEffects` incluye `*.css` y `src/excal.ts`. |
+| El editor sale sin estilos | Falta el CSS del paquete, o el bundler se lo comió: `sideEffects` incluye `*.css` y `src/core/excal.ts`. |
 | `SecurityError: Tainted canvases` al exportar | Imágenes remotas con `nativeImageExport` en `true`, o falta `hydrateFiles`. |
 | Páginas con foto y sin miniatura | Falta `pageThumbnailFiles`. |
 | Deshacer no revierte un cambio | Se escribió el elemento sin pasar por `patchElement`, así que no subió el `versionNonce`. |

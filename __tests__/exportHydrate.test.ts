@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { buildHydratedFiles, clearHydrationCache } from '../src/exportHydrate';
+import { buildHydratedFiles, clearHydrationCache } from '../src/core/exportHydrate';
 
 /** API mínima de Excalidraw: solo lo que toca el módulo. */
 function fakeApi(files: Record<string, { id: string; dataURL: string; mimeType: string }>) {

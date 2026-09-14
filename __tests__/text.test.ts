@@ -1,9 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { excalMock, fakeApi, frame, member } from './helpers';
 
-vi.mock('../src/excal', () => excalMock);
+vi.mock('../src/core/excal', () => excalMock);
 
-const { insertTextPreset, contrastTextColor, TEXT_PRESETS } = await import('../src/text.js');
+const { insertTextPreset, contrastTextColor, TEXT_PRESETS } = await import('../src/core/text.js');
 
 describe('text presets', () => {
   it('presets anchor at distinct vertical positions (no exact overlap)', () => {

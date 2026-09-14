@@ -1,4 +1,5 @@
 node_modules/
+.turbo/
 *.tsbuildinfo
 
 # `dist/` NO se ignora, y es a proposito.

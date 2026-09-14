@@ -1,17 +1,19 @@
-# Componentes y API de `@studio/canvas2`
+# Componentes y API de `@pm/canvas`
 
-Inventario de todo lo que exporta el paquete. **Esto define qué existe; dónde
-colocarlo es decisión del consumidor.**
+Referencia del editor y sus operaciones. Para las entradas nuevas de documentos,
+consulta [importación](IMPORTING.md) e [indexación](INDEXING.md). Dónde colocar
+los componentes sigue siendo decisión del consumidor.
 
-Todo sale de tres entradas:
+Las entradas históricas se conservan:
 
 ```ts
-import { ... } from '@studio/canvas2';             // editor, paneles, escena, media
-import { ... } from '@studio/canvas2/components';  // motor de componentes, puro (vale en Node)
-import { ... } from '@studio/canvas2/fonts';       // ids de familia, puro (vale en Node)
+import { ... } from '@pm/canvas';             // editor, paneles, escena, media
+import { ... } from '@pm/canvas/components';  // motor de componentes, puro (vale en Node)
+import { ... } from '@pm/canvas/fonts';       // ids de familia, puro (vale en Node)
 ```
 
-Los dos subpaths son **puros**: no tocan `window` ni importan Excalidraw, así que
+También existe `@pm/canvas/ui` para el editor y sus paneles. Los subpaths
+`/components` y `/fonts` son **puros**: no tocan `window` ni importan Excalidraw, así que
 se pueden usar en un worker o en un script de Node. El barrel principal **sí**
 arrastra Excalidraw, que toca `window` al importarse — móntalo siempre tras una
 frontera de solo-cliente (en Next: `dynamic(..., { ssr: false })`).

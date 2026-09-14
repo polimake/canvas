@@ -10,7 +10,7 @@ import {
   fontFamilyAlias,
   normalizeFontName,
   normalizeFontSrc,
-} from '../src/fonts';
+} from '../src/core/fonts';
 
 describe('nombres de familia', () => {
   it('normaliza comillas y espacios', () => {
@@ -167,8 +167,8 @@ describe('registro contra FONT_FAMILY', () => {
   });
 
   async function cargar(tabla: Record<string, number>) {
-    vi.doMock('../src/excal', () => ({ FONT_FAMILY: tabla }));
-    return import('../src/fontRegistry');
+    vi.doMock('../src/core/excal', () => ({ FONT_FAMILY: tabla }));
+    return import('../src/core/fontRegistry');
   }
 
   it('añade la familia a la tabla con su id derivado', async () => {

@@ -1,11 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
 import { excalMock, fakeApi, frame, member } from './helpers';
-import { PAGE_GAP } from '../src/layout';
+import { PAGE_GAP } from '../src/core/layout';
 
-vi.mock('../src/excal', () => excalMock);
+vi.mock('../src/core/excal', () => excalMock);
 
 const { convertToPages, clusterLooseElements, looseElements, paginateSceneInArray } =
-  await import('../src/paginate.js');
+  await import('../src/core/paginate.js');
 
 /** Elemento suelto: sin `frameId`, o sea fuera de toda página. */
 function loose(

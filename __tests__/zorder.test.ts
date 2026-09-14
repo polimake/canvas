@@ -1,9 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { excalMock, fakeApi, frame, member } from './helpers';
 
-vi.mock('../src/excal', () => excalMock);
+vi.mock('../src/core/excal', () => excalMock);
 
-const { reorderMembersInArray, sendMemberToBack } = await import('../src/zorder.js');
+const { reorderMembersInArray, sendMemberToBack } = await import('../src/core/zorder.js');
 
 describe('z-order', () => {
   it('reorders only the page member slots, leaving frames and other pages alone', () => {

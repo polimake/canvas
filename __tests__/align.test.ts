@@ -1,9 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { excalMock, fakeApi, frame, member } from './helpers';
 
-vi.mock('../src/excal', () => excalMock);
+vi.mock('../src/core/excal', () => excalMock);
 
-const { alignToPage } = await import('../src/align.js');
+const { alignToPage } = await import('../src/core/align.js');
 
 function scene() {
   return fakeApi([

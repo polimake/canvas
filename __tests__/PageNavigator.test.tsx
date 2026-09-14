@@ -3,11 +3,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, within, cleanup } from '@testing-library/react';
 import { excalMock, fakeApi, frame } from './helpers';
 
-vi.mock('../src/excal', () => excalMock);
+vi.mock('../src/core/excal', () => excalMock);
 // Rasterizar necesita un canvas real; aquí solo importa la tira, no la imagen.
-vi.mock('../src/pageThumbnails', () => ({ usePageThumbnails: () => ({}) }));
+vi.mock('../src/ui/pageThumbnails', () => ({ usePageThumbnails: () => ({}) }));
 
-const { PageNavigator } = await import('../src/PageNavigator.js');
+const { PageNavigator } = await import('../src/ui/PageNavigator.js');
 
 beforeEach(() => {
   // jsdom no implementa ninguna de las dos.

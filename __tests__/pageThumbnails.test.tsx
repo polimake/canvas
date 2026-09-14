@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act, cleanup } from '@testing-library/react';
 import { excalMock, fakeApi, frame } from './helpers';
 
-vi.mock('../src/excal', () => excalMock);
+vi.mock('../src/core/excal', () => excalMock);
 
 /**
  * `exportScenePng` se mockea porque rasterizar de verdad necesita un canvas con
@@ -11,11 +11,11 @@ vi.mock('../src/excal', () => excalMock);
  * CUÁNDO se decide rasterizar — que es donde estaba el fallo.
  */
 const exportScenePng = vi.fn();
-vi.mock('../src/export', () => ({
+vi.mock('../src/core/export', () => ({
   exportScenePng: (...args: unknown[]) => exportScenePng(...args),
 }));
 
-const { usePageThumbnails } = await import('../src/pageThumbnails.js');
+const { usePageThumbnails } = await import('../src/ui/pageThumbnails.js');
 
 const blob = () => new Blob(['x'], { type: 'image/png' });
 

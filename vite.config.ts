@@ -10,11 +10,9 @@ import { defineConfig } from 'vite';
  * en el mismo árbol que quien lo usa: desde `node_modules`, un bundler no
  * transforma TSX ajeno por defecto. Así que se publica compilado.
  *
- * Las tres entradas son las que ya existían en `exports`; se mantienen para no
- * romper a nadie: `@pm/canvas`, `/components` y `/fonts`. `components` es el
- * motor puro y lo importa también un worker, así que tiene que seguir siendo
- * una entrada de verdad y no un trozo del barrel: si se cuela por `index`, el
- * worker se traga Excalidraw entero.
+ * Se mantienen la raíz, /components y /fonts, y se añaden entradas separadas
+ * de UI, parsers, conversores e indexadores. Las entradas sin interfaz tienen
+ * que seguir siendo independientes: un worker no debe cargar Excalidraw.
  */
 export default defineConfig({
 	build: {
@@ -23,6 +21,10 @@ export default defineConfig({
 				index: resolve(__dirname, 'src/index.ts'),
 				components: resolve(__dirname, 'src/components.ts'),
 				fonts: resolve(__dirname, 'src/fonts.ts'),
+				ui: resolve(__dirname, 'src/ui/index.ts'),
+				parsers: resolve(__dirname, 'src/parsers/index.ts'),
+				converters: resolve(__dirname, 'src/converters/index.ts'),
+				indexers: resolve(__dirname, 'src/indexers/index.ts'),
 			},
 			formats: ['es'],
 		},
@@ -58,11 +60,14 @@ export default defineConfig({
 				'react-dom',
 				'react/jsx-runtime',
 				'react-dom/client',
-				/^@excalidraw\/excalidraw$/,
-				/^@excalidraw\/excalidraw\/types/,
+				/^@excalidraw\/excalidraw(?:\/.*)?$/,
 				'jspdf',
+				'ag-psd',
+				'fflate',
+				'fast-xml-parser',
 			],
 			output: {
+				banner: (chunk) => /src\/(?:index|ui\/index)\.ts$/.test(chunk.facadeModuleId?.replace(/\\/g, '/') ?? '') ? "'use client';" : '',
 				// Nombre fijo para la hoja de estilos. Por defecto Rollup le
 				// pone un hash, y entonces el consumidor no puede escribir el
 				// import: cambiaría en cada publicación.

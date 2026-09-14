@@ -3,9 +3,9 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react';
 import { excalMock, fakeApi, frame } from './helpers';
 
-vi.mock('../src/excal', () => excalMock);
+vi.mock('../src/core/excal', () => excalMock);
 
-const { PageActions } = await import('../src/PageActions.js');
+const { PageActions } = await import('../src/ui/PageActions.js');
 
 afterEach(cleanup);
 

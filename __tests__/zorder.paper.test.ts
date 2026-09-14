@@ -11,10 +11,10 @@ import { excalMock } from './helpers';
 
 // El adaptador se dobla igual que en el resto de pruebas: el paquete real de
 // Excalidraw toca `window` al importarse y no carga bajo node.
-vi.mock('../src/excal', () => excalMock);
+vi.mock('../src/core/excal', () => excalMock);
 
-const { reorderMembersInArray } = await import('../src/zorder.js');
-const { isPageBackground } = await import('../src/background.js');
+const { reorderMembersInArray } = await import('../src/core/zorder.js');
+const { isPageBackground } = await import('../src/core/background.js');
 type SceneElement = { id: string; type: string; frameId: string | null };
 
 const PAGINA = 'page1';

@@ -1,10 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
 import { excalMock, fakeApi, frame, member } from './helpers';
 
-vi.mock('../src/excal', () => excalMock);
+vi.mock('../src/core/excal', () => excalMock);
 
 const { setPageBackgroundColor, getPageBackground, ensurePagePapers } = await import(
-  '../src/background.js'
+  '../src/core/background.js'
 );
 
 const isBg = (e: any) => e.customData?.c2 === 'pageBackground';

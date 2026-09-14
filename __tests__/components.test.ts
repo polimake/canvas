@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { excalMock, fakeApi, frame, member } from './helpers';
 
-vi.mock('../src/excal', () => excalMock);
+vi.mock('../src/core/excal', () => excalMock);
 
 const {
   appendComponentToEditorConfig,
@@ -12,8 +12,8 @@ const {
   instantiateComponent,
   listSlots,
   measureWrappedText,
-} = await import('../src/components.js');
-const { insertComponentIntoScene, extractPageForComponent } = await import('../src/insertComponent.js');
+} = await import('../src/core/components.js');
+const { insertComponentIntoScene, extractPageForComponent } = await import('../src/core/insertComponent.js');
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 

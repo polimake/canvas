@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { buildFontFaceCss, inlineFontFaces } from '../src/svgFonts';
+import { buildFontFaceCss, inlineFontFaces } from '../src/core/svgFonts';
 
 describe('buildFontFaceCss', () => {
   it('declara la familia con su fichero y el format correcto', () => {
