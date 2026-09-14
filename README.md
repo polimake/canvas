@@ -9,7 +9,18 @@ Archivo → parser → documento → conversor → escena → editor
                        └────→ indexador → texto, páginas, fuentes y referencias
 ```
 
-## Elegir una entrada
+## Instalar como dependencia externa
+
+Cada push a `main` genera un paquete `.tgz` en
+[GitHub Releases](https://github.com/polimake/canvas/releases). Copia el comando
+de instalación de la release elegida en cada consumidor y guarda sus lockfiles.
+El paquete incluye `dist/` compilado, tipos y CSS; la aplicación no necesita
+Vite ni TypeScript para construir Canvas. Mantiene el nombre `@pm/canvas`.
+
+Para versiones estables, actualiza `version` y envía un tag `vMAJOR.MINOR.PATCH`.
+[Distribución, versiones e instalación en los tres consumidores](docs/DISTRIBUTION.md).
+
+## Entradas públicas
 
 | Importación | Para qué sirve | Entorno |
 | --- | --- | --- |
@@ -102,7 +113,8 @@ en `dist/`, incluye JavaScript, declaraciones y CSS, y está versionada porque
 otros consumidores usan el repositorio como submódulo. Regenera `dist/` después
 de cambiar fuentes o entradas públicas.
 
-El paquete conserva `private: true`; no se publica en npm. El parche de esquinas
+El paquete conserva `private: true`; se distribuye por GitHub Releases, sin npm.
+El parche de esquinas
 de Excalidraw sigue siendo una configuración del consumidor Studio, no una
 característica portable del paquete. [Fronteras y dependencias](docs/BOUNDARY.md).
 

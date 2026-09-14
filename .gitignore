@@ -1,6 +1,7 @@
 node_modules/
 .turbo/
 *.tsbuildinfo
+artifacts/
 
 # `dist/` NO se ignora, y es a proposito.
 #

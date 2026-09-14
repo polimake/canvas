@@ -14,6 +14,14 @@ En Studio: anteponer `pnpm --filter @pm/canvas` al nombre del script. Para
 comprobar el host, ejecutar sus comprobaciones de tipos y el build de la web.
 La distribución se versiona: incluir los cambios de `dist/` con los de fuente.
 
+El repositorio independiente usa `pnpm@10.26.1` y su propio `pnpm-lock.yaml`.
+Fuera de Studio, ejecuta `pnpm install --frozen-lockfile`. Dentro del monorepo,
+Studio sigue usando su lockfile raíz. Si cambias dependencias, actualiza también
+el lockfile de Canvas desde un checkout independiente.
+
+El workflow de [distribución](DISTRIBUTION.md) recompila las fuentes antes de
+empaquetar y prueba la instalación del `.tgz` fuera del workspace.
+
 Las pruebas de importación construyen archivos binarios PSD/PSB y paquetes ZIP
 OOXML pequeños, verifican errores y límites y comprueban la conversión e índices.
 Las pruebas del adaptador PDF utilizan un runtime controlado: no certifican
