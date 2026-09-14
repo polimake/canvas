@@ -170,6 +170,12 @@ export interface Canvas2EditorProps {
    */
   componentsPanel?: ReactNode;
   /**
+   * Contenido del panel Agente en ambos espacios de trabajo, como `componentsPanel`:
+   * el host trae un asistente que sepa trabajar sobre esta escena; canvas2
+   * solo le da el sitio. Sin contenido, no hay pestaña.
+   */
+  agentPanel?: ReactNode;
+  /**
    * "Guardar página como componente" del menú. La subida es cosa del host
    * (POST a su API + miniatura); canvas2 solo ofrece la entrada de menú.
    */
@@ -335,6 +341,7 @@ export function Canvas2Editor({
   dockedSidebarBreakpoint = 820,
   library,
   componentsPanel,
+  agentPanel,
   onSaveComponent,
   onActivePageChange,
   onMediaDrop,
@@ -683,6 +690,7 @@ export function Canvas2Editor({
   if (!viewMode && api && pages) workspacePanels.push({ id: 'design', title: L.dock.design,
     content: <DesignPanel api={api} activePageId={activePageId} theme={theme} brandKit={brandKit} labels={labels} /> });
   if (!viewMode && componentsPanel) workspacePanels.push({ id: 'components', title: L.components.title, content: componentsPanel });
+  if (!viewMode && agentPanel) workspacePanels.push({ id: 'agent', title: L.dock.agent, content: agentPanel });
   if (!viewMode && api && layers && pages) workspacePanels.push({ id: 'layers', title: L.dock.layers,
     content: <LayersPanel api={api} activePageId={activePageId} theme={theme} embedded /> });
 

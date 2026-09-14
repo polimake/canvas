@@ -1,6 +1,6 @@
 "use client";
-import { h as buildPersistableFiles, i as packPagesInArray, r as renumberPagesInArray, j as commitElements, k as goToPage } from "./chunks/LibraryPanel-DsMt5nOA.js";
-import { B, C, a, b, D, l, c, d, E, L, e, M, n, o, P, f, g, R, T, q, s, t, u, v, w, x, y, z, A, F, G, a as a2, H, I, J, K, N, O, Q, S, U, W, X, Y, Z, _, $, a0, a1, a2 as a22, a3, a4, a5, a6, a7, a8, a9, aa, ab, ac, ad, ae, af, m, ag, ah, ai, p, aj, ak, al, am, an, ao, ap, aq, ar, as, at, au, av, aw, ax, ay, az, aA, aB, aC } from "./chunks/LibraryPanel-DsMt5nOA.js";
+import { h as buildPersistableFiles, i as packPagesInArray, r as renumberPagesInArray, j as commitElements, k as goToPage } from "./chunks/LibraryPanel-DuqizML1.js";
+import { B, C, a, b, D, l, c, d, E, L, e, M, n, o, P, f, g, R, T, q, s, t, u, v, w, x, y, z, A, F, G, a as a2, H, I, J, K, N, O, Q, S, U, W, X, Y, Z, _, $, a0, a1, a2 as a22, a3, a4, a5, a6, a7, a8, a9, aa, ab, ac, ad, ae, af, m, ag, ah, ai, p, aj, ak, al, am, an, ao, ap, aq, ar, as, at, au, av, aw, ax, ay, az, aA, aB, aC } from "./chunks/LibraryPanel-DuqizML1.js";
 import { P as P2 } from "./chunks/layout-BEpoNps2.js";
 import { D as D2, P as P3, c as c2, f as f2, g as g2, l as l2, a as a10, p as p2, b as b2, d as d2, e as e2, h, s as s2 } from "./chunks/legacy-BS2a1q37.js";
 import { EXCALIDRAW_BUILTIN_FAMILIES, buildFontFaceCss, customFontFamilyId, dedupeFontFaces, fontFamilyAlias, normalizeFontName } from "./fonts.js";

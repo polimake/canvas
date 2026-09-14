@@ -78,10 +78,24 @@ describe('workspace switching', () => {
   });
 
   it('keeps editing chrome and host insertion slots out of read-only previews', () => {
-    render(<Canvas2Editor viewMode library={<div>Assets</div>} componentsPanel={<div>Components</div>} />);
+    render(<Canvas2Editor viewMode library={<div>Assets</div>} componentsPanel={<div>Components</div>}
+      agentPanel={<div>Agent conversation</div>} />);
     expect(screen.queryByRole('combobox')).toBeNull();
     expect(screen.queryByRole('complementary')).toBeNull();
     expect(screen.queryByText('Assets')).toBeNull();
     expect(screen.queryByText('Components')).toBeNull();
+    expect(screen.queryByText('Agent conversation')).toBeNull();
+  });
+
+  it('offers the host agent in both workspaces without remounting the editor', () => {
+    render(<Canvas2Editor library={<div>Assets</div>} agentPanel={<div>Agent conversation</div>}
+      labels={{ dock: { agent: 'Assistant' } }} />);
+    expect(screen.queryByText('Agent conversation')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Assistant' }));
+    expect(screen.getByRole('region', { name: 'Assistant' }).textContent).toBe('Agent conversation');
+    fireEvent.change(screen.getByRole('combobox', { name: 'Espacio de trabajo' }), { target: { value: 'advanced' } });
+    expect(screen.getByText('Agent conversation')).toBeTruthy();
+    expect(mounted).toHaveBeenCalledTimes(1);
+    expect(unmounted).not.toHaveBeenCalled();
   });
 });

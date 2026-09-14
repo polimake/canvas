@@ -1044,6 +1044,7 @@ const DEFAULT_LABELS = {
     design: "Diseño",
     layers: "Capas",
     components: "Componentes",
+    agent: "Agente",
     page: "Página",
     brand: "Marca",
     collapse: "Contraer",
@@ -3887,6 +3888,7 @@ function RightDock({
   layers = false,
   design = false,
   componentsPanel,
+  agentPanel,
   labels: labelsProp
 }) {
   const L = mergeLabels(labelsProp);
@@ -3895,17 +3897,20 @@ function RightDock({
   const [abierto, setAbierto] = useState(false);
   const hayDiseno = design && !viewMode;
   const hayComponentes = Boolean(componentsPanel) && !viewMode;
+  const hayAgente = Boolean(agentPanel) && !viewMode;
   const disponibles = [
     ...hayDiseno ? ["diseno"] : [],
     ...layers ? ["capas"] : [],
-    ...hayComponentes ? ["componentes"] : []
+    ...hayComponentes ? ["componentes"] : [],
+    ...hayAgente ? ["agente"] : []
   ];
   if (!api || disponibles.length === 0) return null;
   const activa = disponibles.includes(tab) ? tab : disponibles[0];
   const rotulo = {
     diseno: L.dock.design,
     capas: L.dock.layers,
-    componentes: L.dock.components
+    componentes: L.dock.components,
+    agente: L.dock.agent
   };
   const tabStyle = (t) => ({
     all: "unset",
@@ -3938,12 +3943,14 @@ function RightDock({
         // entera para Excalidraw y ~9px de aire.
         top: 76,
         zIndex: 95,
-        width: abierto ? 248 : "auto",
+        // La pestaña del agente lleva una conversación dentro, y una
+        // conversación en 248px no se lee: se corta cada línea a la mitad.
+        width: abierto ? activa === "agente" ? 420 : 248 : "auto",
         // Nunca más ancha que el lienzo: 248px en un teléfono de 390 se comía
         // dos tercios de la pantalla.
         maxWidth: "calc(100% - 24px)",
         // Hasta justo encima de la tira de páginas, que vive abajo y centrada.
-        maxHeight: `calc(100% - ${narrow ? 250 : 192}px)`,
+        maxHeight: activa === "agente" ? `calc(100% - ${narrow ? 140 : 96}px)` : `calc(100% - ${narrow ? 250 : 192}px)`,
         display: "flex",
         flexDirection: "column",
         borderRadius: 12,
@@ -4013,7 +4020,12 @@ function RightDock({
             viewMode,
             embedded: true
           }
-        ) : activa === "componentes" ? /* @__PURE__ */ jsx("div", { style: { width: "100%", minHeight: 0, overflowY: "auto" }, children: componentsPanel }) : /* @__PURE__ */ jsx(
+        ) : activa === "componentes" ? /* @__PURE__ */ jsx("div", { style: { width: "100%", minHeight: 0, overflowY: "auto" }, children: componentsPanel }) : activa === "agente" ? (
+          // Sin `overflowY` aquí: el panel del host trae su propio scroll
+          // —una conversación se desplaza sola— y dos scrolls anidados es
+          // el clásico «no puedo llegar al final».
+          /* @__PURE__ */ jsx("div", { style: { width: "100%", minHeight: 0, display: "flex" }, children: agentPanel })
+        ) : /* @__PURE__ */ jsx(
           DesignPanel,
           {
             api,
@@ -4191,6 +4203,7 @@ function Canvas2Editor({
   dockedSidebarBreakpoint = 820,
   library,
   componentsPanel,
+  agentPanel,
   onSaveComponent,
   onActivePageChange,
   onMediaDrop,
@@ -4414,6 +4427,7 @@ ${css}` : css;
     content: /* @__PURE__ */ jsx(DesignPanel, { api, activePageId, theme, brandKit, labels })
   });
   if (!viewMode && componentsPanel) workspacePanels.push({ id: "components", title: L.components.title, content: componentsPanel });
+  if (!viewMode && agentPanel) workspacePanels.push({ id: "agent", title: L.dock.agent, content: agentPanel });
   if (!viewMode && api && layers && pages) workspacePanels.push({
     id: "layers",
     title: L.dock.layers,
@@ -4851,4 +4865,4 @@ export {
   clusterLooseElements as y,
   contrastTextColor as z
 };
-//# sourceMappingURL=LibraryPanel-DsMt5nOA.js.map
+//# sourceMappingURL=LibraryPanel-DuqizML1.js.map

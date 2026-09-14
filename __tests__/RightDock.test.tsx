@@ -89,4 +89,20 @@ describe('RightDock', () => {
     );
     expect(screen.getByText('Design')).toBeTruthy();
   });
+
+  it('abre el agente del host con espacio para conversar y lo oculta en modo lectura', () => {
+    const { api } = unaPagina();
+    const props = { api: api as never, activePageId: 'a', design: true,
+      agentPanel: <div>Conversación del host</div> };
+    const { rerender } = render(<RightDock {...props} />);
+    expect(screen.queryByText('Conversación del host')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Agente' }));
+    expect(screen.getByText('Conversación del host')).toBeTruthy();
+    expect(screen.getByTestId('canvas2-right-dock').style.width).toBe('420px');
+    fireEvent.click(screen.getByRole('button', { name: 'Diseño' }));
+    expect(screen.queryByText('Conversación del host')).toBeNull();
+    expect(screen.getByTestId('canvas2-right-dock').style.width).toBe('248px');
+    rerender(<RightDock {...props} viewMode />);
+    expect(screen.queryByRole('button', { name: 'Agente' })).toBeNull();
+  });
 });

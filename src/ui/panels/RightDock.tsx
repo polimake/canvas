@@ -12,8 +12,12 @@ import { mergeLabels, type PartialLabels } from '../shared/labels';
  * Pastilla flotante del lado derecho, arriba, con pestañas.
  *
  * Reúne todo lo que modifica lo que estás mirando: Diseño (marca + tamaño y
- * fondo de la página), Capas y Componentes. Son pestañas y no secciones
- * apiladas: se ve una cada vez y el sitio es predecible.
+ * fondo de la página), Capas, Componentes y Agente. Son pestañas y no
+ * secciones apiladas: se ve una cada vez y el sitio es predecible.
+ *
+ * Componentes y Agente **no viven aquí**: los aporta el host por `ReactNode`.
+ * canvas2 pone el marco y no sabe qué hay dentro. Sin contenido, no hay
+ * pestaña.
  *
  * Flota, no se ancla. Anclarla al borde encogería la superficie de Excalidraw y
  * obligaría a recentrar la tira de páginas cada vez que se abre; flotando, el
@@ -24,7 +28,7 @@ import { mergeLabels, type PartialLabels } from '../shared/labels';
  * competía con ella por la misma franja.
  */
 
-type Tab = 'diseno' | 'capas' | 'componentes';
+type Tab = 'diseno' | 'capas' | 'componentes' | 'agente';
 
 export interface RightDockProps {
   api: ExcalidrawImperativeAPI | null;
@@ -41,6 +45,15 @@ export interface RightDockProps {
   design?: boolean;
   /** Rejilla de componentes del proyecto; la aporta el host. Sin ella, no hay pestaña. */
   componentsPanel?: ReactNode;
+  /**
+   * Un asistente que trabaje sobre esta escena; lo aporta el host. Sin él, no
+   * hay pestaña.
+   *
+   * Mismo trato que `componentsPanel`: canvas2 pone el marco y no sabe qué
+   * hay dentro. Lo único que cambia es el ancho —una conversación en 248px no
+   * se lee— así que esta pestaña abre la pastilla más ancha que las otras.
+   */
+  agentPanel?: ReactNode;
   /** Textos, inyectados por el host (ver labels.ts). */
   labels?: PartialLabels;
 }
@@ -55,6 +68,7 @@ export function RightDock({
   layers = false,
   design = false,
   componentsPanel,
+  agentPanel,
   labels: labelsProp,
 }: RightDockProps) {
   const L = mergeLabels(labelsProp);
@@ -66,10 +80,12 @@ export function RightDock({
 
   const hayDiseno = design && !viewMode;
   const hayComponentes = Boolean(componentsPanel) && !viewMode;
+  const hayAgente = Boolean(agentPanel) && !viewMode;
   const disponibles: Tab[] = [
     ...(hayDiseno ? (['diseno'] as Tab[]) : []),
     ...(layers ? (['capas'] as Tab[]) : []),
     ...(hayComponentes ? (['componentes'] as Tab[]) : []),
+    ...(hayAgente ? (['agente'] as Tab[]) : []),
   ];
 
   if (!api || disponibles.length === 0) return null;
@@ -79,6 +95,7 @@ export function RightDock({
     diseno: L.dock.design,
     capas: L.dock.layers,
     componentes: L.dock.components,
+    agente: L.dock.agent,
   };
 
   const tabStyle = (t: Tab): CSSProperties => ({
@@ -112,12 +129,17 @@ export function RightDock({
         // entera para Excalidraw y ~9px de aire.
         top: 76,
         zIndex: 95,
-        width: abierto ? 248 : 'auto',
+        // La pestaña del agente lleva una conversación dentro, y una
+        // conversación en 248px no se lee: se corta cada línea a la mitad.
+        width: abierto ? (activa === 'agente' ? 420 : 248) : 'auto',
         // Nunca más ancha que el lienzo: 248px en un teléfono de 390 se comía
         // dos tercios de la pantalla.
         maxWidth: 'calc(100% - 24px)',
         // Hasta justo encima de la tira de páginas, que vive abajo y centrada.
-        maxHeight: `calc(100% - ${narrow ? 250 : 192}px)`,
+        maxHeight:
+          activa === 'agente'
+            ? `calc(100% - ${narrow ? 140 : 96}px)`
+            : `calc(100% - ${narrow ? 250 : 192}px)`,
         display: 'flex',
         flexDirection: 'column',
         borderRadius: 12,
@@ -187,6 +209,11 @@ export function RightDock({
             />
           ) : activa === 'componentes' ? (
             <div style={{ width: '100%', minHeight: 0, overflowY: 'auto' }}>{componentsPanel}</div>
+          ) : activa === 'agente' ? (
+            // Sin `overflowY` aquí: el panel del host trae su propio scroll
+            // —una conversación se desplaza sola— y dos scrolls anidados es
+            // el clásico «no puedo llegar al final».
+            <div style={{ width: '100%', minHeight: 0, display: 'flex' }}>{agentPanel}</div>
           ) : (
             <DesignPanel
               api={api}

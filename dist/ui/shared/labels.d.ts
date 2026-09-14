@@ -101,6 +101,11 @@ export interface Canvas2Labels {
         layers: string;
         /** Pestaña de la biblioteca de componentes del proyecto. */
         components: string;
+        /**
+         * Pestaña donde el host puede meter un asistente que trabaje sobre esta
+         * escena. canvas2 no sabe qué es ni le habla: solo le da el sitio.
+         */
+        agent: string;
         /** Rótulo del bloque de ajustes de la página dentro de Diseño. */
         page: string;
         brand: string;
