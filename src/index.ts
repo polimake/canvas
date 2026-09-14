@@ -1,15 +1,16 @@
-export { Canvas2Editor, Canvas2, default } from './ui/Canvas2';
-export type { Canvas2EditorProps, Canvas2Scene, Canvas2Api } from './ui/Canvas2';
+export { Canvas2Editor, Canvas2, default } from './ui/editor/Canvas2';
+export type { Canvas2EditorProps, Canvas2Scene, Canvas2Api } from './ui/editor/Canvas2';
+export type { CanvasWorkspace } from './ui/workspaces/types';
 // Tipo de dataTransfer para soltar media de la biblioteca sobre el lienzo.
-export { MEDIA_DROP_TYPE } from './ui/Canvas2';
+export { MEDIA_DROP_TYPE } from './ui/editor/Canvas2';
 
 // ─── Pages / artboards (frames-as-pages) ──────────────────────────────────────
-export { PageNavigator } from './ui/PageNavigator';
-export type { PageNavigatorProps } from './ui/PageNavigator';
+export { PageNavigator } from './ui/navigation/PageNavigator';
+export type { PageNavigatorProps } from './ui/navigation/PageNavigator';
 // Tarjeta que sigue al cursor al arrastrar, con el mismo gesto que el
 // calendario. Se exporta por si un host quiere el mismo levantado.
-export { DragPreview, hideNativeDragImage } from './ui/DragPreview';
-export type { DragPreviewProps, DragGrab } from './ui/DragPreview';
+export { DragPreview, hideNativeDragImage } from './ui/overlays/DragPreview';
+export type { DragPreviewProps, DragGrab } from './ui/overlays/DragPreview';
 export {
   DEFAULT_PAGE_SIZE,
   PAGE_SIZE_PRESETS,
@@ -47,8 +48,8 @@ export type { PaginateOptions, PaginateResult } from './core/paginate';
 export { PAGE_GAP } from './core/layout';
 export { patchElement, commitElements } from './core/mutate';
 // Miniaturas por página para tiras de navegación (host o PageNavigator).
-export { usePageThumbnails } from './ui/pageThumbnails';
-export type { FilesMap } from './ui/pageThumbnails';
+export { usePageThumbnails } from './ui/hooks/pageThumbnails';
+export type { FilesMap } from './ui/hooks/pageThumbnails';
 
 // ─── Export: hidratación de imágenes remotas ─────────────────────────────────
 export { buildHydratedFiles, clearHydrationCache } from './core/exportHydrate';
@@ -93,22 +94,22 @@ export { PAGE_ALIGNMENTS, alignToPage } from './core/align';
 export type { PageAlignment } from './core/align';
 
 // ─── Layers panel + image ops ─────────────────────────────────────────────────
-export { LayersPanel } from './ui/LayersPanel';
-export type { LayersPanelProps } from './ui/LayersPanel';
+export { LayersPanel } from './ui/panels/LayersPanel';
+export type { LayersPanelProps } from './ui/panels/LayersPanel';
 // Menú principal del editor (fondo de página, tamaño, exportar). Lo monta
 // Canvas2Editor; se exporta para hosts que compongan su propio editor.
-export { CanvasMenu } from './ui/CanvasMenu';
-export type { CanvasMenuProps } from './ui/CanvasMenu';
+export { CanvasMenu } from './ui/navigation/CanvasMenu';
+export type { CanvasMenuProps } from './ui/navigation/CanvasMenu';
 // Acciones de la página activa, flotando sobre el lienzo junto a su nombre.
-export { PageActions } from './ui/PageActions';
-export type { PageActionsProps } from './ui/PageActions';
+export { PageActions } from './ui/navigation/PageActions';
+export type { PageActionsProps } from './ui/navigation/PageActions';
 export { setAsBackground, extendToPage } from './core/imageOps';
 export { reorderPageMembers, sendMemberToBack } from './core/zorder';
-export { palette, PANEL_FONT } from './ui/theme';
+export { palette, PANEL_FONT } from './ui/shared/theme';
 // Contrato de textos: canvas2 no lleva i18n dentro, el host inyecta.
-export { DEFAULT_LABELS, mergeLabels } from './ui/labels';
-export type { Canvas2Labels, PartialLabels } from './ui/labels';
-export type { Palette, Canvas2Theme } from './ui/theme';
+export { DEFAULT_LABELS, mergeLabels } from './ui/shared/labels';
+export type { Canvas2Labels, PartialLabels } from './ui/shared/labels';
+export type { Palette, Canvas2Theme } from './ui/shared/theme';
 
 // ─── Identidad de marca ───────────────────────────────────────────────────────
 // `Canvas2Editor` recibe `projects.brandKit` CRUDO y lo traduce dentro: si el
@@ -133,20 +134,20 @@ export {
 export type { CustomFontFace } from './core/fonts';
 export { registerCustomFont, registerCustomFonts, fontFamilyId } from './core/fontRegistry';
 export type { RegisteredFont } from './core/fontRegistry';
-export { BrandGallery } from './ui/BrandGallery';
-export type { BrandGalleryProps } from './ui/BrandGallery';
+export { BrandGallery } from './ui/panels/BrandGallery';
+export type { BrandGalleryProps } from './ui/panels/BrandGallery';
 // Pastilla flotante de arriba a la derecha: Diseño, Capas y Componentes en
 // pestañas. La monta Canvas2Editor.
-export { RightDock } from './ui/RightDock';
-export type { RightDockProps } from './ui/RightDock';
+export { RightDock } from './ui/panels/RightDock';
+export type { RightDockProps } from './ui/panels/RightDock';
 // Contenido de la pestaña Diseño: marca del cliente + tamaño y fondo de la
 // página activa.
-export { DesignPanel } from './ui/DesignPanel';
-export type { DesignPanelProps } from './ui/DesignPanel';
+export { DesignPanel } from './ui/panels/DesignPanel';
+export type { DesignPanelProps } from './ui/panels/DesignPanel';
 // Marco de la biblioteca (arriba a la derecha). El CONTENIDO lo pone el host:
 // la mediateca vive en apps/web sobre @polimake/ui.
-export { LibraryPanel } from './ui/LibraryPanel';
-export type { LibraryPanelProps } from './ui/LibraryPanel';
+export { LibraryPanel } from './ui/panels/LibraryPanel';
+export type { LibraryPanelProps } from './ui/panels/LibraryPanel';
 
 // ─── Persistence (scene ↔ JSON) ───────────────────────────────────────────────
 export { serializeScene, parseScene, restoreScene } from './core/serialize';

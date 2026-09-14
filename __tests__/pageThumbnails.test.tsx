@@ -15,7 +15,7 @@ vi.mock('../src/core/export', () => ({
   exportScenePng: (...args: unknown[]) => exportScenePng(...args),
 }));
 
-const { usePageThumbnails } = await import('../src/ui/pageThumbnails.js');
+const { usePageThumbnails } = await import('../src/ui/hooks/pageThumbnails.js');
 
 const blob = () => new Blob(['x'], { type: 'image/png' });
 

@@ -5,7 +5,7 @@
 // navegador se limitaba a no emitir `drop`: la zona se iluminaba, soltabas, y
 // silencio. Insertar con un clic sí funcionaba, lo que despistaba todavía más.
 import { describe, it, expect } from 'vitest';
-import { copyDropEffect } from '../src/ui/dropEffect';
+import { copyDropEffect } from '../src/ui/shared/dropEffect';
 
 describe('copyDropEffect', () => {
   it('cede a mover cuando el origen no admite copiar', () => {

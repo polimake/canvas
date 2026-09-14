@@ -44,6 +44,7 @@
     }
   },
   "scripts": {
+    "dev:workspaces": "vite examples/workspaces --host 127.0.0.1",
     "build": "vite build && tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

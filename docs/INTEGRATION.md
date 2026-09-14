@@ -49,6 +49,10 @@ Dos detalles que parecen menores y no lo son:
 
 ## Ejemplo completo
 
+El selector de espacios está incluido. `defaultWorkspace` elige el inicial;
+`workspace` y `onWorkspaceChange` permiten controlarlo desde el host sin cambiar
+la `key` del editor. [Ejemplos y contrato](WORKSPACES.md).
+
 Así lo monta studio hoy. Cada ranura lleva anotado qué pasa si la dejas vacía.
 
 ```tsx

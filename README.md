@@ -76,6 +76,16 @@ El componente se monta en el navegador. En Next.js, usa una frontera cliente y
 El CSS de Excalidraw se importa desde el adaptador; `styles.css` añade los estilos
 propios de Canvas. Al consumir fuentes directamente, ambos se cargan desde ellas.
 
+El selector superior permite elegir **Diseño** (biblioteca, marca y componentes
+en pestañas a la izquierda) o **Avanzado** (capas y ajustes simultáneos a la
+derecha). Las páginas y herramientas del lienzo son compartidas. Cambiar de
+espacio no recarga la escena ni reinicia selección o historial. Los paneles se
+pueden plegar; en contenedores estrechos se superponen al lienzo.
+
+Usa `defaultWorkspace="advanced"` para arrancar en Avanzado, o las propiedades
+`workspace` y `onWorkspaceChange` para controlarlo desde el host. Esta preferencia
+se guarda aparte del documento. [Contrato y extensión](docs/WORKSPACES.md).
+
 ## Trabajar en el paquete
 
 ```sh

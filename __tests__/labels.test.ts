@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { DEFAULT_LABELS, mergeLabels, type Canvas2Labels } from '../src/ui/labels';
+import { DEFAULT_LABELS, mergeLabels, type Canvas2Labels } from '../src/ui/shared/labels';
 
 describe('mergeLabels', () => {
   it('sin etiquetas del host devuelve las de serie tal cual', () => {
@@ -61,6 +61,7 @@ describe('mergeLabels', () => {
       'dock',
       'brand',
       'sizes',
+      'workspace',
     ];
     for (const s of secciones) {
       expect(DEFAULT_LABELS[s], `falta la sección ${s}`).toBeTruthy();

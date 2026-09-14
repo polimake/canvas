@@ -50,7 +50,7 @@ su JavaScript. La entrada `/ui` y la raíz conservan la directiva de cliente.
 Studio aplica externamente el parche de `FRAME_STYLE.radius` de Excalidraw para
 recortar las páginas con esquinas rectas. Ese parche no viaja con este paquete.
 Otro consumidor debe aplicar su configuración equivalente si necesita esa
-apariencia. La paleta de `src/ui/theme.ts` es propia; no importa el sistema de
+apariencia. La paleta de `src/ui/shared/theme.ts` es propia; no importa el sistema de
 diseño de Studio.
 
 ## Distribución

@@ -23,6 +23,13 @@ src/
 │   ├── mutate.ts  Escrituras al editor y disciplina de deshacer
 │   └── scene.ts   Tipos compartidos del editor
 ├── ui/            Componentes React, hooks, etiquetas, tema y CSS
+│   ├── editor/    Canvas2: sesión, eventos y única instancia del motor
+│   ├── workspaces/  Selector y distribución; design/ y advanced/
+│   ├── panels/    Biblioteca, marca, ajustes y capas reutilizables
+│   ├── navigation/  Menú, navegación y acciones de página
+│   ├── overlays/  Arrastre, avisos y selector de fotogramas
+│   ├── hooks/     Tamaño del contenedor y miniaturas
+│   └── shared/    Etiquetas, iconos, tema y estilos del motor
 ├── components.ts  Entrada pública estable del motor de componentes
 ├── fonts.ts       Entrada pública estable de fuentes
 └── index.ts       Entrada histórica del editor
@@ -34,6 +41,11 @@ src/
 sin necesitar el parser, el archivo original ni un conversor. `converters`
 produce objetos planos; puede usar utilidades puras de `core` y tipos de escena,
 pero no invoca el motor. `ui` se apoya en `core`.
+
+Los espacios de trabajo componen paneles; no crean motores ni guardan escenas.
+`editor/Canvas2.tsx` mantiene una única instancia del motor en el mismo lugar
+del árbol React. El selector cambia el marco de UI, sin usar `key` ni recargar
+`initialScene`. Véase [espacios de trabajo](WORKSPACES.md).
 
 `core` **no significa que todos sus módulos sean puros**: `pages`, `mutate`,
 `export` y otros necesitan el motor en el navegador. `fonts`, `components`,

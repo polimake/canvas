@@ -5,7 +5,7 @@ import { excalMock, fakeApi, frame } from './helpers';
 
 vi.mock('../src/core/excal', () => excalMock);
 
-const { PageActions } = await import('../src/ui/PageActions.js');
+const { PageActions } = await import('../src/ui/navigation/PageActions.js');
 
 afterEach(cleanup);
 

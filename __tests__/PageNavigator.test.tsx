@@ -5,9 +5,9 @@ import { excalMock, fakeApi, frame } from './helpers';
 
 vi.mock('../src/core/excal', () => excalMock);
 // Rasterizar necesita un canvas real; aquí solo importa la tira, no la imagen.
-vi.mock('../src/ui/pageThumbnails', () => ({ usePageThumbnails: () => ({}) }));
+vi.mock('../src/ui/hooks/pageThumbnails', () => ({ usePageThumbnails: () => ({}) }));
 
-const { PageNavigator } = await import('../src/ui/PageNavigator.js');
+const { PageNavigator } = await import('../src/ui/navigation/PageNavigator.js');
 
 beforeEach(() => {
   // jsdom no implementa ninguna de las dos.

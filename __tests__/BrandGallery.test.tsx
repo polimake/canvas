@@ -10,7 +10,7 @@ vi.mock('../src/core/media', () => ({
   insertImageFromUrl: (...args: unknown[]) => insertImageFromUrl(...args),
 }));
 
-const { BrandGallery } = await import('../src/ui/BrandGallery.js');
+const { BrandGallery } = await import('../src/ui/panels/BrandGallery.js');
 
 afterEach(() => {
   cleanup();

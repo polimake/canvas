@@ -5,7 +5,7 @@ import { excalMock, fakeApi, frame } from './helpers';
 
 vi.mock('../src/core/excal', () => excalMock);
 
-const { RightDock } = await import('../src/ui/RightDock.js');
+const { RightDock } = await import('../src/ui/panels/RightDock.js');
 
 afterEach(cleanup);
 
