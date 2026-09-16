@@ -1,11 +1,14 @@
 // El papel de la página es un MIEMBRO más del marco, aunque el panel de capas
-// no lo liste (lo filtra `isPageBackground`). Esa asimetría es una trampa:
+// no lo liste (lo filtra `isPageBackground`). Esa asimetría era una trampa:
 // `reorderMembersInArray` añade al final —o sea, ARRIBA— cualquier miembro que
 // no venga en la lista, así que reordenar "solo las capas visibles" mandaba el
-// papel al frente y dejaba la página en negro.
+// papel al frente y dejaba la página en blanco. La otra mitad del mismo fallo
+// era nombrarlo en cualquier otro sitio: `fitToPage` mandaba la imagen "al
+// fondo" POR DEBAJO del papel opaco, es decir, a la invisibilidad.
 //
-// Estas pruebas fijan las dos mitades del contrato: la del reordenador (omitir
-// = subir al frente) y la de quien lo llama (nombrar el papel el primero).
+// Ahora la regla la aplica el propio reordenador (`floorFirst`), no sus
+// llamantes: el papel es el suelo y no se puede subir por descuido. Estas
+// pruebas fijan ese contrato por las dos vías — omitiéndolo y nombrándolo mal.
 import { describe, it, expect, vi } from 'vitest';
 import { excalMock } from './helpers';
 
@@ -36,11 +39,25 @@ const ids = (els: readonly SceneElement[]) => els.map((e) => e.id);
 
 describe('reorderMembersInArray', () => {
   it('sube al frente a los miembros que no se nombran', () => {
-    // El comportamiento documentado del reordenador. No es un fallo suyo: es
-    // lo que hace peligroso llamarlo con una lista incompleta.
+    // El comportamiento documentado del reordenador, que es lo que hace
+    // peligroso llamarlo con una lista incompleta…
+    const out = reorderMembersInArray(escena(), PAGINA, ['texto']);
+    expect(ids(out)).toEqual(['papel', 'texto', 'foto']);
+  });
+
+  it('…salvo con el papel: omitirlo ya NO lo sube', () => {
+    // Lo que hacía el panel de capas antes de acordarse de nombrarlo.
     const out = reorderMembersInArray(escena(), PAGINA, ['foto', 'texto']);
-    expect(ids(out)).toEqual(['foto', 'texto', 'papel']);
-    expect(isPageBackground(out[out.length - 1])).toBe(true);
+    expect(ids(out)).toEqual(['papel', 'foto', 'texto']);
+    expect(isPageBackground(out[0])).toBe(true);
+  });
+
+  it('nombrar el papel ARRIBA tampoco lo sube: el suelo es el suelo', () => {
+    // El fallo de `fitToPage`: mandar una imagen "al fondo" la metía DEBAJO
+    // del papel opaco. Ahora el fondo del contenido es justo encima del papel.
+    const out = reorderMembersInArray(escena(), PAGINA, ['foto', 'texto', 'papel']);
+    expect(ids(out)).toEqual(['papel', 'foto', 'texto']);
+    expect(isPageBackground(out[0])).toBe(true);
   });
 
   it('nombrando el papel el primero, la página conserva su fondo abajo', () => {

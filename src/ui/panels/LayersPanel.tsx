@@ -224,12 +224,10 @@ export function LayersPanel({
     if (from < 0 || to < 0) return;
     topFirst.splice(to, 0, topFirst.splice(from, 1)[0]);
     // El papel de la página TAMBIÉN es miembro del marco, aunque la lista no lo
-    // enseñe. `reorderPageMembers` añade al FINAL —o sea, arriba del todo— a
-    // cualquier miembro que no venga en la lista: sin nombrarlo aquí, arrastrar
-    // una capa mandaba el papel al frente y la página se quedaba en negro.
-    const paper = els.find((e) => e.frameId === activePageId && isPageBackground(e));
-    const bottomFirst = [...(paper ? [paper.id] : []), ...[...topFirst].reverse()];
-    commitElements(api, reorderPageMembers(api, activePageId, bottomFirst));
+    // enseñe. No hace falta nombrarlo: `reorderPageMembers` lo hunde de oficio
+    // (ver `floorFirst` en zorder.ts). Antes se colaba aquí a mano, y ese
+    // recordatorio era justo lo que se le olvidaba a los demás llamantes.
+    commitElements(api, reorderPageMembers(api, activePageId, [...topFirst].reverse()));
   };
 
   const iconBtn = (label: string, onClick: () => void, node: ReactNode, danger = false) => (

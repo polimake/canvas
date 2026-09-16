@@ -85,6 +85,34 @@ describe('page background', () => {
     expect(api.getSceneElements().filter(isBg)).toHaveLength(2);
   });
 
+  it('vuelve a hundir un papel que se ha levantado', () => {
+    // El fallo que dejaba una página tapada por su propio fondo PARA SIEMPRE:
+    // la función solo miraba si el papel EXISTÍA, así que bastaba con que algo
+    // lo subiera una vez (un deshacer, un reordenado con la lista incompleta)
+    // para que nadie volviera a bajarlo nunca.
+    const { api, get, commits } = fakeApi([
+      frame('p1', 0, 0, 500, 500),
+      member('texto', 'p1', 10, 10, 100, 20, { type: 'text' }),
+    ]);
+    setPageBackgroundColor(api as any, 'p1', '#ffffff');
+    // Se levanta el papel a mano, simulando el reordenado defectuoso.
+    const els = get();
+    const papel = els.find(isBg);
+    (api as any).updateScene({
+      elements: [...els.filter((e: any) => e !== papel), papel],
+    });
+    expect(isBg(get().filter((e: any) => e.frameId === 'p1')[0])).toBe(false);
+
+    const before = commits.length;
+    ensurePagePapers(api as any);
+    expect(commits.length).toBe(before + 1);
+    expect(isBg(get().filter((e: any) => e.frameId === 'p1')[0])).toBe(true);
+    // Y una vez hundido, no vuelve a commitear: apto para un onChange.
+    const settled = commits.length;
+    ensurePagePapers(api as any);
+    expect(commits.length).toBe(settled);
+  });
+
   it('does nothing for an unknown page', () => {
     const { api, get } = fakeApi([frame('p1', 0, 0, 500, 500)]);
     const before = get();
