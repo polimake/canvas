@@ -180,6 +180,7 @@ export {
   cascadePoints,
   imageAtScenePoint,
   externalizeInlineImages,
+  hasUploadsInFlight,
   buildPersistableFiles,
   findInlineImageIds,
   isInlineDataUrl,

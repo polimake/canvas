@@ -145,7 +145,14 @@ export function setVideoPoster(
   // Fichero NUEVO en vez de reescribir el existente: `addFiles` de Excalidraw
   // ignora los ids que ya conoce (hace `continue`), así que reutilizar el id
   // dejaría la portada vieja en pantalla aunque la escena dijera otra cosa.
-  const fileId = `c2v_${elementId}_${Math.round(poster.timeSec * 1000)}`;
+  // El milisegundo entra en el id, pero solo si es un número de verdad: una
+  // escena vieja puede traer `posterTime` como texto, y entonces esto daba
+  // `c2v_<id>_NaN`. Todo póster fallido del mismo elemento compartía ese id, y
+  // como `addFiles` ignora los ids conocidos, el segundo intento era un no-op
+  // silencioso: la portada vieja se quedaba en pantalla sin ningún error.
+  const ms = Math.round(Number(poster.timeSec) * 1000);
+  const stamp = Number.isFinite(ms) ? String(ms) : `t${Date.now()}`;
+  const fileId = `c2v_${elementId}_${stamp}`;
   api.addFiles([
     {
       id: fileId,
