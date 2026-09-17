@@ -78,6 +78,8 @@ export interface FileEntry {
  * y todo uso posterior de la variable deja de compilar.
  */
 export declare function isInlineDataUrl(value: unknown): boolean;
+/** ¿Hay alguna imagen subiéndose ahora mismo? */
+export declare function hasUploadsInFlight(): boolean;
 /**
  * Página donde CAERÍA una inserción con estas opciones, sin insertar nada.
  *
@@ -191,9 +193,12 @@ export declare function replaceImageFromUrl(api: ExcalidrawImperativeAPI, elemen
  * BORRA el elemento. Nunca queda un base64 al que el guardado tenga que
  * enfrentarse.
  *
- * La ventana en la que sí existe dura lo que la subida. Si justo ahí cae un
- * autoguardado, `externalizeInlineImages` lo sube por su cuenta y deja un
- * duplicado en la mediateca — feo, pero la regla aguanta y el diseño se guarda.
+ * La ventana en la que sí existe dura lo que la subida, y durante ella el
+ * fichero queda anotado en `uploadsInFlight` para que `externalizeInlineImages`
+ * NO lo toque. Sin esa marca lo subía por su cuenta y dejaba un duplicado en la
+ * mediateca con el nombre `canvas-<uuid>.ext`: el guardado esperaba a que MM
+ * terminara de procesar, así que la ventana siempre se agotaba y el duplicado
+ * pasó de riesgo teórico a rutina.
  *
  * El cambio de fichero entra como `'never'` en el historial: es fontanería, y un
  * Ctrl+Z que devolviera el elemento al base64 recién sustituido sería justo lo
@@ -211,10 +216,23 @@ export interface ExternalizeResult {
     externalized: number;
     /** Ids que no se pudieron subir. Con esto ≠ 0, NO se debe guardar. */
     failed: string[];
+    /**
+     * Ids que se han SALTADO porque ya se están subiendo por otra vía.
+     *
+     * No son un fallo: terminarán solos en unos segundos. Pero tampoco se puede
+     * guardar todavía, porque sus bytes siguen en la escena — quien llama debe
+     * reintentar, no abortar con un error a la cara del usuario.
+     */
+    skipped: string[];
 }
 /**
  * Convierte a ficheros de MediaMonster todo el base64 que haya entrado por la
  * vía nativa de Excalidraw (arrastrar / pegar / selector).
+ *
+ * Se saltan los ficheros anotados en `uploadsInFlight`: esos ya van camino de
+ * MM por la vía del insertador con vista previa, y subirlos aquí otra vez era la
+ * causa de los duplicados `canvas-<uuid>.ext` en la mediateca. Salen en
+ * `skipped`, que no es un fallo pero SÍ impide guardar todavía.
  *
  * Detalle importante: NO se reutiliza el id del fichero. `api.addFiles()`
  * delega en `addMissingFiles()`, que hace `continue` con todo id ya existente,

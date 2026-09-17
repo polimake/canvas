@@ -105,6 +105,22 @@ export declare function addPage(api: ExcalidrawImperativeAPI, pageSize?: PageSiz
 export declare function goToPage(api: ExcalidrawImperativeAPI, pageId: string, opts?: {
     coverage?: number;
 }): void;
+/**
+ * Seleccionar una capa y traerla a pantalla.
+ *
+ * Es el equivalente de `goToPage` para un elemento suelto: lo usa la capa de
+ * revisión para saltar desde un comentario a la capa que señala. Devuelve
+ * `false` si el id ya no está en la escena —el elemento se borró desde que se
+ * escribió el comentario—, para que quien llama pueda no ofrecer el salto en
+ * vez de dejar un control que no hace nada.
+ *
+ * Seleccionar es NAVEGAR, no editar: va con `capture: 'never'` para no dejar
+ * entrada en el historial. Deshacer justo después debe deshacer el último
+ * cambio real del usuario, no este salto de vista.
+ */
+export declare function focusLayer(api: ExcalidrawImperativeAPI, layerId: string, opts?: {
+    coverage?: number;
+}): boolean;
 /** Rename a page (its frame). */
 export declare function renamePage(api: ExcalidrawImperativeAPI, pageId: string, name: string): void;
 /**

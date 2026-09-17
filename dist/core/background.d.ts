@@ -16,10 +16,21 @@ export declare function buildPageBackground(pageId: string, bounds: {
     height: number;
 }, color: string): SceneElement[];
 /**
- * One-time migration for scenes created before pages had paper sheets: every
- * frame without a background rect gets a white one, in a SINGLE commit that is
- * invisible to undo by default (capture 'never') — otherwise the first Ctrl+Z
- * after opening a legacy scene would delete a page's paper.
+ * Garantiza el suelo de cada página: que TENGA papel y que el papel esté ABAJO.
+ *
+ * Nació como migración de una sola pasada para escenas anteriores al papel, y
+ * por eso volvía al primer `return` en cuanto todas las páginas tenían uno. El
+ * efecto era que el papel se colocaba bien el día que se creaba y nunca más se
+ * revisaba: bastaba que algo lo levantara UNA vez (un deshacer, un reordenado
+ * con la lista incompleta) para que la página se quedara tapada por su propio
+ * fondo para siempre, porque nadie volvía a bajarlo.
+ *
+ * Ahora corre en cada pasada del normalizador y hace las dos mitades —crear el
+ * que falte y hundir el que se haya levantado— en un SOLO commit invisible al
+ * historial (`capture: 'never'`): es la forma canónica de la escena, no una
+ * edición del usuario, y el primer Ctrl+Z tras abrir no debe borrar un papel.
+ * Si no hay nada que corregir no commitea nada, que es lo que la hace apta para
+ * un `onChange`.
  */
 export declare function ensurePagePapers(api: ExcalidrawImperativeAPI, capture?: CaptureMode): void;
 /** Current background color of a page, or null if it has none. */

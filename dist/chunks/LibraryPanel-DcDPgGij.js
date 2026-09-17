@@ -28,6 +28,17 @@ function commitElements(api, elements, capture = "undoable", appState) {
     captureUpdate: CAPTURE[capture]
   });
 }
+const BG_MARKER$1 = "pageBackground";
+function isPaper(el) {
+  var _a;
+  return ((_a = el.customData) == null ? void 0 : _a.c2) === BG_MARKER$1;
+}
+function floorFirst(members, orderedBottomFirst) {
+  const paperIds = members.filter(isPaper).map((e) => e.id);
+  if (paperIds.length === 0) return [...orderedBottomFirst];
+  const paper = new Set(paperIds);
+  return [...paperIds, ...orderedBottomFirst.filter((id) => !paper.has(id))];
+}
 function reorderMembersInArray(els, pageId, orderedMemberIdsBottomFirst) {
   const memberSlots = [];
   const byId = /* @__PURE__ */ new Map();
@@ -38,9 +49,13 @@ function reorderMembersInArray(els, pageId, orderedMemberIdsBottomFirst) {
     }
   });
   if (memberSlots.length === 0) return els;
+  const bottomFirst = floorFirst(
+    memberSlots.map((slot) => els[slot]),
+    orderedMemberIdsBottomFirst
+  );
   const ordered = [];
   const seen = /* @__PURE__ */ new Set();
-  for (const id of orderedMemberIdsBottomFirst) {
+  for (const id of bottomFirst) {
     const e = byId.get(id);
     if (e && !seen.has(id)) {
       ordered.push(e);
@@ -103,20 +118,26 @@ function buildPageBackground(pageId, bounds, color2) {
 function ensurePagePapers(api, capture = "never") {
   const elements = api.getSceneElements();
   const frames2 = elements.filter((e) => e.type === "frame");
+  if (frames2.length === 0) return;
   const withPaper = new Set(
     elements.filter((e) => e.frameId && isPageBackground(e)).map((e) => e.frameId)
   );
   const missing = frames2.filter((f) => !withPaper.has(f.id));
-  if (missing.length === 0) return;
+  const sunk = frames2.filter((f) => {
+    const members = elements.filter((e) => e.frameId === f.id);
+    return members.length > 1 && !isPageBackground(members[0]);
+  });
+  if (missing.length === 0 && sunk.length === 0) return;
   let combined = [...elements];
-  const inserted = [];
   for (const frame of missing) {
-    const paper = buildPageBackground(frame.id, frame, "#ffffff");
-    combined = [...combined, ...paper];
-    if (paper[0]) inserted.push({ pageId: frame.id, paperId: paper[0].id });
+    combined = [...combined, ...buildPageBackground(frame.id, frame, "#ffffff")];
   }
-  for (const { pageId, paperId } of inserted) {
-    combined = reorderMembersInArray(combined, pageId, [paperId]);
+  for (const frame of [...missing, ...sunk]) {
+    combined = reorderMembersInArray(
+      combined,
+      frame.id,
+      combined.filter((e) => e.frameId === frame.id).map((e) => e.id)
+    );
   }
   commitElements(api, combined, capture);
 }
@@ -348,6 +369,19 @@ function goToPage(api, pageId, opts) {
     animate: true,
     duration: 300
   });
+}
+function focusLayer(api, layerId, opts) {
+  const elements = api.getSceneElements();
+  const el = elements.find((e) => e.id === layerId && !e.isDeleted);
+  if (!el) return false;
+  commitElements(api, elements, "never", { selectedElementIds: { [layerId]: true } });
+  api.scrollToContent(el, {
+    fitToViewport: true,
+    viewportZoomFactor: Math.min(1, Math.max(0.1, (opts == null ? void 0 : opts.coverage) ?? PAGE_VIEWPORT_COVERAGE)),
+    animate: true,
+    duration: 300
+  });
+  return true;
 }
 function renamePage(api, pageId, name) {
   const next = api.getSceneElements().map(
@@ -1970,6 +2004,11 @@ function createFileId() {
   }
   return `file_${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
 }
+const handledByUpload = /* @__PURE__ */ new Set();
+const uploadsInFlight = /* @__PURE__ */ new Set();
+function hasUploadsInFlight() {
+  return uploadsInFlight.size > 0;
+}
 function frames$1(api) {
   return api.getSceneElements().filter((e) => e.type === "frame").slice().sort((a, b) => a.x - b.x);
 }
@@ -2049,9 +2088,10 @@ function dataUrlToBlob(dataUrl) {
   return new Blob([bytes], { type: mime });
 }
 function insertImageByReference(api, file, opts) {
-  var _a;
+  var _a, _b;
   const fileId = createFileId();
-  const mimeType = ((_a = file.mimeType) == null ? void 0 : _a.startsWith("image/")) ? file.mimeType : "image/png";
+  (_a = opts == null ? void 0 : opts.onFileId) == null ? void 0 : _a.call(opts, fileId);
+  const mimeType = ((_b = file.mimeType) == null ? void 0 : _b.startsWith("image/")) ? file.mimeType : "image/png";
   api.addFiles([
     { id: fileId, dataURL: file.url, mimeType, created: Date.now() }
   ]);
@@ -2144,10 +2184,21 @@ async function insertImageWithPreview(api, blob, uploader, opts) {
   const filename = (opts == null ? void 0 : opts.filename) ?? `canvas-${Date.now()}.png`;
   const local = await blobToDataUrl(blob);
   const { width, height } = await loadImageSize(local);
+  let pendingFileId = null;
   const elementId = insertImageByReference(
     api,
     { url: local, mimeType: blob.type || "image/png", width, height },
-    opts
+    {
+      ...opts,
+      // Anotado ANTES de que la subida empiece: el `addFiles` de ahí dentro ya
+      // dispara el `onChange` de la escena, así que un guardado puede entrar
+      // antes de la siguiente línea de esta función.
+      onFileId: (id) => {
+        pendingFileId = id;
+        uploadsInFlight.add(id);
+        handledByUpload.add(id);
+      }
+    }
   );
   let url2;
   try {
@@ -2161,6 +2212,10 @@ async function insertImageWithPreview(api, blob, uploader, opts) {
       api.getSceneElements().filter((el) => el.id !== elementId),
       "never"
     );
+    if (pendingFileId) {
+      uploadsInFlight.delete(pendingFileId);
+      handledByUpload.delete(pendingFileId);
+    }
     throw e;
   }
   const fileId = createFileId();
@@ -2174,6 +2229,7 @@ async function insertImageWithPreview(api, blob, uploader, opts) {
     ),
     "never"
   );
+  if (pendingFileId) uploadsInFlight.delete(pendingFileId);
   return elementId;
 }
 function findInlineImageIds(files) {
@@ -2182,8 +2238,10 @@ function findInlineImageIds(files) {
 async function externalizeInlineImages(api, uploader) {
   var _a;
   const files = api.getFiles() ?? {};
-  const inline = Object.values(files).filter((f) => f && isInlineDataUrl(f.dataURL));
-  if (inline.length === 0) return { externalized: 0, failed: [] };
+  const all = Object.values(files).filter((f) => f && isInlineDataUrl(f.dataURL));
+  const skipped = all.filter((f) => uploadsInFlight.has(f.id)).map((f) => f.id);
+  const inline = all.filter((f) => !handledByUpload.has(f.id));
+  if (inline.length === 0) return { externalized: 0, failed: [], skipped };
   const remap = /* @__PURE__ */ new Map();
   const failed = [];
   for (const file of inline) {
@@ -2209,7 +2267,7 @@ async function externalizeInlineImages(api, uploader) {
     });
     commitElements(api, next, "never");
   }
-  return { externalized: remap.size, failed };
+  return { externalized: remap.size, failed, skipped };
 }
 function buildPersistableFiles(elements, files) {
   const source = files ?? {};
@@ -2279,7 +2337,9 @@ function setVideoPoster(api, elementId, poster) {
   const el = elements.find((e) => e.id === elementId);
   const meta = el ? readMeta(el) : null;
   if (!el || !meta) return false;
-  const fileId = `c2v_${elementId}_${Math.round(poster.timeSec * 1e3)}`;
+  const ms = Math.round(Number(poster.timeSec) * 1e3);
+  const stamp = Number.isFinite(ms) ? String(ms) : `t${Date.now()}`;
+  const fileId = `c2v_${elementId}_${stamp}`;
   api.addFiles([
     {
       id: fileId,
@@ -3775,9 +3835,7 @@ function LayersPanel({
     const to = topFirst.indexOf(targetId);
     if (from < 0 || to < 0) return;
     topFirst.splice(to, 0, topFirst.splice(from, 1)[0]);
-    const paper = els.find((e) => e.frameId === activePageId && isPageBackground(e));
-    const bottomFirst = [...paper ? [paper.id] : [], ...[...topFirst].reverse()];
-    commitElements(api, reorderPageMembers(api, activePageId, bottomFirst));
+    commitElements(api, reorderPageMembers(api, activePageId, [...topFirst].reverse()));
   };
   const iconBtn = (label, onClick, node, danger = false) => /* @__PURE__ */ jsx(
     "button",
@@ -4981,7 +5039,7 @@ function LibraryPanel({
   );
 }
 export {
-  resolveBrandKit as $,
+  sendMemberToBack as $,
   relayoutPages as A,
   BrandGallery as B,
   Canvas2 as C,
@@ -4991,64 +5049,66 @@ export {
   movePageTo as G,
   isPageLocked as H,
   setPageLocked as I,
-  convertToPages as J,
-  adoptLooseIntoPage as K,
+  focusLayer as J,
+  convertToPages as K,
   LayersPanel as L,
   MEDIA_DROP_TYPE as M,
-  paginateSceneInArray as N,
-  clusterLooseElements as O,
+  adoptLooseIntoPage as N,
+  paginateSceneInArray as O,
   PageNavigator as P,
-  looseElements as Q,
+  clusterLooseElements as Q,
   RightDock as R,
-  patchElement as S,
-  usePageThumbnails as T,
-  PAGE_ALIGNMENTS as U,
+  looseElements as S,
+  patchElement as T,
+  usePageThumbnails as U,
   VideoFramePicker as V,
-  alignToPage as W,
-  setAsBackground as X,
-  extendToPage as Y,
-  reorderPageMembers as Z,
-  sendMemberToBack as _,
+  PAGE_ALIGNMENTS as W,
+  alignToPage as X,
+  setAsBackground as Y,
+  extendToPage as Z,
+  reorderPageMembers as _,
   Canvas2Editor as a,
-  EMPTY_BRAND as a0,
-  registerCustomFont as a1,
-  registerCustomFonts as a2,
-  fontFamilyId as a3,
-  serializeScene as a4,
-  parseScene as a5,
-  restoreScene as a6,
-  exportScenePng as a7,
-  exportSceneSvg as a8,
-  exportScenePdf as a9,
-  getVideoMeta as aA,
-  getSelectedVideo as aB,
-  VIDEO_MARKER as aC,
-  captureThumbnail as aa,
-  downloadBlob as ab,
-  exportStoredSceneSvg as ac,
-  exportStoredScenePng as ad,
-  storedScenePageCount as ae,
-  insertImageFromBlob as af,
-  insertImageFromUrl as ag,
-  insertImageWithPreview as ah,
-  replaceImageFromUrl as ai,
-  resolveInsertPageId as aj,
-  cascadePoints as ak,
-  imageAtScenePoint as al,
-  externalizeInlineImages as am,
-  findInlineImageIds as an,
-  isInlineDataUrl as ao,
-  dataUrlToBlob as ap,
-  TEXT_PRESETS as aq,
-  insertTextPreset as ar,
-  contrastTextColor as as,
-  getPageBackground as at,
-  setPageBackgroundColor as au,
-  ensurePagePapers as av,
-  isPageBackground as aw,
-  insertVideo as ax,
-  setVideoPoster as ay,
-  isVideoElement as az,
+  resolveBrandKit as a0,
+  EMPTY_BRAND as a1,
+  registerCustomFont as a2,
+  registerCustomFonts as a3,
+  fontFamilyId as a4,
+  serializeScene as a5,
+  parseScene as a6,
+  restoreScene as a7,
+  exportScenePng as a8,
+  exportSceneSvg as a9,
+  setVideoPoster as aA,
+  isVideoElement as aB,
+  getVideoMeta as aC,
+  getSelectedVideo as aD,
+  VIDEO_MARKER as aE,
+  exportScenePdf as aa,
+  captureThumbnail as ab,
+  downloadBlob as ac,
+  exportStoredSceneSvg as ad,
+  exportStoredScenePng as ae,
+  storedScenePageCount as af,
+  insertImageFromBlob as ag,
+  insertImageFromUrl as ah,
+  insertImageWithPreview as ai,
+  replaceImageFromUrl as aj,
+  resolveInsertPageId as ak,
+  cascadePoints as al,
+  imageAtScenePoint as am,
+  externalizeInlineImages as an,
+  hasUploadsInFlight as ao,
+  findInlineImageIds as ap,
+  isInlineDataUrl as aq,
+  dataUrlToBlob as ar,
+  TEXT_PRESETS as as,
+  insertTextPreset as at,
+  contrastTextColor as au,
+  getPageBackground as av,
+  setPageBackgroundColor as aw,
+  ensurePagePapers as ax,
+  isPageBackground as ay,
+  insertVideo as az,
   CanvasMenu as b,
   LibraryPanel as c,
   PageActions as d,
@@ -5075,4 +5135,4 @@ export {
   duplicatePage as y,
   resizePage as z
 };
-//# sourceMappingURL=LibraryPanel-CyIW6tbs.js.map
+//# sourceMappingURL=LibraryPanel-DcDPgGij.js.map
