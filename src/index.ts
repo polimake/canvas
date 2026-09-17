@@ -140,8 +140,6 @@ export { BrandGallery } from './ui/panels/BrandGallery';
 export type { BrandGalleryProps } from './ui/panels/BrandGallery';
 // Pastilla flotante de arriba a la derecha: Diseño, Capas y Componentes en
 // pestañas. La monta Canvas2Editor.
-export { RightDock } from './ui/panels/RightDock';
-export type { RightDockProps } from './ui/panels/RightDock';
 // Contenido de la pestaña Diseño: marca del cliente + tamaño y fondo de la
 // página activa.
 export { DesignPanel } from './ui/panels/DesignPanel';

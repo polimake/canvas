@@ -1,7 +1,7 @@
 import { jsxs, jsx, Fragment as Fragment$1 } from "react/jsx-runtime";
 import { useState, useRef, useEffect, Fragment, useMemo, useCallback, useId } from "react";
 import "@excalidraw/excalidraw/index.css";
-import { newElementWith, CaptureUpdateAction, convertToExcalidrawElements, serializeAsJSON, restore, exportToBlob, exportToCanvas, exportToSvg, FONT_FAMILY, MainMenu, viewportCoordsToSceneCoords, getVisibleSceneBounds, Excalidraw, getNonDeletedElements } from "@excalidraw/excalidraw";
+import { CaptureUpdateAction, newElementWith, convertToExcalidrawElements, restore, serializeAsJSON, exportToCanvas, exportToBlob, exportToSvg, FONT_FAMILY, MainMenu, viewportCoordsToSceneCoords, getVisibleSceneBounds, Excalidraw, getNonDeletedElements } from "@excalidraw/excalidraw";
 import { cloneSceneElements } from "../components.js";
 import { P as PAGE_GAP } from "./layout-BEpoNps2.js";
 import { fontFormatHint, buildFontFaceCss, fontFamilyAlias, customFontFamilyId, normalizeFontSrc, dedupeFontFaces } from "../fonts.js";
@@ -4068,168 +4068,6 @@ function LayersPanel({
     }
   );
 }
-function RightDock({
-  api,
-  activePageId,
-  theme = "light",
-  narrow = false,
-  viewMode = false,
-  brandKit,
-  layers = false,
-  design = false,
-  componentsPanel,
-  agentPanel,
-  labels: labelsProp
-}) {
-  const L = mergeLabels(labelsProp);
-  const c = palette[theme];
-  const [tab, setTab] = useState("diseno");
-  const [abierto, setAbierto] = useState(false);
-  const hayDiseno = design && !viewMode;
-  const hayComponentes = Boolean(componentsPanel) && !viewMode;
-  const hayAgente = Boolean(agentPanel) && !viewMode;
-  const disponibles = [
-    ...hayDiseno ? ["diseno"] : [],
-    ...layers ? ["capas"] : [],
-    ...hayComponentes ? ["componentes"] : [],
-    ...hayAgente ? ["agente"] : []
-  ];
-  if (!api || disponibles.length === 0) return null;
-  const activa = disponibles.includes(tab) ? tab : disponibles[0];
-  const rotulo = {
-    diseno: L.dock.design,
-    capas: L.dock.layers,
-    componentes: L.dock.components,
-    agente: L.dock.agent
-  };
-  const tabStyle = (t) => ({
-    all: "unset",
-    cursor: "pointer",
-    padding: "4px 9px",
-    borderRadius: 6,
-    fontSize: 12,
-    fontWeight: 600,
-    whiteSpace: "nowrap",
-    color: abierto && activa === t ? c.fg : c.sub,
-    background: abierto && activa === t ? c.hover : "transparent"
-  });
-  return /* @__PURE__ */ jsxs(
-    "div",
-    {
-      "data-testid": "canvas2-right-dock",
-      "data-canvas2-dock": "",
-      style: {
-        position: "absolute",
-        // A la IZQUIERDA en estrecho. Con la distribución de móvil de Excalidraw
-        // el borde derecho lo ocupa su `mobile-misc-tools-container` (medido:
-        // top 85-155, pegado al borde), y esta pastilla se le echaba encima —
-        // en un iPhone de 390 y también en una tableta de 820, porque el corte
-        // de Excalidraw está en 861 y no en los 768 que usa la app.
-        ...narrow ? { left: 12 } : { right: 12 },
-        // POR DEBAJO de la fila de herramientas, no a su altura. Medido en el
-        // navegador: `.App-menu_top` ocupa de y=18 a y=67, y la barra de
-        // herramientas va centrada y mide ~610px, así que abierta (248px) esta
-        // pastilla se metía debajo de su extremo derecho. 76 deja la fila
-        // entera para Excalidraw y ~9px de aire.
-        top: 76,
-        zIndex: 95,
-        // La pestaña del agente lleva una conversación dentro, y una
-        // conversación en 248px no se lee: se corta cada línea a la mitad.
-        width: abierto ? activa === "agente" ? 420 : 248 : "auto",
-        // Nunca más ancha que el lienzo: 248px en un teléfono de 390 se comía
-        // dos tercios de la pantalla.
-        maxWidth: "calc(100% - 24px)",
-        // Hasta justo encima de la tira de páginas, que vive abajo y centrada.
-        maxHeight: activa === "agente" ? `calc(100% - ${narrow ? 140 : 96}px)` : `calc(100% - ${narrow ? 250 : 192}px)`,
-        display: "flex",
-        flexDirection: "column",
-        borderRadius: 12,
-        background: c.bg,
-        color: c.fg,
-        border: `1px solid ${c.border}`,
-        boxShadow: "0 4px 16px rgba(0,0,0,0.18)",
-        font: `12px ${PANEL_FONT}`,
-        overflow: "hidden"
-      },
-      children: [
-        /* @__PURE__ */ jsxs(
-          "div",
-          {
-            style: {
-              display: "flex",
-              alignItems: "center",
-              gap: 2,
-              padding: 4,
-              borderBottom: abierto ? `1px solid ${c.border}` : "none",
-              flexShrink: 0
-            },
-            children: [
-              disponibles.map((t) => /* @__PURE__ */ jsx(
-                "button",
-                {
-                  type: "button",
-                  onClick: () => {
-                    if (abierto && activa === t) {
-                      setAbierto(false);
-                      return;
-                    }
-                    setTab(t);
-                    setAbierto(true);
-                  },
-                  style: tabStyle(t),
-                  children: rotulo[t]
-                },
-                t
-              )),
-              /* @__PURE__ */ jsx(
-                "button",
-                {
-                  type: "button",
-                  onClick: () => setAbierto((v) => !v),
-                  title: abierto ? L.dock.collapse : L.dock.expand,
-                  "aria-label": abierto ? L.dock.collapse : L.dock.expand,
-                  style: {
-                    all: "unset",
-                    cursor: "pointer",
-                    marginLeft: "auto",
-                    padding: "2px 6px",
-                    color: c.sub
-                  },
-                  children: abierto ? "▾" : "▸"
-                }
-              )
-            ]
-          }
-        ),
-        abierto && /* @__PURE__ */ jsx("div", { style: { minHeight: 0, flex: 1, overflow: "hidden", display: "flex" }, children: activa === "capas" ? /* @__PURE__ */ jsx(
-          LayersPanel,
-          {
-            api,
-            activePageId,
-            theme,
-            viewMode,
-            embedded: true
-          }
-        ) : activa === "componentes" ? /* @__PURE__ */ jsx("div", { style: { width: "100%", minHeight: 0, overflowY: "auto" }, children: componentsPanel }) : activa === "agente" ? (
-          // Sin `overflowY` aquí: el panel del host trae su propio scroll
-          // —una conversación se desplaza sola— y dos scrolls anidados es
-          // el clásico «no puedo llegar al final».
-          /* @__PURE__ */ jsx("div", { style: { width: "100%", minHeight: 0, display: "flex" }, children: agentPanel })
-        ) : /* @__PURE__ */ jsx(
-          DesignPanel,
-          {
-            api,
-            activePageId,
-            theme,
-            viewMode,
-            brandKit,
-            labels: labelsProp
-          }
-        ) })
-      ]
-    }
-  );
-}
 function DesignWorkspace({ panels }) {
   const [selected, setSelected] = useState();
   const [collapsed, setCollapsed] = useState(false);
@@ -4902,18 +4740,6 @@ ${css}` : css;
                 onActiveChange: setActivePageId,
                 labels
               }
-            ),
-            viewMode && layers && pages && /* @__PURE__ */ jsx(
-              RightDock,
-              {
-                api,
-                activePageId,
-                theme,
-                narrow,
-                viewMode: true,
-                layers: true,
-                labels
-              }
             )
           ]
         }
@@ -5039,100 +4865,99 @@ function LibraryPanel({
   );
 }
 export {
-  sendMemberToBack as $,
-  relayoutPages as A,
+  getPageBackground as $,
+  convertToPages as A,
   BrandGallery as B,
   Canvas2 as C,
-  DesignPanel as D,
-  adoptStrayFramesInArray as E,
-  movePage as F,
-  movePageTo as G,
-  isPageLocked as H,
-  setPageLocked as I,
-  focusLayer as J,
-  convertToPages as K,
+  DEFAULT_LABELS as D,
+  EMPTY_BRAND as E,
+  createBlankScene as F,
+  dataUrlToBlob as G,
+  deletePage as H,
+  downloadBlob as I,
+  duplicatePage as J,
+  ensurePagePapers as K,
   LayersPanel as L,
   MEDIA_DROP_TYPE as M,
-  adoptLooseIntoPage as N,
-  paginateSceneInArray as O,
-  PageNavigator as P,
-  clusterLooseElements as Q,
-  RightDock as R,
-  looseElements as S,
-  patchElement as T,
-  usePageThumbnails as U,
+  exportScenePdf as N,
+  exportScenePng as O,
+  PANEL_FONT as P,
+  exportSceneSvg as Q,
+  exportStoredScenePng as R,
+  exportStoredSceneSvg as S,
+  TEXT_PRESETS as T,
+  extendToPage as U,
   VideoFramePicker as V,
-  PAGE_ALIGNMENTS as W,
-  alignToPage as X,
-  setAsBackground as Y,
-  extendToPage as Z,
-  reorderPageMembers as _,
+  externalizeInlineImages as W,
+  findInlineImageIds as X,
+  fitAllPages as Y,
+  focusLayer as Z,
+  fontFamilyId as _,
   Canvas2Editor as a,
-  resolveBrandKit as a0,
-  EMPTY_BRAND as a1,
-  registerCustomFont as a2,
-  registerCustomFonts as a3,
-  fontFamilyId as a4,
-  serializeScene as a5,
-  parseScene as a6,
-  restoreScene as a7,
-  exportScenePng as a8,
-  exportSceneSvg as a9,
-  setVideoPoster as aA,
-  isVideoElement as aB,
-  getVideoMeta as aC,
-  getSelectedVideo as aD,
-  VIDEO_MARKER as aE,
-  exportScenePdf as aa,
-  captureThumbnail as ab,
-  downloadBlob as ac,
-  exportStoredSceneSvg as ad,
-  exportStoredScenePng as ae,
-  storedScenePageCount as af,
-  insertImageFromBlob as ag,
-  insertImageFromUrl as ah,
-  insertImageWithPreview as ai,
-  replaceImageFromUrl as aj,
-  resolveInsertPageId as ak,
-  cascadePoints as al,
-  imageAtScenePoint as am,
-  externalizeInlineImages as an,
-  hasUploadsInFlight as ao,
-  findInlineImageIds as ap,
-  isInlineDataUrl as aq,
-  dataUrlToBlob as ar,
-  TEXT_PRESETS as as,
-  insertTextPreset as at,
-  contrastTextColor as au,
-  getPageBackground as av,
-  setPageBackgroundColor as aw,
-  ensurePagePapers as ax,
-  isPageBackground as ay,
-  insertVideo as az,
+  getPageSize as a0,
+  getSelectedVideo as a1,
+  getVideoMeta as a2,
+  hasUploadsInFlight as a3,
+  hideNativeDragImage as a4,
+  imageAtScenePoint as a5,
+  insertImageFromBlob as a6,
+  insertImageFromUrl as a7,
+  insertImageWithPreview as a8,
+  insertTextPreset as a9,
+  setPageLocked as aA,
+  setVideoPoster as aB,
+  storedScenePageCount as aC,
+  usePageThumbnails as aD,
+  insertVideo as aa,
+  isInlineDataUrl as ab,
+  isPageBackground as ac,
+  isPageLocked as ad,
+  isVideoElement as ae,
+  listPages as af,
+  looseElements as ag,
+  movePage as ah,
+  movePageTo as ai,
+  paginateSceneInArray as aj,
+  parseScene as ak,
+  patchElement as al,
+  registerCustomFont as am,
+  registerCustomFonts as an,
+  relayoutPages as ao,
+  renamePage as ap,
+  reorderPageMembers as aq,
+  replaceImageFromUrl as ar,
+  resizePage as as,
+  resolveBrandKit as at,
+  resolveInsertPageId as au,
+  restoreScene as av,
+  sendMemberToBack as aw,
+  serializeScene as ax,
+  setAsBackground as ay,
+  setPageBackgroundColor as az,
   CanvasMenu as b,
-  LibraryPanel as c,
-  PageActions as d,
-  DragPreview as e,
-  DEFAULT_LABELS as f,
-  PANEL_FONT as g,
-  packPagesInArray as h,
-  commitElements as i,
-  goToPage as j,
-  buildPersistableFiles as k,
-  hideNativeDragImage as l,
+  DesignPanel as c,
+  DragPreview as d,
+  LibraryPanel as e,
+  PageActions as f,
+  PageNavigator as g,
+  buildPersistableFiles as h,
+  packPagesInArray as i,
+  commitElements as j,
+  goToPage as k,
+  DEFAULT_PAGE_SIZE as l,
   mergeLabels as m,
-  DEFAULT_PAGE_SIZE as n,
+  PAGE_ALIGNMENTS as n,
   PAGE_SIZE_PRESETS as o,
   palette as p,
-  createBlankScene as q,
+  VIDEO_MARKER as q,
   renumberPagesInArray as r,
-  listPages as s,
-  getPageSize as t,
-  addPage as u,
-  deletePage as v,
-  fitAllPages as w,
-  renamePage as x,
-  duplicatePage as y,
-  resizePage as z
+  addPage as s,
+  adoptLooseIntoPage as t,
+  adoptStrayFramesInArray as u,
+  alignToPage as v,
+  captureThumbnail as w,
+  cascadePoints as x,
+  clusterLooseElements as y,
+  contrastTextColor as z
 };
-//# sourceMappingURL=LibraryPanel-DcDPgGij.js.map
+//# sourceMappingURL=LibraryPanel-BHuyx2oZ.js.map

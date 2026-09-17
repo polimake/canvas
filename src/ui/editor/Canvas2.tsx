@@ -20,7 +20,6 @@ import { InsertPanel } from '../panels/InsertPanel';
 import { BrandGallery } from '../panels/BrandGallery';
 import { WorkspaceIcon } from '../workspaces/WorkspaceIcon';
 import { LayersPanel } from '../panels/LayersPanel';
-import { RightDock } from '../panels/RightDock';
 import { WorkspaceLayout } from '../workspaces/WorkspaceLayout';
 import type { CanvasWorkspace, WorkspacePanel } from '../workspaces/types';
 import { readWorkspace, saveWorkspace } from '../workspaces/preference';
@@ -964,8 +963,6 @@ export function Canvas2Editor({
           labels={labels}
         />
       )}
-      {viewMode && layers && pages && <RightDock api={api} activePageId={activePageId}
-        theme={theme} narrow={narrow} viewMode layers labels={labels} />}
     </div>
     </WorkspaceLayout>
   );

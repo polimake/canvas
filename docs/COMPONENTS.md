@@ -102,7 +102,6 @@ casi todos `theme`, `viewMode` y `labels`.
 
 | Componente | Qué es | Props propias |
 | --- | --- | --- |
-| `RightDock` | La pastilla flotante con las pestañas **Diseño / Capas / Componentes**. Decide sola qué pestañas hay según lo que reciba. | `layers`, `design`, `componentsPanel`, `brandKit`, `narrow` |
 | `LayersPanel` | Lista de elementos de la página activa: seleccionar, reordenar, renombrar, bloquear, borrar. Autónomo. | `activePageId`, `embedded` |
 | `DesignPanel` | Marca del cliente + tamaño y fondo de la página activa. | `activePageId`, `brandKit` |
 | `BrandGallery` | Colores y logos de la marca, insertables. La monta `DesignPanel`. | `brandKit`, `activePageId`, `embedded` |

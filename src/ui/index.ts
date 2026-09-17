@@ -12,8 +12,6 @@ export { DesignPanel } from './panels/DesignPanel';
 export type { DesignPanelProps } from './panels/DesignPanel';
 export { BrandGallery } from './panels/BrandGallery';
 export type { BrandGalleryProps } from './panels/BrandGallery';
-export { RightDock } from './panels/RightDock';
-export type { RightDockProps } from './panels/RightDock';
 export { LibraryPanel } from './panels/LibraryPanel';
 export type { LibraryPanelProps } from './panels/LibraryPanel';
 export { PageActions } from './navigation/PageActions';

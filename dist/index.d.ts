@@ -44,8 +44,6 @@ export { registerCustomFont, registerCustomFonts, fontFamilyId } from './core/fo
 export type { RegisteredFont } from './core/fontRegistry';
 export { BrandGallery } from './ui/panels/BrandGallery';
 export type { BrandGalleryProps } from './ui/panels/BrandGallery';
-export { RightDock } from './ui/panels/RightDock';
-export type { RightDockProps } from './ui/panels/RightDock';
 export { DesignPanel } from './ui/panels/DesignPanel';
 export type { DesignPanelProps } from './ui/panels/DesignPanel';
 export { LibraryPanel } from './ui/panels/LibraryPanel';

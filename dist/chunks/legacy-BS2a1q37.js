@@ -1,398 +1,15 @@
 import { P as PAGE_GAP } from "./layout-BEpoNps2.js";
-import { normalizeFontName, normalizeFontSrc, customFontFamilyId, fontFamilyAlias, dedupeFontFaces } from "../fonts.js";
+import { dedupeFontFaces, normalizeFontName, customFontFamilyId, normalizeFontSrc, fontFamilyAlias } from "../fonts.js";
+const PSD_IMAGE_MARKER = "psdImage";
 const PAPER_COLOR$1 = "#ffffff";
 const BG_MARKER$1 = "pageBackground";
 const DEFAULT_FONT_FAMILY$1 = 2;
-let idCounter$1 = 0;
-function makeId$1(seed) {
-  idCounter$1 += 1;
-  let hash = 2166136261;
-  const input = `${seed}:${idCounter$1}`;
-  for (let i = 0; i < input.length; i += 1) {
-    hash ^= input.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return (hash >>> 0).toString(36).padStart(7, "0") + idCounter$1.toString(36).padStart(3, "0");
-}
-function resetIdCounter() {
-  idCounter$1 = 0;
-}
-function baseElement$1(extra) {
-  return {
-    angle: 0,
-    strokeColor: "#1e1e1e",
-    backgroundColor: "transparent",
-    fillStyle: "solid",
-    strokeWidth: 1,
-    strokeStyle: "solid",
-    roughness: 0,
-    opacity: 100,
-    groupIds: [],
-    frameId: null,
-    roundness: null,
-    seed: 1,
-    version: 1,
-    versionNonce: 1,
-    isDeleted: false,
-    boundElements: null,
-    updated: 0,
-    link: null,
-    locked: false,
-    ...extra
-  };
-}
-const num$1 = (v, fallback = 0) => typeof v === "number" && Number.isFinite(v) ? v : fallback;
-function decodeEntities(s) {
-  return s.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
-}
-function styleValue(style, prop) {
-  const m = new RegExp(`${prop}\\s*:\\s*([^;]+)`, "i").exec(style);
-  return m ? m[1].trim() : null;
-}
-function parseLegacyText(html) {
-  var _a, _b;
-  const out = [];
-  const paragraphs = html.match(/<p\b[^>]*>[\s\S]*?<\/p>/gi);
-  const chunks = paragraphs ?? (html.trim() ? [`<p>${html}</p>`] : []);
-  for (const p of chunks) {
-    const pStyle = decodeEntities(((_a = /<p\b[^>]*style="([^"]*)"/i.exec(p)) == null ? void 0 : _a[1]) ?? "");
-    const spanStyle = decodeEntities(((_b = /<span\b[^>]*style="([^"]*)"/i.exec(p)) == null ? void 0 : _b[1]) ?? "");
-    const text = decodeEntities(p.replace(/<[^>]+>/g, "")).trim();
-    if (!text) continue;
-    const size = styleValue(pStyle, "font-size");
-    const familia = styleValue(spanStyle, "font-family") ?? styleValue(pStyle, "font-family");
-    out.push({
-      text,
-      fontSize: size ? parseFloat(size) : 20,
-      color: styleValue(spanStyle, "color") ?? styleValue(pStyle, "color") ?? "#1e1e1e",
-      align: styleValue(pStyle, "text-align") ?? "left",
-      fontFamily: familia ? normalizeFontName(familia) : ""
-    });
-  }
-  return out;
-}
-function groupParagraphs(paras) {
-  const groups = [];
-  for (const p of paras) {
-    const last = groups[groups.length - 1];
-    const head = last == null ? void 0 : last[0];
-    if (head && head.fontSize === p.fontSize && head.color === p.color && head.align === p.align && head.fontFamily === p.fontFamily) {
-      last.push(p);
-    } else {
-      groups.push([p]);
-    }
-  }
-  return groups;
-}
-function legacyToScene(editorConfig, options = {}) {
-  resetIdCounter();
-  const parsed = typeof editorConfig === "string" ? JSON.parse(editorConfig) : editorConfig;
-  const raw = Array.isArray(parsed) ? parsed : parsed && typeof parsed === "object" && !Array.isArray(parsed.elements) ? [parsed] : [];
-  const elements = [];
-  const filesOut = {};
-  const notes = [];
-  const counts = {};
-  const caras = [];
-  let offsetX = 0;
-  let sawText = false;
-  let sawUnsupported = false;
-  raw.forEach((page, pageIndex) => {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j;
-    const layers = page.c ?? {};
-    const root = layers.d;
-    const width = num$1((_b = (_a = root == null ? void 0 : root.g) == null ? void 0 : _a.h) == null ? void 0 : _b.i, 1080);
-    const height = num$1((_d = (_c = root == null ? void 0 : root.g) == null ? void 0 : _c.h) == null ? void 0 : _d.j, 1350);
-    const pageId = makeId$1(`frame-${pageIndex}`);
-    elements.push(
-      baseElement$1({
-        id: pageId,
-        type: "frame",
-        x: offsetX,
-        y: 0,
-        width,
-        height,
-        name: page.a || `Página ${pageIndex + 1}`,
-        strokeColor: "#bbb"
-      })
-    );
-    elements.push(
-      baseElement$1({
-        id: makeId$1(`paper-${pageIndex}`),
-        type: "rectangle",
-        x: offsetX,
-        y: 0,
-        width,
-        height,
-        backgroundColor: typeof ((_e = root == null ? void 0 : root.g) == null ? void 0 : _e.o) === "string" ? root.g.o : PAPER_COLOR$1,
-        fillStyle: "solid",
-        strokeColor: "#d4d4d8",
-        strokeWidth: 1,
-        roughness: 0,
-        roundness: null,
-        locked: true,
-        frameId: pageId,
-        customData: { c2: BG_MARKER$1 }
-      })
-    );
-    const bg = (_f = root == null ? void 0 : root.g) == null ? void 0 : _f.p;
-    const bgUrl = (bg == null ? void 0 : bg.y) ?? (bg == null ? void 0 : bg.aj);
-    if (typeof bgUrl === "string" && bgUrl) {
-      counts.RootBackgroundImage = (counts.RootBackgroundImage ?? 0) + 1;
-      if (bgUrl.startsWith("blob:")) {
-        notes.push({
-          page: pageIndex,
-          layer: "ROOT",
-          kind: "dropped",
-          detail: "fondo de página con URL blob: (bytes irrecuperables)"
-        });
-      } else {
-        const bgFileId = makeId$1(`bgfile-${pageIndex}`);
-        elements.push(
-          baseElement$1({
-            id: makeId$1(`bgimg-${pageIndex}`),
-            type: "image",
-            x: offsetX + num$1((_g = bg == null ? void 0 : bg.k) == null ? void 0 : _g.l),
-            y: num$1((_h = bg == null ? void 0 : bg.k) == null ? void 0 : _h.m),
-            width: num$1((_i = bg == null ? void 0 : bg.h) == null ? void 0 : _i.i, width),
-            height: num$1((_j = bg == null ? void 0 : bg.h) == null ? void 0 : _j.j, height),
-            angle: num$1(bg == null ? void 0 : bg.n) * Math.PI / 180,
-            fileId: bgFileId,
-            status: "saved",
-            scale: [1, 1],
-            crop: null,
-            frameId: pageId,
-            // El fondo no se selecciona al hacer clic en la foto: se comporta
-            // como fondo, igual que en el editor legacy.
-            locked: true
-          })
-        );
-        filesOut[bgFileId] = {
-          mimeType: bgUrl.endsWith(".webp") ? "image/webp" : "image/png",
-          id: bgFileId,
-          dataURL: bgUrl,
-          created: 0,
-          lastRetrieved: 0
-        };
-      }
-    }
-    const childIds = Array.isArray(root == null ? void 0 : root.s) ? root.s : [];
-    childIds.forEach((childId) => {
-      var _a2, _b2, _c2, _d2, _e2, _f2, _g2, _h2, _i2, _j2, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v;
-      const layer = layers[childId];
-      const kind = ((_a2 = layer == null ? void 0 : layer.e) == null ? void 0 : _a2.f) ?? "Unknown";
-      counts[kind] = (counts[kind] ?? 0) + 1;
-      const g = (layer == null ? void 0 : layer.g) ?? {};
-      const x = offsetX + num$1((_b2 = g.k) == null ? void 0 : _b2.l);
-      const y = num$1((_c2 = g.k) == null ? void 0 : _c2.m);
-      const w = num$1((_d2 = g.h) == null ? void 0 : _d2.i, width);
-      const h = num$1((_e2 = g.h) == null ? void 0 : _e2.j, height);
-      const angle = num$1(g.n) * Math.PI / 180;
-      if (kind === "ImageLayer") {
-        const url = ((_f2 = g.p) == null ? void 0 : _f2.y) ?? ((_g2 = g.p) == null ? void 0 : _g2.aj);
-        if (typeof url !== "string" || !url) {
-          notes.push({ page: pageIndex, layer: childId, kind: "dropped", detail: "ImageLayer sin URL" });
-          return;
-        }
-        if (url.startsWith("blob:")) {
-          notes.push({ page: pageIndex, layer: childId, kind: "dropped", detail: "URL blob: (bytes irrecuperables)" });
-          return;
-        }
-        const innerW = num$1((_i2 = (_h2 = g.p) == null ? void 0 : _h2.h) == null ? void 0 : _i2.i, w);
-        const innerH = num$1((_k = (_j2 = g.p) == null ? void 0 : _j2.h) == null ? void 0 : _k.j, h);
-        const innerX = num$1((_m = (_l = g.p) == null ? void 0 : _l.k) == null ? void 0 : _m.l);
-        const innerY = num$1((_o = (_n = g.p) == null ? void 0 : _n.k) == null ? void 0 : _o.m);
-        const fileId = makeId$1(`file-${pageIndex}-${childId}`);
-        elements.push(
-          baseElement$1({
-            id: makeId$1(`img-${pageIndex}-${childId}`),
-            type: "image",
-            x: x + innerX,
-            y: y + innerY,
-            width: innerW,
-            height: innerH,
-            angle,
-            fileId,
-            status: "saved",
-            scale: [1, 1],
-            crop: null,
-            frameId: pageId,
-            locked: Boolean(layer == null ? void 0 : layer.r)
-          })
-        );
-        filesOut[fileId] = {
-          mimeType: url.endsWith(".webp") ? "image/webp" : "image/png",
-          id: fileId,
-          // Excalidraw hace `image.src = <este campo>`, así que una URL remota
-          // funciona. Nada de dataURL: la escena pesa como el editorConfig.
-          dataURL: url,
-          created: 0,
-          lastRetrieved: 0
-        };
-        return;
-      }
-      if (kind === "VideoLayer") {
-        const media = g.ar;
-        const poster = (media == null ? void 0 : media.as) ?? (media == null ? void 0 : media.at) ?? ((_p = g.p) == null ? void 0 : _p.aj) ?? ((_q = g.p) == null ? void 0 : _q.y);
-        if (typeof poster !== "string" || !poster || poster.startsWith("blob:")) {
-          sawUnsupported = true;
-          notes.push({
-            page: pageIndex,
-            layer: childId,
-            kind: "dropped",
-            detail: "VideoLayer sin póster recuperable"
-          });
-          return;
-        }
-        const innerW = num$1((_r = media == null ? void 0 : media.h) == null ? void 0 : _r.i, w);
-        const innerH = num$1((_s = media == null ? void 0 : media.h) == null ? void 0 : _s.j, h);
-        const innerX = num$1((_t = media == null ? void 0 : media.k) == null ? void 0 : _t.l);
-        const innerY = num$1((_u = media == null ? void 0 : media.k) == null ? void 0 : _u.m);
-        const fileId = makeId$1(`vfile-${pageIndex}-${childId}`);
-        elements.push(
-          baseElement$1({
-            id: makeId$1(`vimg-${pageIndex}-${childId}`),
-            type: "image",
-            x: x + innerX,
-            y: y + innerY,
-            width: innerW,
-            height: innerH,
-            angle,
-            fileId,
-            status: "saved",
-            scale: [1, 1],
-            crop: null,
-            frameId: pageId,
-            locked: Boolean(layer == null ? void 0 : layer.r)
-          })
-        );
-        filesOut[fileId] = {
-          mimeType: poster.endsWith(".webp") ? "image/webp" : "image/png",
-          id: fileId,
-          dataURL: poster,
-          created: 0,
-          lastRetrieved: 0
-        };
-        notes.push({
-          page: pageIndex,
-          layer: childId,
-          kind: "lossy",
-          detail: "VideoLayer → póster: se conserva el fotograma, no la reproducción"
-        });
-        return;
-      }
-      if (kind === "TextLayer") {
-        sawText = true;
-        const scale = num$1(g.u, 1);
-        const paras = parseLegacyText(typeof g.v === "string" ? g.v : "");
-        if (paras.length === 0) {
-          notes.push({ page: pageIndex, layer: childId, kind: "dropped", detail: "TextLayer vacía" });
-          return;
-        }
-        const groups = groupParagraphs(paras);
-        if (groups.length > 1) {
-          notes.push({
-            page: pageIndex,
-            layer: childId,
-            kind: "lossy",
-            detail: `estilos mixtos: 1 capa → ${groups.length} elementos (Excalidraw es un estilo por elemento)`
-          });
-        }
-        const catalogo = /* @__PURE__ */ new Map();
-        for (const f of g.w ?? []) {
-          const nombre = normalizeFontName((f == null ? void 0 : f.a) ?? (f == null ? void 0 : f.x) ?? "");
-          const url = typeof (f == null ? void 0 : f.y) === "string" ? f.y.trim() : "";
-          if (!nombre || !/^https?:\/\//i.test(url)) continue;
-          catalogo.set(nombre.toLowerCase(), {
-            url: normalizeFontSrc(url),
-            style: (f == null ? void 0 : f.z) && f.z !== "regular" ? f.z : void 0
-          });
-        }
-        let cursorY = y;
-        for (const group of groups) {
-          const head = group[0];
-          const size = head.fontSize * scale;
-          const text = group.map((p) => p.text).join("\n");
-          const boxH = group.length * size * 1.25;
-          let fontFamily = DEFAULT_FONT_FAMILY$1;
-          if (head.fontFamily) {
-            const fichero = catalogo.get(head.fontFamily.toLowerCase()) ?? ((_v = options.resolveFontUrl) == null ? void 0 : _v.call(options, head.fontFamily)) ?? null;
-            if (fichero) {
-              fontFamily = customFontFamilyId(head.fontFamily);
-              caras.push({
-                family: fontFamilyAlias(head.fontFamily),
-                src: normalizeFontSrc(fichero.url),
-                style: fichero.style
-              });
-            } else {
-              notes.push({
-                page: pageIndex,
-                layer: childId,
-                kind: "lossy",
-                detail: `sin fichero para la fuente "${head.fontFamily}"; se usa la de respaldo`
-              });
-            }
-          }
-          elements.push(
-            baseElement$1({
-              id: makeId$1(`txt-${pageIndex}-${childId}`),
-              type: "text",
-              x,
-              y: cursorY,
-              width: w * scale,
-              height: boxH,
-              angle,
-              text,
-              originalText: text,
-              fontSize: size,
-              fontFamily,
-              textAlign: head.align === "justify" ? "left" : head.align,
-              verticalAlign: "top",
-              containerId: null,
-              lineHeight: 1.25,
-              autoResize: false,
-              strokeColor: head.color,
-              frameId: pageId,
-              locked: Boolean(layer == null ? void 0 : layer.r)
-            })
-          );
-          cursorY += boxH;
-        }
-        return;
-      }
-      sawUnsupported = true;
-      notes.push({
-        page: pageIndex,
-        layer: childId,
-        kind: "dropped",
-        detail: `capa no soportada: ${kind}`
-      });
-    });
-    offsetX += width + PAGE_GAP;
-  });
-  const tier = sawUnsupported ? "T3" : sawText ? "T2" : "T1";
-  return {
-    elements,
-    files: filesOut,
-    fonts: dedupeFontFaces(caras),
-    report: {
-      pages: raw.length,
-      tier,
-      counts,
-      notes,
-      clean: notes.length === 0
-    }
-  };
-}
-const PSD_IMAGE_MARKER = "psdImage";
-const PAPER_COLOR = "#ffffff";
-const BG_MARKER = "pageBackground";
-const DEFAULT_FONT_FAMILY = 2;
 const PLACEHOLDER_FILL = "#e9ecef";
 const PLACEHOLDER_STROKE = "#adb5bd";
 const PLACEHOLDER_TEXT = "#6c757d";
-const num = (v, fallback = 0) => typeof v === "number" && Number.isFinite(v) ? v : fallback;
+const num$1 = (v, fallback = 0) => typeof v === "number" && Number.isFinite(v) ? v : fallback;
 function unitsToPx(u) {
-  return num(u == null ? void 0 : u.value);
+  return num$1(u == null ? void 0 : u.value);
 }
 const clamp01 = (v) => v < 0 ? 0 : v > 1 ? 1 : v;
 const hex2 = (v) => Math.round(clamp01(v) * 255).toString(16).padStart(2, "0");
@@ -419,23 +36,23 @@ function psdColorToHex(color) {
   }
   return null;
 }
-let idCounter = 0;
+let idCounter$1 = 0;
 let idSeed = "";
-function makeId(seed) {
-  idCounter += 1;
+function makeId$1(seed) {
+  idCounter$1 += 1;
   let hash = 2166136261;
-  const input = `${idSeed}:${seed}:${idCounter}`;
+  const input = `${idSeed}:${seed}:${idCounter$1}`;
   for (let i = 0; i < input.length; i += 1) {
     hash ^= input.charCodeAt(i);
     hash = Math.imul(hash, 16777619);
   }
-  return (hash >>> 0).toString(36).padStart(7, "0") + idCounter.toString(36).padStart(3, "0");
+  return (hash >>> 0).toString(36).padStart(7, "0") + idCounter$1.toString(36).padStart(3, "0");
 }
 function resetPsdIdCounter(seed = "") {
-  idCounter = 0;
+  idCounter$1 = 0;
   idSeed = seed;
 }
-function baseElement(extra) {
+function baseElement$1(extra) {
   return {
     angle: 0,
     strokeColor: "#1e1e1e",
@@ -569,21 +186,21 @@ function uniqueFilename(w, base, ext) {
   return candidato;
 }
 function visibleBounds(layer) {
-  let left = num(layer.left);
-  let top = num(layer.top);
-  let right = num(layer.right);
-  let bottom = num(layer.bottom);
+  let left = num$1(layer.left);
+  let top = num$1(layer.top);
+  let right = num$1(layer.right);
+  let bottom = num$1(layer.bottom);
   const m = layer.mask;
   if (m && m.disabled !== true && typeof m.left === "number" && typeof m.right === "number") {
-    left = Math.max(left, num(m.left));
-    top = Math.max(top, num(m.top));
-    right = Math.min(right, num(m.right));
-    bottom = Math.min(bottom, num(m.bottom));
+    left = Math.max(left, num$1(m.left));
+    top = Math.max(top, num$1(m.top));
+    right = Math.min(right, num$1(m.right));
+    bottom = Math.min(bottom, num$1(m.bottom));
   }
   return { left, top, right, bottom };
 }
 function commonProps(layer, page, groupIds, inherited = 1) {
-  const o = num(layer.opacity, 1) * num(layer.fillOpacity, 1) * inherited;
+  const o = num$1(layer.opacity, 1) * num$1(layer.fillOpacity, 1) * inherited;
   return {
     opacity: Math.round(clamp01(o) * 100),
     frameId: page.frameId,
@@ -643,7 +260,7 @@ function groupStyleRuns(text, textData) {
   const grupos = [];
   let cursor = 0;
   for (const run of runs) {
-    const len = num(run.length);
+    const len = num$1(run.length);
     if (len <= 0) continue;
     const trozo = text.slice(cursor, cursor + len);
     cursor += len;
@@ -731,12 +348,12 @@ function convertText(w, layer, page, groupIds, inherited, options) {
   let cursorY = page.dy + caja.y * S;
   for (const grupo of grupos) {
     const estilo = grupo.style;
-    const size = Math.max(1, num(estilo.fontSize, 20) * caja.scale * S);
-    const leading = estilo.autoLeading === false ? num(estilo.leading) : 0;
-    const lineHeight = leading > 0 ? Math.max(0.5, leading / num(estilo.fontSize, 20)) : 1.25;
+    const size = Math.max(1, num$1(estilo.fontSize, 20) * caja.scale * S);
+    const leading = estilo.autoLeading === false ? num$1(estilo.leading) : 0;
+    const lineHeight = leading > 0 ? Math.max(0.5, leading / num$1(estilo.fontSize, 20)) : 1.25;
     const lineas = grupo.text.split("\n").length;
     const alto = lineas * size * lineHeight;
-    let fontFamily = DEFAULT_FONT_FAMILY;
+    let fontFamily = DEFAULT_FONT_FAMILY$1;
     const psName = ((_b = estilo.font) == null ? void 0 : _b.name) ?? "";
     if (psName) {
       const { family, style } = splitPostScriptFont(psName);
@@ -765,7 +382,7 @@ function convertText(w, layer, page, groupIds, inherited, options) {
     }
     const props = {
       ...commonProps(layer, page, groupIds, inherited),
-      id: makeId(`txt-${page.index}-${nombre}`),
+      id: makeId$1(`txt-${page.index}-${nombre}`),
       type: "text",
       x: page.dx + caja.x * S,
       y: cursorY,
@@ -784,7 +401,7 @@ function convertText(w, layer, page, groupIds, inherited, options) {
       autoResize: false,
       strokeColor: psdColorToHex(estilo.fillColor) ?? "#1e1e1e"
     };
-    w.elements.push(baseElement(props));
+    w.elements.push(baseElement$1(props));
     cursorY += alto;
   }
   bump(w, "text");
@@ -835,7 +452,7 @@ function convertShape(w, layer, page, groupIds, inherited) {
   const height = Math.max(1, (bottom - top) * S);
   if (tipo === ORIGIN_ELLIPSE) {
     w.elements.push(
-      baseElement({ ...props, id: makeId(`ell-${page.index}-${nombre}`), type: "ellipse", x, y, width, height })
+      baseElement$1({ ...props, id: makeId$1(`ell-${page.index}-${nombre}`), type: "ellipse", x, y, width, height })
     );
     bump(w, "shape:ellipse");
     return;
@@ -854,9 +471,9 @@ function convertShape(w, layer, page, groupIds, inherited) {
       note(w, page.index, nombre, "lossy", "radios de esquina distintos → Excalidraw solo tiene uno");
     }
     w.elements.push(
-      baseElement({
+      baseElement$1({
         ...props,
-        id: makeId(`rec-${page.index}-${nombre}`),
+        id: makeId$1(`rec-${page.index}-${nombre}`),
         type: "rectangle",
         x,
         y,
@@ -876,7 +493,7 @@ function convertShape(w, layer, page, groupIds, inherited) {
   });
   if (paths.length === 0) {
     w.elements.push(
-      baseElement({ ...props, id: makeId(`rec-${page.index}-${nombre}`), type: "rectangle", x, y, width, height })
+      baseElement$1({ ...props, id: makeId$1(`rec-${page.index}-${nombre}`), type: "rectangle", x, y, width, height })
     );
     bump(w, "shape:bbox");
     note(w, page.index, nombre, "lossy", "forma sin geometría legible → rectángulo de su caja");
@@ -902,9 +519,9 @@ function convertShape(w, layer, page, groupIds, inherited) {
     const locales = puntos.map(([px, py]) => [(px - minX) * S, (py - minY) * S]);
     if (cerrado) locales.push([locales[0][0], locales[0][1]]);
     w.elements.push(
-      baseElement({
+      baseElement$1({
         ...props,
-        id: makeId(`pth-${page.index}-${nombre}`),
+        id: makeId$1(`pth-${page.index}-${nombre}`),
         type: "line",
         x: page.dx + minX * S,
         y: page.dy + minY * S,
@@ -956,16 +573,16 @@ function convertRaster(w, layer, page, groupIds, inherited, address, path, docum
   const y = page.dy + vb.top * S;
   const width = Math.max(1, naturalWidth * S);
   const height = Math.max(1, naturalHeight * S);
-  const slotId = makeId(`img-${page.index}-${nombre}`);
+  const slotId = makeId$1(`img-${page.index}-${nombre}`);
   const filename = uniqueFilename(
     w,
     `${slugify(documentName)}-p${page.index + 1}-${slugify([...path, nombre].join("-"))}`,
     "png"
   );
-  const grupo = makeId(`imggrp-${page.index}-${nombre}`);
+  const grupo = makeId$1(`imggrp-${page.index}-${nombre}`);
   const gruposConHueco = [grupo, ...groupIds];
   w.elements.push(
-    baseElement({
+    baseElement$1({
       ...commonProps(layer, page, gruposConHueco, inherited),
       id: slotId,
       type: "rectangle",
@@ -992,9 +609,9 @@ function convertRaster(w, layer, page, groupIds, inherited, address, path, docum
 ${naturalWidth}×${naturalHeight}`;
   const alto = 2 * size * 1.25;
   w.elements.push(
-    baseElement({
+    baseElement$1({
       ...commonProps(layer, page, gruposConHueco, inherited),
-      id: makeId(`imglbl-${page.index}-${nombre}`),
+      id: makeId$1(`imglbl-${page.index}-${nombre}`),
       type: "text",
       x,
       y: y + Math.max(0, (height - alto) / 2),
@@ -1003,7 +620,7 @@ ${naturalWidth}×${naturalHeight}`;
       text: etiqueta,
       originalText: etiqueta,
       fontSize: size,
-      fontFamily: DEFAULT_FONT_FAMILY,
+      fontFamily: DEFAULT_FONT_FAMILY$1,
       textAlign: "center",
       verticalAlign: "top",
       containerId: null,
@@ -1044,11 +661,11 @@ function walkLayer(w, layer, page, groupIds, inherited, dir, path, options, docu
   }
   if (isGroup(layer)) {
     bump(w, "group");
-    const gid = makeId(`grp-${page.index}-${nombre}`);
+    const gid = makeId$1(`grp-${page.index}-${nombre}`);
     if (layer.blendMode && layer.blendMode !== "pass through" && layer.blendMode !== "normal") {
       note(w, page.index, nombre, "lossy", `grupo con modo de fusión "${layer.blendMode}"`);
     }
-    if (num(layer.opacity, 1) < 1) {
+    if (num$1(layer.opacity, 1) < 1) {
       note(w, page.index, nombre, "lossy", "opacidad de grupo → aplicada a cada hijo");
     }
     walkLayers(
@@ -1058,7 +675,7 @@ function walkLayer(w, layer, page, groupIds, inherited, dir, path, options, docu
       [gid, ...groupIds],
       // La opacidad del grupo BAJA a sus hijos: es lo que la nota de arriba
       // promete, y sin esto un grupo al 20% se pintaba opaco.
-      inherited * clamp01(num(layer.opacity, 1)),
+      inherited * clamp01(num$1(layer.opacity, 1)),
       dir,
       [...path, nombre],
       options,
@@ -1124,8 +741,8 @@ function walkLayers(w, layers, page, groupIds, inherited, address, path, options
 }
 function psdToScene(psd, options = {}) {
   const S = options.scale && options.scale > 0 ? options.scale : 1;
-  const docW = Math.max(1, num(psd.width, 1080));
-  const docH = Math.max(1, num(psd.height, 1350));
+  const docW = Math.max(1, num$1(psd.width, 1080));
+  const docH = Math.max(1, num$1(psd.height, 1350));
   const documentName = options.documentName || "psd";
   resetPsdIdCounter(documentName);
   const w = {
@@ -1154,11 +771,11 @@ function psdToScene(psd, options = {}) {
   });
   let offsetX = 0;
   const abrePagina = (index, nombre, left, top, width, height, fondo) => {
-    const frameId = makeId(`frame-${index}`);
+    const frameId = makeId$1(`frame-${index}`);
     const pw = Math.max(1, width * S);
     const ph = Math.max(1, height * S);
     w.elements.push(
-      baseElement({
+      baseElement$1({
         id: frameId,
         type: "frame",
         x: offsetX,
@@ -1170,8 +787,8 @@ function psdToScene(psd, options = {}) {
       })
     );
     w.elements.push(
-      baseElement({
-        id: makeId(`paper-${index}`),
+      baseElement$1({
+        id: makeId$1(`paper-${index}`),
         type: "rectangle",
         x: offsetX,
         y: 0,
@@ -1184,7 +801,7 @@ function psdToScene(psd, options = {}) {
         roundness: null,
         locked: true,
         frameId,
-        customData: { c2: BG_MARKER }
+        customData: { c2: BG_MARKER$1 }
       })
     );
     return { index, frameId, dx: offsetX - left * S, dy: -top * S, scale: S };
@@ -1193,24 +810,24 @@ function psdToScene(psd, options = {}) {
     mesas.forEach(({ l: mesa, i: real }, i) => {
       var _a;
       const r = mesa.artboard.rect;
-      const left = num(r.left);
-      const top = num(r.top);
-      const width = Math.max(1, num(r.right) - left);
-      const height = Math.max(1, num(r.bottom) - top);
-      const fondo = psdColorToHex((_a = mesa.artboard) == null ? void 0 : _a.color) ?? PAPER_COLOR;
+      const left = num$1(r.left);
+      const top = num$1(r.top);
+      const width = Math.max(1, num$1(r.right) - left);
+      const height = Math.max(1, num$1(r.bottom) - top);
+      const fondo = psdColorToHex((_a = mesa.artboard) == null ? void 0 : _a.color) ?? PAPER_COLOR$1;
       const page = abrePagina(i, mesa.name || `Mesa ${i + 1}`, left, top, width, height, fondo);
       walkLayers(w, mesa.children ?? [], page, [], 1, [real], [], options, documentName);
       offsetX += Math.max(1, width * S) + PAGE_GAP;
     });
     if (sueltas.length > 0) {
-      const page = abrePagina(mesas.length, "Fuera de mesa", 0, 0, docW, docH, PAPER_COLOR);
+      const page = abrePagina(mesas.length, "Fuera de mesa", 0, 0, docW, docH, PAPER_COLOR$1);
       for (const { l, i: real } of sueltas) {
         walkLayer(w, l, page, [], 1, [real], [], options, documentName);
       }
       offsetX += Math.max(1, docW * S) + PAGE_GAP;
     }
   } else {
-    const page = abrePagina(0, documentName, 0, 0, docW, docH, PAPER_COLOR);
+    const page = abrePagina(0, documentName, 0, 0, docW, docH, PAPER_COLOR$1);
     walkLayers(w, raiz, page, [], 1, [], [], options, documentName);
   }
   const pages = mesas.length > 0 ? mesas.length + (sueltas.length > 0 ? 1 : 0) : 1;
@@ -1255,26 +872,409 @@ function listImagePlaceholders(elements) {
       y: e.y,
       width: e.width,
       height: e.height,
-      naturalWidth: num(cd.psd.naturalWidth),
-      naturalHeight: num(cd.psd.naturalHeight)
+      naturalWidth: num$1(cd.psd.naturalWidth),
+      naturalHeight: num$1(cd.psd.naturalHeight)
     });
   }
   return out;
 }
+const PAPER_COLOR = "#ffffff";
+const BG_MARKER = "pageBackground";
+const DEFAULT_FONT_FAMILY = 2;
+let idCounter = 0;
+function makeId(seed) {
+  idCounter += 1;
+  let hash = 2166136261;
+  const input = `${seed}:${idCounter}`;
+  for (let i = 0; i < input.length; i += 1) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36).padStart(7, "0") + idCounter.toString(36).padStart(3, "0");
+}
+function resetIdCounter() {
+  idCounter = 0;
+}
+function baseElement(extra) {
+  return {
+    angle: 0,
+    strokeColor: "#1e1e1e",
+    backgroundColor: "transparent",
+    fillStyle: "solid",
+    strokeWidth: 1,
+    strokeStyle: "solid",
+    roughness: 0,
+    opacity: 100,
+    groupIds: [],
+    frameId: null,
+    roundness: null,
+    seed: 1,
+    version: 1,
+    versionNonce: 1,
+    isDeleted: false,
+    boundElements: null,
+    updated: 0,
+    link: null,
+    locked: false,
+    ...extra
+  };
+}
+const num = (v, fallback = 0) => typeof v === "number" && Number.isFinite(v) ? v : fallback;
+function decodeEntities(s) {
+  return s.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+}
+function styleValue(style, prop) {
+  const m = new RegExp(`${prop}\\s*:\\s*([^;]+)`, "i").exec(style);
+  return m ? m[1].trim() : null;
+}
+function parseLegacyText(html) {
+  var _a, _b;
+  const out = [];
+  const paragraphs = html.match(/<p\b[^>]*>[\s\S]*?<\/p>/gi);
+  const chunks = paragraphs ?? (html.trim() ? [`<p>${html}</p>`] : []);
+  for (const p of chunks) {
+    const pStyle = decodeEntities(((_a = /<p\b[^>]*style="([^"]*)"/i.exec(p)) == null ? void 0 : _a[1]) ?? "");
+    const spanStyle = decodeEntities(((_b = /<span\b[^>]*style="([^"]*)"/i.exec(p)) == null ? void 0 : _b[1]) ?? "");
+    const text = decodeEntities(p.replace(/<[^>]+>/g, "")).trim();
+    if (!text) continue;
+    const size = styleValue(pStyle, "font-size");
+    const familia = styleValue(spanStyle, "font-family") ?? styleValue(pStyle, "font-family");
+    out.push({
+      text,
+      fontSize: size ? parseFloat(size) : 20,
+      color: styleValue(spanStyle, "color") ?? styleValue(pStyle, "color") ?? "#1e1e1e",
+      align: styleValue(pStyle, "text-align") ?? "left",
+      fontFamily: familia ? normalizeFontName(familia) : ""
+    });
+  }
+  return out;
+}
+function groupParagraphs(paras) {
+  const groups = [];
+  for (const p of paras) {
+    const last = groups[groups.length - 1];
+    const head = last == null ? void 0 : last[0];
+    if (head && head.fontSize === p.fontSize && head.color === p.color && head.align === p.align && head.fontFamily === p.fontFamily) {
+      last.push(p);
+    } else {
+      groups.push([p]);
+    }
+  }
+  return groups;
+}
+function legacyToScene(editorConfig, options = {}) {
+  resetIdCounter();
+  const parsed = typeof editorConfig === "string" ? JSON.parse(editorConfig) : editorConfig;
+  const raw = Array.isArray(parsed) ? parsed : parsed && typeof parsed === "object" && !Array.isArray(parsed.elements) ? [parsed] : [];
+  const elements = [];
+  const filesOut = {};
+  const notes = [];
+  const counts = {};
+  const caras = [];
+  let offsetX = 0;
+  let sawText = false;
+  let sawUnsupported = false;
+  raw.forEach((page, pageIndex) => {
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j;
+    const layers = page.c ?? {};
+    const root = layers.d;
+    const width = num((_b = (_a = root == null ? void 0 : root.g) == null ? void 0 : _a.h) == null ? void 0 : _b.i, 1080);
+    const height = num((_d = (_c = root == null ? void 0 : root.g) == null ? void 0 : _c.h) == null ? void 0 : _d.j, 1350);
+    const pageId = makeId(`frame-${pageIndex}`);
+    elements.push(
+      baseElement({
+        id: pageId,
+        type: "frame",
+        x: offsetX,
+        y: 0,
+        width,
+        height,
+        name: page.a || `Página ${pageIndex + 1}`,
+        strokeColor: "#bbb"
+      })
+    );
+    elements.push(
+      baseElement({
+        id: makeId(`paper-${pageIndex}`),
+        type: "rectangle",
+        x: offsetX,
+        y: 0,
+        width,
+        height,
+        backgroundColor: typeof ((_e = root == null ? void 0 : root.g) == null ? void 0 : _e.o) === "string" ? root.g.o : PAPER_COLOR,
+        fillStyle: "solid",
+        strokeColor: "#d4d4d8",
+        strokeWidth: 1,
+        roughness: 0,
+        roundness: null,
+        locked: true,
+        frameId: pageId,
+        customData: { c2: BG_MARKER }
+      })
+    );
+    const bg = (_f = root == null ? void 0 : root.g) == null ? void 0 : _f.p;
+    const bgUrl = (bg == null ? void 0 : bg.y) ?? (bg == null ? void 0 : bg.aj);
+    if (typeof bgUrl === "string" && bgUrl) {
+      counts.RootBackgroundImage = (counts.RootBackgroundImage ?? 0) + 1;
+      if (bgUrl.startsWith("blob:")) {
+        notes.push({
+          page: pageIndex,
+          layer: "ROOT",
+          kind: "dropped",
+          detail: "fondo de página con URL blob: (bytes irrecuperables)"
+        });
+      } else {
+        const bgFileId = makeId(`bgfile-${pageIndex}`);
+        elements.push(
+          baseElement({
+            id: makeId(`bgimg-${pageIndex}`),
+            type: "image",
+            x: offsetX + num((_g = bg == null ? void 0 : bg.k) == null ? void 0 : _g.l),
+            y: num((_h = bg == null ? void 0 : bg.k) == null ? void 0 : _h.m),
+            width: num((_i = bg == null ? void 0 : bg.h) == null ? void 0 : _i.i, width),
+            height: num((_j = bg == null ? void 0 : bg.h) == null ? void 0 : _j.j, height),
+            angle: num(bg == null ? void 0 : bg.n) * Math.PI / 180,
+            fileId: bgFileId,
+            status: "saved",
+            scale: [1, 1],
+            crop: null,
+            frameId: pageId,
+            // El fondo no se selecciona al hacer clic en la foto: se comporta
+            // como fondo, igual que en el editor legacy.
+            locked: true
+          })
+        );
+        filesOut[bgFileId] = {
+          mimeType: bgUrl.endsWith(".webp") ? "image/webp" : "image/png",
+          id: bgFileId,
+          dataURL: bgUrl,
+          created: 0,
+          lastRetrieved: 0
+        };
+      }
+    }
+    const childIds = Array.isArray(root == null ? void 0 : root.s) ? root.s : [];
+    childIds.forEach((childId) => {
+      var _a2, _b2, _c2, _d2, _e2, _f2, _g2, _h2, _i2, _j2, _k, _l, _m, _n, _o, _p, _q, _r, _s, _t, _u, _v;
+      const layer = layers[childId];
+      const kind = ((_a2 = layer == null ? void 0 : layer.e) == null ? void 0 : _a2.f) ?? "Unknown";
+      counts[kind] = (counts[kind] ?? 0) + 1;
+      const g = (layer == null ? void 0 : layer.g) ?? {};
+      const x = offsetX + num((_b2 = g.k) == null ? void 0 : _b2.l);
+      const y = num((_c2 = g.k) == null ? void 0 : _c2.m);
+      const w = num((_d2 = g.h) == null ? void 0 : _d2.i, width);
+      const h = num((_e2 = g.h) == null ? void 0 : _e2.j, height);
+      const angle = num(g.n) * Math.PI / 180;
+      if (kind === "ImageLayer") {
+        const url = ((_f2 = g.p) == null ? void 0 : _f2.y) ?? ((_g2 = g.p) == null ? void 0 : _g2.aj);
+        if (typeof url !== "string" || !url) {
+          notes.push({ page: pageIndex, layer: childId, kind: "dropped", detail: "ImageLayer sin URL" });
+          return;
+        }
+        if (url.startsWith("blob:")) {
+          notes.push({ page: pageIndex, layer: childId, kind: "dropped", detail: "URL blob: (bytes irrecuperables)" });
+          return;
+        }
+        const innerW = num((_i2 = (_h2 = g.p) == null ? void 0 : _h2.h) == null ? void 0 : _i2.i, w);
+        const innerH = num((_k = (_j2 = g.p) == null ? void 0 : _j2.h) == null ? void 0 : _k.j, h);
+        const innerX = num((_m = (_l = g.p) == null ? void 0 : _l.k) == null ? void 0 : _m.l);
+        const innerY = num((_o = (_n = g.p) == null ? void 0 : _n.k) == null ? void 0 : _o.m);
+        const fileId = makeId(`file-${pageIndex}-${childId}`);
+        elements.push(
+          baseElement({
+            id: makeId(`img-${pageIndex}-${childId}`),
+            type: "image",
+            x: x + innerX,
+            y: y + innerY,
+            width: innerW,
+            height: innerH,
+            angle,
+            fileId,
+            status: "saved",
+            scale: [1, 1],
+            crop: null,
+            frameId: pageId,
+            locked: Boolean(layer == null ? void 0 : layer.r)
+          })
+        );
+        filesOut[fileId] = {
+          mimeType: url.endsWith(".webp") ? "image/webp" : "image/png",
+          id: fileId,
+          // Excalidraw hace `image.src = <este campo>`, así que una URL remota
+          // funciona. Nada de dataURL: la escena pesa como el editorConfig.
+          dataURL: url,
+          created: 0,
+          lastRetrieved: 0
+        };
+        return;
+      }
+      if (kind === "VideoLayer") {
+        const media = g.ar;
+        const poster = (media == null ? void 0 : media.as) ?? (media == null ? void 0 : media.at) ?? ((_p = g.p) == null ? void 0 : _p.aj) ?? ((_q = g.p) == null ? void 0 : _q.y);
+        if (typeof poster !== "string" || !poster || poster.startsWith("blob:")) {
+          sawUnsupported = true;
+          notes.push({
+            page: pageIndex,
+            layer: childId,
+            kind: "dropped",
+            detail: "VideoLayer sin póster recuperable"
+          });
+          return;
+        }
+        const innerW = num((_r = media == null ? void 0 : media.h) == null ? void 0 : _r.i, w);
+        const innerH = num((_s = media == null ? void 0 : media.h) == null ? void 0 : _s.j, h);
+        const innerX = num((_t = media == null ? void 0 : media.k) == null ? void 0 : _t.l);
+        const innerY = num((_u = media == null ? void 0 : media.k) == null ? void 0 : _u.m);
+        const fileId = makeId(`vfile-${pageIndex}-${childId}`);
+        elements.push(
+          baseElement({
+            id: makeId(`vimg-${pageIndex}-${childId}`),
+            type: "image",
+            x: x + innerX,
+            y: y + innerY,
+            width: innerW,
+            height: innerH,
+            angle,
+            fileId,
+            status: "saved",
+            scale: [1, 1],
+            crop: null,
+            frameId: pageId,
+            locked: Boolean(layer == null ? void 0 : layer.r)
+          })
+        );
+        filesOut[fileId] = {
+          mimeType: poster.endsWith(".webp") ? "image/webp" : "image/png",
+          id: fileId,
+          dataURL: poster,
+          created: 0,
+          lastRetrieved: 0
+        };
+        notes.push({
+          page: pageIndex,
+          layer: childId,
+          kind: "lossy",
+          detail: "VideoLayer → póster: se conserva el fotograma, no la reproducción"
+        });
+        return;
+      }
+      if (kind === "TextLayer") {
+        sawText = true;
+        const scale = num(g.u, 1);
+        const paras = parseLegacyText(typeof g.v === "string" ? g.v : "");
+        if (paras.length === 0) {
+          notes.push({ page: pageIndex, layer: childId, kind: "dropped", detail: "TextLayer vacía" });
+          return;
+        }
+        const groups = groupParagraphs(paras);
+        if (groups.length > 1) {
+          notes.push({
+            page: pageIndex,
+            layer: childId,
+            kind: "lossy",
+            detail: `estilos mixtos: 1 capa → ${groups.length} elementos (Excalidraw es un estilo por elemento)`
+          });
+        }
+        const catalogo = /* @__PURE__ */ new Map();
+        for (const f of g.w ?? []) {
+          const nombre = normalizeFontName((f == null ? void 0 : f.a) ?? (f == null ? void 0 : f.x) ?? "");
+          const url = typeof (f == null ? void 0 : f.y) === "string" ? f.y.trim() : "";
+          if (!nombre || !/^https?:\/\//i.test(url)) continue;
+          catalogo.set(nombre.toLowerCase(), {
+            url: normalizeFontSrc(url),
+            style: (f == null ? void 0 : f.z) && f.z !== "regular" ? f.z : void 0
+          });
+        }
+        let cursorY = y;
+        for (const group of groups) {
+          const head = group[0];
+          const size = head.fontSize * scale;
+          const text = group.map((p) => p.text).join("\n");
+          const boxH = group.length * size * 1.25;
+          let fontFamily = DEFAULT_FONT_FAMILY;
+          if (head.fontFamily) {
+            const fichero = catalogo.get(head.fontFamily.toLowerCase()) ?? ((_v = options.resolveFontUrl) == null ? void 0 : _v.call(options, head.fontFamily)) ?? null;
+            if (fichero) {
+              fontFamily = customFontFamilyId(head.fontFamily);
+              caras.push({
+                family: fontFamilyAlias(head.fontFamily),
+                src: normalizeFontSrc(fichero.url),
+                style: fichero.style
+              });
+            } else {
+              notes.push({
+                page: pageIndex,
+                layer: childId,
+                kind: "lossy",
+                detail: `sin fichero para la fuente "${head.fontFamily}"; se usa la de respaldo`
+              });
+            }
+          }
+          elements.push(
+            baseElement({
+              id: makeId(`txt-${pageIndex}-${childId}`),
+              type: "text",
+              x,
+              y: cursorY,
+              width: w * scale,
+              height: boxH,
+              angle,
+              text,
+              originalText: text,
+              fontSize: size,
+              fontFamily,
+              textAlign: head.align === "justify" ? "left" : head.align,
+              verticalAlign: "top",
+              containerId: null,
+              lineHeight: 1.25,
+              autoResize: false,
+              strokeColor: head.color,
+              frameId: pageId,
+              locked: Boolean(layer == null ? void 0 : layer.r)
+            })
+          );
+          cursorY += boxH;
+        }
+        return;
+      }
+      sawUnsupported = true;
+      notes.push({
+        page: pageIndex,
+        layer: childId,
+        kind: "dropped",
+        detail: `capa no soportada: ${kind}`
+      });
+    });
+    offsetX += width + PAGE_GAP;
+  });
+  const tier = sawUnsupported ? "T3" : sawText ? "T2" : "T1";
+  return {
+    elements,
+    files: filesOut,
+    fonts: dedupeFontFaces(caras),
+    report: {
+      pages: raw.length,
+      tier,
+      counts,
+      notes,
+      clean: notes.length === 0
+    }
+  };
+}
 export {
   DEFAULT_MAX_SUBPATHS as D,
   PSD_IMAGE_MARKER as P,
-  postScriptStyleToCss as a,
-  psdToScene as b,
+  listImagePlaceholders as a,
+  postScriptStyleToCss as b,
   countSubpaths as c,
-  resetIdCounter as d,
-  parseLegacyText as e,
+  psdColorToHex as d,
+  psdToScene as e,
   flattenBezierPath as f,
   groupStyleRuns as g,
-  legacyToScene as h,
-  listImagePlaceholders as l,
-  psdColorToHex as p,
-  resetPsdIdCounter as r,
+  resetPsdIdCounter as h,
+  legacyToScene as l,
+  parseLegacyText as p,
+  resetIdCounter as r,
   splitPostScriptFont as s
 };
-//# sourceMappingURL=psd-BkuMvcm9.js.map
+//# sourceMappingURL=legacy-BS2a1q37.js.map
