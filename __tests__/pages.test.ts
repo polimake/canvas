@@ -17,6 +17,7 @@ const {
   relayoutPages,
   setPageLocked,
   isPageLocked,
+  focusLayer,
 } = await import('../src/core/pages.js');
 
 
@@ -375,5 +376,50 @@ describe('single-undo + ordering guarantees', () => {
     const f = api.getSceneElements().find((e: any) => e.id === 'a');
     expect(f.name).toBe('Portada');
     expect(f.version).toBe(1);
+  });
+
+  describe('focusLayer', () => {
+    it('selecciona la capa y la trae a pantalla SIN tocar el historial', () => {
+      const { api, commits } = fakeApi([
+        frame('p1', 0, 0, 500, 500),
+        member('m1', 'p1', 20, 20, 50, 50),
+      ]);
+      const scroll = vi.spyOn(api, 'scrollToContent');
+
+      expect(focusLayer(api as any, 'm1')).toBe(true);
+      expect(api.getAppState().selectedElementIds).toEqual({ m1: true });
+      // Navegar no es editar: deshacer justo después debe deshacer el último
+      // cambio REAL, no este salto de vista.
+      expect(commits.at(-1)?.captureUpdate).toBe('NEVER');
+      expect(scroll).toHaveBeenCalledTimes(1);
+      expect(scroll.mock.calls[0][0]).toMatchObject({ id: 'm1' });
+    });
+
+    it('no toca la escena cuando la capa ya no existe', () => {
+      const { api, commits } = fakeApi([frame('p1', 0, 0, 500, 500)]);
+      const scroll = vi.spyOn(api, 'scrollToContent');
+
+      expect(focusLayer(api as any, 'fantasma')).toBe(false);
+      expect(commits).toHaveLength(0);
+      expect(scroll).not.toHaveBeenCalled();
+    });
+
+    it('trata una capa borrada como inexistente', () => {
+      const { api } = fakeApi([
+        frame('p1', 0, 0, 500, 500),
+        member('m1', 'p1', 20, 20, 50, 50, { isDeleted: true }),
+      ]);
+      expect(focusLayer(api as any, 'm1')).toBe(false);
+    });
+
+    it('conserva los elementos tal cual: enfocar no edita el contenido', () => {
+      const { api, get } = fakeApi([
+        frame('p1', 0, 0, 500, 500),
+        member('m1', 'p1', 20, 20, 50, 50),
+      ]);
+      const antes = get();
+      focusLayer(api as any, 'm1');
+      expect(get()).toEqual(antes);
+    });
   });
 });
