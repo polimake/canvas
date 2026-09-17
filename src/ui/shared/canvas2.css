@@ -1,6 +1,27 @@
 /* canvas2 overrides for Excalidraw chrome — scoped to our editor wrapper
    ([data-canvas2]) so they can't leak to other Excalidraw instances. */
 
+/* Reuse the engine's selection-aware controls and undoable actions in a
+   horizontal toolbar. Advanced and mobile retain their native controls. */
+.canvas2-workspace[data-workspace="design"] [data-canvas2]:not([data-canvas2-narrow]) .selected-shape-actions {
+  position: absolute; left: 60px; right: 0; top: 0; z-index: 5;
+}
+.canvas2-workspace[data-workspace="design"] [data-canvas2]:not([data-canvas2-narrow]):has(.selected-shape-actions) .App-toolbar-container {
+  visibility: hidden;
+}
+.canvas2-workspace[data-workspace="design"] [data-canvas2]:not([data-canvas2-narrow]) .selected-shape-actions .Island {
+  position: relative; width: auto; max-width: 100%; overflow-x: auto; border-radius: 12px;
+  padding: 10px 14px; box-shadow: 0 3px 16px #00000012;
+}
+.canvas2-workspace[data-workspace="design"] [data-canvas2]:not([data-canvas2-narrow]) .selected-shape-actions .panelColumn {
+  display: flex; flex-direction: row; align-items: center; gap: 18px; width: max-content;
+}
+.canvas2-workspace[data-workspace="design"] [data-canvas2]:not([data-canvas2-narrow]) .selected-shape-actions .panelColumn > * { flex-shrink: 0; margin: 0; }
+.canvas2-workspace[data-workspace="design"] [data-canvas2]:not([data-canvas2-narrow]) .selected-shape-actions :is(legend, h3) {
+  margin: 0 0 6px; font-size: 10px; font-weight: 500; opacity: .7;
+}
+.canvas2-workspace[data-workspace="design"] [data-canvas2]:not([data-canvas2-narrow]) .selected-shape-actions .color-picker__top-picks { display: none; }
+
 /* El acento de Excalidraw es su morado (#6965db claro / #a8a5ff oscuro), y sale
    por la herramienta activa, los botones, las casillas y los diálogos. Se
    repinta con el azul de Polimake — los mismos valores que la ranura `active` de
@@ -186,3 +207,25 @@
 [data-canvas2] .App-toolbar__extra-tools-dropdown [data-testid="toolbar-laser"] ~ * {
   display: none !important;
 }
+
+/* Advanced keeps document colors intact inside dark editor chrome. */
+.canvas2-workspace[data-workspace="advanced"] .excalidraw canvas { filter: none !important; }
+.canvas2-workspace[data-workspace="advanced"] [data-canvas2]:not([data-canvas2-narrow]) .App-toolbar-container {
+  position: absolute; left: 0; top: 54px; z-index: 6;
+}
+.canvas2-workspace[data-workspace="advanced"] [data-canvas2]:not([data-canvas2-narrow]) .App-toolbar { border-radius: 3px; padding: 4px; box-shadow: 0 0 0 1px #ffffff10; }
+.canvas2-workspace[data-workspace="advanced"] [data-canvas2]:not([data-canvas2-narrow]) .App-toolbar > .Stack { flex-direction: column; gap: 2px; }
+.canvas2-workspace[data-workspace="advanced"] [data-canvas2]:not([data-canvas2-narrow]) .App-toolbar :is(.ToolIcon__icon, .App-toolbar__extra-tools-trigger) { width: 32px; height: 32px; border-radius: 3px; }
+.canvas2-workspace[data-workspace="advanced"] [data-canvas2]:not([data-canvas2-narrow]) .App-toolbar__divider { width: 24px; height: 1px; margin: 3px auto; }
+.canvas2-workspace[data-workspace="advanced"] [data-canvas2]:not([data-canvas2-narrow]) .App-toolbar__extra-tools-dropdown { left: 48px; top: 54px; right: auto; max-height: calc(100% - 110px); overflow-y: auto; }
+.canvas2-workspace[data-workspace="advanced"] [data-canvas2]:not([data-canvas2-narrow]) .selected-shape-actions { position: absolute; top: 0; left: 54px; right: 0; z-index: 5; }
+.canvas2-workspace[data-workspace="advanced"] [data-canvas2]:not([data-canvas2-narrow]) .selected-shape-actions .Island { position: relative; width: auto; max-width: 100%; overflow-x: auto; border-radius: 3px; padding: 8px 12px; box-shadow: 0 1px 0 #ffffff10; }
+.canvas2-workspace[data-workspace="advanced"] [data-canvas2]:not([data-canvas2-narrow]) .selected-shape-actions .panelColumn { display: flex; flex-direction: row; align-items: center; gap: 14px; width: max-content; }
+.canvas2-workspace[data-workspace="advanced"] [data-canvas2]:not([data-canvas2-narrow]) .selected-shape-actions .panelColumn > * { flex-shrink: 0; margin: 0; }
+.canvas2-workspace[data-workspace="advanced"] [data-canvas2]:not([data-canvas2-narrow]) .selected-shape-actions :is(legend, h3) { margin: 0 0 4px; font-size: 10px; font-weight: 500; opacity: .7; }
+.canvas2-workspace[data-workspace="advanced"] [data-canvas2]:not([data-canvas2-narrow]) .selected-shape-actions .color-picker__top-picks { display: none; }
+.canvas2-workspace[data-workspace="advanced"] [data-canvas2]:not([data-canvas2-narrow]) .App-toolbar > .Stack { display: flex; }
+.canvas2-workspace[data-workspace="advanced"] [data-canvas2] .excalidraw { --theme-filter: none; }
+.canvas2-workspace[data-workspace="advanced"] [data-canvas2]:not([data-canvas2-narrow]) .shapes-section > div { position: static !important; }
+.canvas2-workspace[data-workspace="advanced"] .canvas2-workspace-surface { container-type: size; }
+.canvas2-workspace[data-workspace="advanced"] [data-canvas2-narrow] .dropdown-menu--mobile { max-height: calc(100cqh - 88px); overflow-y: auto; }

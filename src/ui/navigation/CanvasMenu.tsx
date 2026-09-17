@@ -9,6 +9,7 @@ import { exportScenePng, exportSceneSvg, exportScenePdf, downloadBlob } from '..
 import type { FilesMap } from '../hooks/pageThumbnails';
 import type { SvgFontFace } from '../../core/svgFonts';
 import { mergeLabels, type PartialLabels } from '../shared/labels';
+import type { CanvasWorkspace } from '../workspaces/types';
 
 /**
  * Menú principal del editor: acciones de DOCUMENTO —convertir en páginas,
@@ -24,6 +25,10 @@ import { mergeLabels, type PartialLabels } from '../shared/labels';
  */
 
 export interface CanvasMenuProps {
+  /** Use the page actions, or retain the standard scene menu for a free canvas. */
+  pages?: boolean;
+  workspace?: CanvasWorkspace;
+  onWorkspaceChange?: (workspace: CanvasWorkspace) => void;
   /** Puede llegar null en el primer render: ver el comentario del montaje en Canvas2. */
   api: ExcalidrawImperativeAPI | null;
   /** Página activa, gobernada por Canvas2Editor. */
@@ -65,6 +70,9 @@ function safeFilename(name: string): string {
 }
 
 export function CanvasMenu({
+  pages: pageMode = true,
+  workspace = 'excalidraw',
+  onWorkspaceChange,
   api,
   activePageId,
   viewMode = false,
@@ -75,6 +83,16 @@ export function CanvasMenu({
   labels: labelsProp,
 }: CanvasMenuProps) {
   const L = mergeLabels(labelsProp);
+  const workspaceItems = !viewMode && onWorkspaceChange ? (
+    <MainMenu.Group title={L.workspace.label}>
+      {(['excalidraw', 'design', 'advanced'] as const).map((value) => (
+        <MainMenu.Item key={value} role="menuitemradio" aria-checked={workspace === value}
+          selected={workspace === value} onSelect={() => onWorkspaceChange(value)}>
+          {L.workspace[value]}
+        </MainMenu.Item>
+      ))}
+    </MainMenu.Group>
+  ) : null;
   const [pages, setPages] = useState<PageInfo[]>(() => (api ? listPages(api) : []));
   const [loose, setLoose] = useState(0);
   const [exporting, setExporting] = useState(false);
@@ -150,9 +168,18 @@ export function CanvasMenu({
   // menú TIENE que renderizarse igual: si no hay hijo, Excalidraw dibuja su
   // propio menú de respaldo y luego aparecen los dos. Va después de todos los
   // hooks, así que no altera su orden.
-  if (!api) {
+  if (!api || !pageMode) {
     return (
       <MainMenu>
+        {workspaceItems}
+        {!pageMode && <>
+          {!viewMode && <MainMenu.DefaultItems.LoadScene />}
+          <MainMenu.DefaultItems.SaveToActiveFile />
+          <MainMenu.DefaultItems.Export />
+          <MainMenu.DefaultItems.SaveAsImage />
+          {!viewMode && <MainMenu.DefaultItems.ClearCanvas />}
+          <MainMenu.Separator />
+        </>}
         <MainMenu.DefaultItems.SearchMenu />
         <MainMenu.DefaultItems.ToggleTheme />
         <MainMenu.DefaultItems.Help />
@@ -162,6 +189,7 @@ export function CanvasMenu({
 
   return (
     <MainMenu>
+      {workspaceItems}
       {/* Fondo y tamaño de la página VIVÍAN aquí. Se han mudado a la pestaña
           Diseño del dock (ver DesignPanel): son ajustes de la página que estás
           mirando, y detrás de un icono sin rótulo no los encontraba nadie. */}

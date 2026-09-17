@@ -90,12 +90,13 @@ propios de Canvas. Al consumir fuentes directamente, ambos se cargan desde ellas
 El selector superior permite elegir **Diseño** (biblioteca, marca y componentes
 en pestañas a la izquierda) o **Avanzado** (capas y ajustes simultáneos a la
 derecha). Las páginas y herramientas del lienzo son compartidas. Cambiar de
-espacio no recarga la escena ni reinicia selección o historial. Los paneles se
-pueden plegar; en contenedores estrechos se superponen al lienzo.
+espacio no recarga la escena ni reinicia selección o historial. En contenedores
+estrechos los paneles se superponen al lienzo por debajo de sus herramientas.
 
-Usa `defaultWorkspace="advanced"` para arrancar en Avanzado, o las propiedades
-`workspace` y `onWorkspaceChange` para controlarlo desde el host. Esta preferencia
-se guarda aparte del documento. [Contrato y extensión](docs/WORKSPACES.md).
+El espacio se elige desde el menú y se recuerda en `localStorage`, clave
+`pm-canvas-workspace`. Sin una elección válida se usa Diseño. `defaultWorkspace`
+permite cambiar ese valor inicial y `workspace` / `onWorkspaceChange` permiten
+controlarlo desde el host. [Contrato y extensión](docs/WORKSPACES.md).
 
 ## Trabajar en el paquete
 

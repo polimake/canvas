@@ -13,7 +13,20 @@
  */
 export interface Canvas2Labels {
     workspace: {
+        elements: string;
+        text: string;
+        brand: string;
+        page: string;
+        files: string;
+        searchElements: string;
+        noResults: string;
+        rectangle: string;
+        ellipse: string;
+        diamond: string;
+        arrow: string;
+        draw: string;
         label: string;
+        excalidraw: string;
         design: string;
         advanced: string;
         panels: string;

@@ -12,6 +12,7 @@ export { convertToPages, adoptLooseIntoPage, paginateSceneInArray, clusterLooseE
 export type { PaginateOptions, PaginateResult } from './core/paginate';
 export { PAGE_GAP } from './core/layout';
 export { patchElement, commitElements } from './core/mutate';
+export { convertToExcalidrawElements } from '@excalidraw/excalidraw';
 export { usePageThumbnails } from './ui/hooks/pageThumbnails';
 export type { FilesMap } from './ui/hooks/pageThumbnails';
 export { buildHydratedFiles, clearHydrationCache } from './core/exportHydrate';

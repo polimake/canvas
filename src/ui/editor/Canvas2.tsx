@@ -16,10 +16,14 @@ import { VideoFramePicker } from '../overlays/VideoFramePicker';
 import { CanvasMenu } from '../navigation/CanvasMenu';
 import { PageActions } from '../navigation/PageActions';
 import { DesignPanel } from '../panels/DesignPanel';
+import { InsertPanel } from '../panels/InsertPanel';
+import { BrandGallery } from '../panels/BrandGallery';
+import { WorkspaceIcon } from '../workspaces/WorkspaceIcon';
 import { LayersPanel } from '../panels/LayersPanel';
 import { RightDock } from '../panels/RightDock';
 import { WorkspaceLayout } from '../workspaces/WorkspaceLayout';
 import type { CanvasWorkspace, WorkspacePanel } from '../workspaces/types';
+import { readWorkspace, saveWorkspace } from '../workspaces/preference';
 import { useIsNarrow } from '../hooks/narrow';
 import type { FilesMap } from '../hooks/pageThumbnails';
 import { addPage, createBlankScene, goToPage, listPages, relayoutPages, type PageSize } from '../../core/pages';
@@ -47,7 +51,7 @@ export type Canvas2Api = ExcalidrawImperativeAPI;
 export interface Canvas2EditorProps {
   /** Controlled workspace. Switching changes only the surrounding UI. */
   workspace?: CanvasWorkspace;
-  /** Initial workspace when uncontrolled. Defaults to `design`. */
+  /** Initial workspace when no saved preference exists. Defaults to `excalidraw`. */
   defaultWorkspace?: CanvasWorkspace;
   /** The host may persist this UI preference separately from the document. */
   onWorkspaceChange?: (workspace: CanvasWorkspace) => void;
@@ -319,13 +323,13 @@ function useDebouncedCallback<A extends unknown[]>(
  */
 export function Canvas2Editor({
   workspace: workspaceProp,
-  defaultWorkspace = 'design',
+  defaultWorkspace = 'excalidraw',
   onWorkspaceChange,
   className,
   initialScene,
   onSceneChange,
   viewMode = false,
-  theme,
+  theme: themeProp,
   langCode = 'es-ES',
   onReady,
   nativeImageExport = true,
@@ -352,8 +356,10 @@ export function Canvas2Editor({
   releaseVideoSrc,
   onPickVideoFrame,
 }: Canvas2EditorProps) {
-  const [localWorkspace, setLocalWorkspace] = useState(defaultWorkspace);
+  const [localWorkspace, setLocalWorkspace] = useState(() => readWorkspace(defaultWorkspace));
   const workspace = workspaceProp ?? localWorkspace;
+  const theme = workspace === 'advanced' && !viewMode ? 'dark' : themeProp;
+  useEffect(() => { saveWorkspace(workspace); }, [workspace]);
   const changeWorkspace = (next: CanvasWorkspace) => {
     if (next === workspace) return;
     if (workspaceProp === undefined) setLocalWorkspace(next);
@@ -497,6 +503,7 @@ export function Canvas2Editor({
         frameRendering: { enabled: true, clip: true, name: true, outline: false },
         ...brandDefaults(brand),
         ...(base?.appState ?? {}),
+        ...(pages ? { viewBackgroundColor: '#f2f3f5' } : {}),
       },
     } as Canvas2Scene;
   });
@@ -686,17 +693,27 @@ export function Canvas2Editor({
 
   const L = mergeLabels(labels);
   const workspacePanels: WorkspacePanel[] = [];
-  if (!viewMode && library) workspacePanels.push({ id: 'library', title: L.library.title, content: library });
-  if (!viewMode && api && pages) workspacePanels.push({ id: 'design', title: L.dock.design,
-    content: <DesignPanel api={api} activePageId={activePageId} theme={theme} brandKit={brandKit} labels={labels} /> });
   if (!viewMode && componentsPanel) workspacePanels.push({ id: 'components', title: L.components.title, content: componentsPanel });
+  if (!viewMode && api) {
+    workspacePanels.push({ id: 'elements', title: L.workspace.elements,
+      content: <InsertPanel api={api} pageId={activePageId} labels={labels} /> });
+    workspacePanels.push({ id: 'text', title: L.workspace.text,
+      content: <InsertPanel api={api} pageId={activePageId} text labels={labels}
+        families={{ heading: brand.headingFamily, body: brand.bodyFamily }} /> });
+  }
+  if (!viewMode && library) workspacePanels.push({ id: 'library', title: L.workspace.files, content: library });
+  if (!viewMode && api && brandKit) workspacePanels.push({ id: 'brand', title: L.workspace.brand,
+    content: <BrandGallery api={api} activePageId={activePageId} brandKit={brandKit} theme={theme} labels={labels} embedded /> });
+  if (!viewMode && api && pages) workspacePanels.push({ id: 'design', title: L.workspace.page,
+    content: <DesignPanel api={api} activePageId={activePageId} theme={theme} brandKit={brandKit} labels={labels} /> });
   if (!viewMode && agentPanel) workspacePanels.push({ id: 'agent', title: L.dock.agent, content: agentPanel });
   if (!viewMode && api && layers && pages) workspacePanels.push({ id: 'layers', title: L.dock.layers,
     content: <LayersPanel api={api} activePageId={activePageId} theme={theme} embedded /> });
+  for (const panel of workspacePanels) panel.icon = <WorkspaceIcon name={panel.id} />;
 
   return (
-    <WorkspaceLayout className={className} workspace={workspace} onWorkspaceChange={changeWorkspace}
-      panels={workspacePanels} theme={theme} labels={labels} viewMode={viewMode}>
+    <WorkspaceLayout className={className} workspace={workspace}
+      panels={workspacePanels} theme={theme} labels={labels}>
     <div
       ref={rootRef}
       data-canvas2=""
@@ -785,6 +802,7 @@ export function Canvas2Editor({
       <Excalidraw
         initialData={initialData}
         viewModeEnabled={viewMode}
+        gridModeEnabled={workspace === 'advanced' ? false : undefined}
         langCode={langCode}
         aiEnabled={false}
         UIOptions={{
@@ -856,8 +874,10 @@ export function Canvas2Editor({
             Se monta SIN esperar a `api`: Excalidraw dibuja su propio menú de
             respaldo mientras no hay un hijo que lo sustituya, y como `api` solo
             llega en un render posterior se acababan viendo DOS hamburguesas. */}
-        {pages ? (
           <CanvasMenu
+            pages={pages}
+            workspace={workspace}
+            onWorkspaceChange={changeWorkspace}
             api={api}
             activePageId={activePageId}
             viewMode={viewMode}
@@ -869,7 +889,6 @@ export function Canvas2Editor({
             onSaveComponent={onSaveComponent}
             labels={labels}
           />
-        ) : null}
       </Excalidraw>
       {/* Marco de «suelta aquí y sustituyo esta». Es lo ÚNICO que anuncia que
           Mayúsculas + soltar hace algo distinto: un modificador sin señal en

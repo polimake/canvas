@@ -1,7 +1,7 @@
 import { jsxs, jsx, Fragment as Fragment$1 } from "react/jsx-runtime";
 import { useState, useRef, useEffect, Fragment, useMemo, useCallback, useId } from "react";
 import "@excalidraw/excalidraw/index.css";
-import { CaptureUpdateAction, newElementWith, convertToExcalidrawElements, restore, serializeAsJSON, exportToCanvas, exportToBlob, exportToSvg, FONT_FAMILY, MainMenu, viewportCoordsToSceneCoords, getVisibleSceneBounds, Excalidraw, getNonDeletedElements } from "@excalidraw/excalidraw";
+import { newElementWith, CaptureUpdateAction, convertToExcalidrawElements, serializeAsJSON, restore, exportToBlob, exportToCanvas, exportToSvg, FONT_FAMILY, MainMenu, viewportCoordsToSceneCoords, getVisibleSceneBounds, Excalidraw, getNonDeletedElements } from "@excalidraw/excalidraw";
 import { cloneSceneElements } from "../components.js";
 import { P as PAGE_GAP } from "./layout-BEpoNps2.js";
 import { fontFormatHint, buildFontFaceCss, fontFamilyAlias, customFontFamilyId, normalizeFontSrc, dedupeFontFaces } from "../fonts.js";
@@ -968,9 +968,22 @@ const FitAllIcon = () => /* @__PURE__ */ jsxs("svg", { width: "15", height: "15"
 ] });
 const DEFAULT_LABELS = {
   workspace: {
+    elements: "Elementos",
+    text: "Texto",
+    brand: "Marca",
+    page: "Página",
+    files: "Archivos",
+    searchElements: "Buscar elementos",
+    noResults: "No se encontraron elementos.",
+    rectangle: "Rectángulo",
+    ellipse: "Círculo",
+    diamond: "Rombo",
+    arrow: "Flecha",
+    draw: "Dibujar",
     label: "Espacio de trabajo",
-    design: "Diseño",
-    advanced: "Avanzado",
+    excalidraw: "Excalidraw",
+    design: "Canva",
+    advanced: "Experta",
     panels: "Paneles del editor",
     showPanels: "Mostrar paneles",
     hidePanels: "Ocultar paneles"
@@ -2593,6 +2606,9 @@ function safeFilename(name) {
   return (name || "diseño").replace(/[\\/:*?"<>|]+/g, "-").trim() || "diseño";
 }
 function CanvasMenu({
+  pages: pageMode = true,
+  workspace = "excalidraw",
+  onWorkspaceChange,
   api,
   activePageId,
   viewMode = false,
@@ -2603,6 +2619,17 @@ function CanvasMenu({
   labels: labelsProp
 }) {
   const L = mergeLabels(labelsProp);
+  const workspaceItems = !viewMode && onWorkspaceChange ? /* @__PURE__ */ jsx(MainMenu.Group, { title: L.workspace.label, children: ["excalidraw", "design", "advanced"].map((value) => /* @__PURE__ */ jsx(
+    MainMenu.Item,
+    {
+      role: "menuitemradio",
+      "aria-checked": workspace === value,
+      selected: workspace === value,
+      onSelect: () => onWorkspaceChange(value),
+      children: L.workspace[value]
+    },
+    value
+  )) }) : null;
   const [pages, setPages] = useState(() => api ? listPages(api) : []);
   const [loose, setLoose] = useState(0);
   const [exporting, setExporting] = useState(false);
@@ -2661,14 +2688,24 @@ function CanvasMenu({
       setExporting(false);
     }
   };
-  if (!api) {
+  if (!api || !pageMode) {
     return /* @__PURE__ */ jsxs(MainMenu, { children: [
+      workspaceItems,
+      !pageMode && /* @__PURE__ */ jsxs(Fragment$1, { children: [
+        !viewMode && /* @__PURE__ */ jsx(MainMenu.DefaultItems.LoadScene, {}),
+        /* @__PURE__ */ jsx(MainMenu.DefaultItems.SaveToActiveFile, {}),
+        /* @__PURE__ */ jsx(MainMenu.DefaultItems.Export, {}),
+        /* @__PURE__ */ jsx(MainMenu.DefaultItems.SaveAsImage, {}),
+        !viewMode && /* @__PURE__ */ jsx(MainMenu.DefaultItems.ClearCanvas, {}),
+        /* @__PURE__ */ jsx(MainMenu.Separator, {})
+      ] }),
       /* @__PURE__ */ jsx(MainMenu.DefaultItems.SearchMenu, {}),
       /* @__PURE__ */ jsx(MainMenu.DefaultItems.ToggleTheme, {}),
       /* @__PURE__ */ jsx(MainMenu.DefaultItems.Help, {})
     ] });
   }
   return /* @__PURE__ */ jsxs(MainMenu, { children: [
+    workspaceItems,
     !viewMode && loose > 0 && /* @__PURE__ */ jsx(
       MainMenu.Item,
       {
@@ -3436,6 +3473,101 @@ function DesignPanel({
     }
   );
 }
+function InsertPanel({ api, pageId, text = false, labels, families }) {
+  const [query, setQuery] = useState("");
+  const L = mergeLabels(labels);
+  const shapes = [
+    { type: "rectangle", label: L.workspace.rectangle },
+    { type: "ellipse", label: L.workspace.ellipse },
+    { type: "diamond", label: L.workspace.diamond }
+  ];
+  const addShape = (type) => {
+    const page = listPages(api).find((p) => p.id === pageId);
+    const state = api.getAppState();
+    const size = page ? Math.min(page.width, page.height) * 0.25 : 160;
+    const x = page ? page.x + (page.width - size) / 2 : -state.scrollX + state.width / state.zoom.value / 2 - size / 2;
+    const y = page ? page.y + (page.height - size) / 2 : -state.scrollY + state.height / state.zoom.value / 2 - size / 2;
+    const created = convertToExcalidrawElements([{
+      type,
+      x,
+      y,
+      width: size,
+      height: size,
+      backgroundColor: "#3a39f5",
+      fillStyle: "solid",
+      strokeColor: "transparent",
+      roughness: 0,
+      ...page ? { frameId: page.id } : {}
+    }]);
+    commitElements(api, [...api.getSceneElements(), ...created], "undoable", {
+      selectedElementIds: Object.fromEntries(created.map((el) => [el.id, true]))
+    });
+    api.setActiveTool({ type: "selection" });
+  };
+  if (text) return /* @__PURE__ */ jsx("div", { className: "canvas2-text-presets", children: TEXT_PRESETS.map((preset) => /* @__PURE__ */ jsx(
+    "button",
+    {
+      type: "button",
+      "data-preset": preset.key,
+      onClick: () => insertTextPreset(api, preset.key, {
+        pageId: pageId ?? void 0,
+        fontFamily: preset.key === "body" ? (families == null ? void 0 : families.body) ?? (families == null ? void 0 : families.heading) : (families == null ? void 0 : families.heading) ?? (families == null ? void 0 : families.body)
+      }),
+      children: L.sizes[preset.key] ?? preset.label
+    },
+    preset.key
+  )) });
+  const visible = shapes.filter((shape) => shape.label.toLocaleLowerCase().includes(query.toLocaleLowerCase()));
+  return /* @__PURE__ */ jsxs(Fragment$1, { children: [
+    /* @__PURE__ */ jsx(
+      "input",
+      {
+        className: "canvas2-resource-search",
+        type: "search",
+        "aria-label": L.workspace.searchElements,
+        placeholder: L.workspace.searchElements,
+        value: query,
+        onChange: (event) => setQuery(event.target.value)
+      }
+    ),
+    /* @__PURE__ */ jsx("div", { className: "canvas2-element-grid", children: visible.map((shape) => /* @__PURE__ */ jsxs("button", { type: "button", onClick: () => addShape(shape.type), children: [
+      /* @__PURE__ */ jsx("span", { className: "canvas2-shape-preview", "data-shape": shape.type }),
+      /* @__PURE__ */ jsx("span", { children: shape.label })
+    ] }, shape.type)) }),
+    !visible.length && /* @__PURE__ */ jsx("p", { className: "canvas2-resource-empty", children: L.workspace.noResults }),
+    /* @__PURE__ */ jsxs("div", { className: "canvas2-drawing-tools", children: [
+      /* @__PURE__ */ jsx("button", { type: "button", onClick: () => api.setActiveTool({ type: "arrow" }), children: L.workspace.arrow }),
+      /* @__PURE__ */ jsx("button", { type: "button", onClick: () => api.setActiveTool({ type: "freedraw" }), children: L.workspace.draw })
+    ] })
+  ] });
+}
+function WorkspaceIcon({ name }) {
+  const paths = {
+    elements: "M3 3h7v7H3z M17 3l4 7h-8z M6.5 14a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7 M14 14h7v7h-7z",
+    text: "M4 5h16 M12 5v15 M8 20h8",
+    brand: "M5 4h14v16l-7-4-7 4z M9 8h6",
+    design: "M6 3h9l4 4v14H6z M14 3v5h5",
+    layers: "M3 7l9-4 9 4-9 4z M3 12l9 4 9-4 M3 17l9 4 9-4",
+    library: "M3 6h7l2 2h9v12H3z M3 6V4h7l2 2",
+    components: "M3 3h8v11H3z M15 3h6v6h-6z M3 18h8v3H3z M15 13h6v8h-6z",
+    agent: "M12 3l2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5z"
+  };
+  return /* @__PURE__ */ jsx(
+    "svg",
+    {
+      width: "23",
+      height: "23",
+      viewBox: "0 0 24 24",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: "1.6",
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      "aria-hidden": "true",
+      children: /* @__PURE__ */ jsx("path", { d: paths[name] ?? paths.components })
+    }
+  );
+}
 function frameFor(els, el, pageId) {
   const frames2 = els.filter((e) => e.type === "frame");
   return (pageId ? frames2.find((f) => f.id === pageId) : void 0) ?? frames2.find((f) => f.id === el.frameId) ?? frames2[0] ?? null;
@@ -4042,50 +4174,101 @@ function RightDock({
 }
 function DesignWorkspace({ panels }) {
   const [selected, setSelected] = useState();
+  const [collapsed, setCollapsed] = useState(false);
   const id = useId();
   const active = panels.find((p) => p.id === selected) ?? panels[0];
   return /* @__PURE__ */ jsxs(Fragment$1, { children: [
-    /* @__PURE__ */ jsx("div", { className: "canvas2-workspace-tabs", children: panels.map((panel) => /* @__PURE__ */ jsx(
+    /* @__PURE__ */ jsx("div", { className: "canvas2-workspace-tabs", role: "toolbar", "aria-orientation": "vertical", children: panels.map((panel) => /* @__PURE__ */ jsxs(
       "button",
       {
         type: "button",
-        "aria-pressed": panel.id === (active == null ? void 0 : active.id),
+        "aria-pressed": !collapsed && panel.id === (active == null ? void 0 : active.id),
         "aria-controls": id,
-        onClick: () => setSelected(panel.id),
-        children: panel.title
+        onClick: () => {
+          setCollapsed(panel.id === (active == null ? void 0 : active.id) && !collapsed);
+          setSelected(panel.id);
+        },
+        children: [
+          panel.icon,
+          /* @__PURE__ */ jsx("span", { children: panel.title })
+        ]
       },
       panel.id
     )) }),
-    /* @__PURE__ */ jsx("div", { id, className: "canvas2-workspace-panel", role: "region", "aria-label": active == null ? void 0 : active.title, children: active == null ? void 0 : active.content })
+    !collapsed && /* @__PURE__ */ jsxs("section", { id, className: "canvas2-resource-panel", role: "region", "aria-label": active == null ? void 0 : active.title, children: [
+      /* @__PURE__ */ jsx("header", { className: "canvas2-resource-heading", children: active == null ? void 0 : active.title }),
+      /* @__PURE__ */ jsx("div", { className: "canvas2-workspace-panel", children: active == null ? void 0 : active.content })
+    ] })
   ] });
 }
 function AdvancedWorkspace({ panels }) {
-  return /* @__PURE__ */ jsx("div", { className: "canvas2-workspace-stack", children: panels.map((panel) => /* @__PURE__ */ jsxs("details", { open: true, children: [
-    /* @__PURE__ */ jsx("summary", { children: panel.title }),
-    /* @__PURE__ */ jsx("div", { className: "canvas2-workspace-panel", children: panel.content })
-  ] }, panel.id)) });
+  const [selected, setSelected] = useState("design");
+  const resources = panels.filter((panel) => panel.id !== "layers");
+  const active = resources.find((panel) => panel.id === selected) ?? resources[0];
+  const layers = panels.find((panel) => panel.id === "layers");
+  return /* @__PURE__ */ jsxs("div", { className: "canvas2-advanced-panels", children: [
+    active && /* @__PURE__ */ jsxs("section", { className: "canvas2-advanced-properties", children: [
+      /* @__PURE__ */ jsx("div", { className: "canvas2-workspace-tabs", children: resources.map((panel) => /* @__PURE__ */ jsx(
+        "button",
+        {
+          type: "button",
+          "aria-pressed": active.id === panel.id,
+          onClick: () => setSelected(panel.id),
+          children: panel.title
+        },
+        panel.id
+      )) }),
+      /* @__PURE__ */ jsx("div", { className: "canvas2-workspace-panel", role: "region", "aria-label": active.title, children: active.content })
+    ] }),
+    layers && /* @__PURE__ */ jsxs("section", { className: "canvas2-advanced-layers", "aria-label": layers.title, children: [
+      /* @__PURE__ */ jsxs("div", { className: "canvas2-advanced-panel-heading", children: [
+        layers.icon,
+        layers.title
+      ] }),
+      /* @__PURE__ */ jsx("div", { className: "canvas2-workspace-panel", children: layers.content })
+    ] })
+  ] });
+}
+function ExcalidrawWorkspace({ panels }) {
+  const [selected, setSelected] = useState(null);
+  const active = panels.find((panel) => panel.id === selected);
+  const id = useId();
+  return /* @__PURE__ */ jsxs(Fragment$1, { children: [
+    /* @__PURE__ */ jsx("div", { className: "canvas2-native-tools", role: "toolbar", "aria-orientation": "vertical", children: panels.map((panel) => /* @__PURE__ */ jsx(
+      "button",
+      {
+        type: "button",
+        title: panel.title,
+        "aria-label": panel.title,
+        "aria-pressed": (active == null ? void 0 : active.id) === panel.id,
+        "aria-controls": (active == null ? void 0 : active.id) === panel.id ? id : void 0,
+        onClick: () => setSelected((active == null ? void 0 : active.id) === panel.id ? null : panel.id),
+        children: panel.icon
+      },
+      panel.id
+    )) }),
+    active && /* @__PURE__ */ jsxs("section", { id, className: "canvas2-resource-panel", role: "region", "aria-label": active.title, children: [
+      /* @__PURE__ */ jsx("header", { className: "canvas2-resource-heading", children: active.title }),
+      /* @__PURE__ */ jsx("div", { className: "canvas2-workspace-panel", children: active.content })
+    ] })
+  ] });
 }
 function WorkspaceLayout({
   children,
   className,
   workspace,
-  onWorkspaceChange,
   panels,
   theme = "light",
-  labels,
-  viewMode
+  labels
 }) {
-  const [collapsed, setCollapsed] = useState(false);
-  const panelId = useId();
   const L = mergeLabels(labels).workspace;
   const c = palette[theme];
-  const ordered = workspace === "advanced" ? [...panels].sort((a, b) => Number(b.id === "layers") - Number(a.id === "layers")) : panels;
-  return /* @__PURE__ */ jsxs(
+  return /* @__PURE__ */ jsx(
     "div",
     {
       className: `canvas2-workspace ${className ?? ""}`,
       "data-workspace": workspace,
-      "data-panel-collapsed": collapsed || !panels.length ? "" : void 0,
+      "data-panel-collapsed": !panels.length ? "" : void 0,
       style: {
         "--workspace-bg": c.bg,
         "--workspace-fg": c.fg,
@@ -4094,42 +4277,35 @@ function WorkspaceLayout({
         "--workspace-accent": c.active,
         fontFamily: PANEL_FONT
       },
-      children: [
-        !viewMode && /* @__PURE__ */ jsxs("header", { className: "canvas2-workspace-header", children: [
-          /* @__PURE__ */ jsxs("label", { className: "canvas2-workspace-choice", children: [
-            /* @__PURE__ */ jsx("span", { children: L.label }),
-            /* @__PURE__ */ jsxs("select", { value: workspace, onChange: (event) => onWorkspaceChange(event.target.value), children: [
-              /* @__PURE__ */ jsx("option", { value: "design", children: L.design }),
-              /* @__PURE__ */ jsx("option", { value: "advanced", children: L.advanced })
-            ] })
-          ] }),
-          panels.length > 0 && /* @__PURE__ */ jsx(
-            "button",
-            {
-              type: "button",
-              "aria-expanded": !collapsed,
-              "aria-controls": panelId,
-              onClick: () => setCollapsed((value) => !value),
-              children: collapsed ? L.showPanels : L.hidePanels
-            }
-          )
-        ] }),
-        /* @__PURE__ */ jsxs("div", { className: "canvas2-workspace-body", children: [
-          /* @__PURE__ */ jsx(
-            "aside",
-            {
-              id: panelId,
-              className: "canvas2-workspace-sidebar",
-              "aria-label": L.panels,
-              hidden: collapsed || !panels.length,
-              children: workspace === "design" ? /* @__PURE__ */ jsx(DesignWorkspace, { panels: ordered }) : /* @__PURE__ */ jsx(AdvancedWorkspace, { panels: ordered })
-            }
-          ),
-          /* @__PURE__ */ jsx("div", { className: "canvas2-workspace-surface", children })
-        ] })
-      ]
+      children: /* @__PURE__ */ jsxs("div", { className: "canvas2-workspace-body", children: [
+        /* @__PURE__ */ jsx(
+          "aside",
+          {
+            className: "canvas2-workspace-sidebar",
+            "aria-label": L.panels,
+            hidden: !panels.length,
+            children: workspace === "excalidraw" ? /* @__PURE__ */ jsx(ExcalidrawWorkspace, { panels }) : workspace === "design" ? /* @__PURE__ */ jsx(DesignWorkspace, { panels }) : /* @__PURE__ */ jsx(AdvancedWorkspace, { panels })
+          }
+        ),
+        /* @__PURE__ */ jsx("div", { className: "canvas2-workspace-surface", children })
+      ] })
     }
   );
+}
+const WORKSPACE_STORAGE_KEY = "pm-canvas-workspace-v2";
+function readWorkspace(fallback = "excalidraw") {
+  try {
+    const saved = localStorage.getItem(WORKSPACE_STORAGE_KEY);
+    if (saved === "excalidraw" || saved === "design" || saved === "advanced") return saved;
+  } catch {
+  }
+  return fallback;
+}
+function saveWorkspace(workspace) {
+  try {
+    localStorage.setItem(WORKSPACE_STORAGE_KEY, workspace);
+  } catch {
+  }
 }
 const EXCALIDRAW_MOBILE_BREAKPOINT = 861;
 function useIsNarrow(ref) {
@@ -4181,13 +4357,13 @@ function useDebouncedCallback(fn, delay) {
 }
 function Canvas2Editor({
   workspace: workspaceProp,
-  defaultWorkspace = "design",
+  defaultWorkspace = "excalidraw",
   onWorkspaceChange,
   className,
   initialScene,
   onSceneChange,
   viewMode = false,
-  theme,
+  theme: themeProp,
   langCode = "es-ES",
   onReady,
   nativeImageExport = true,
@@ -4215,8 +4391,12 @@ function Canvas2Editor({
   onPickVideoFrame
 }) {
   var _a;
-  const [localWorkspace, setLocalWorkspace] = useState(defaultWorkspace);
+  const [localWorkspace, setLocalWorkspace] = useState(() => readWorkspace(defaultWorkspace));
   const workspace = workspaceProp ?? localWorkspace;
+  const theme = workspace === "advanced" && !viewMode ? "dark" : themeProp;
+  useEffect(() => {
+    saveWorkspace(workspace);
+  }, [workspace]);
   const changeWorkspace = (next) => {
     if (next === workspace) return;
     if (workspaceProp === void 0) setLocalWorkspace(next);
@@ -4296,7 +4476,8 @@ ${css}` : css;
         // corners, hairline border) is the page's visual instead.
         frameRendering: { enabled: true, clip: true, name: true, outline: false },
         ...brandDefaults(brand),
-        ...(base == null ? void 0 : base.appState) ?? {}
+        ...(base == null ? void 0 : base.appState) ?? {},
+        ...pages ? { viewBackgroundColor: "#f2f3f5" } : {}
       }
     };
   });
@@ -4420,29 +4601,54 @@ ${css}` : css;
   }, [pages, api]);
   const L = mergeLabels(labels);
   const workspacePanels = [];
-  if (!viewMode && library) workspacePanels.push({ id: "library", title: L.library.title, content: library });
+  if (!viewMode && componentsPanel) workspacePanels.push({ id: "components", title: L.components.title, content: componentsPanel });
+  if (!viewMode && api) {
+    workspacePanels.push({
+      id: "elements",
+      title: L.workspace.elements,
+      content: /* @__PURE__ */ jsx(InsertPanel, { api, pageId: activePageId, labels })
+    });
+    workspacePanels.push({
+      id: "text",
+      title: L.workspace.text,
+      content: /* @__PURE__ */ jsx(
+        InsertPanel,
+        {
+          api,
+          pageId: activePageId,
+          text: true,
+          labels,
+          families: { heading: brand.headingFamily, body: brand.bodyFamily }
+        }
+      )
+    });
+  }
+  if (!viewMode && library) workspacePanels.push({ id: "library", title: L.workspace.files, content: library });
+  if (!viewMode && api && brandKit) workspacePanels.push({
+    id: "brand",
+    title: L.workspace.brand,
+    content: /* @__PURE__ */ jsx(BrandGallery, { api, activePageId, brandKit, theme, labels, embedded: true })
+  });
   if (!viewMode && api && pages) workspacePanels.push({
     id: "design",
-    title: L.dock.design,
+    title: L.workspace.page,
     content: /* @__PURE__ */ jsx(DesignPanel, { api, activePageId, theme, brandKit, labels })
   });
-  if (!viewMode && componentsPanel) workspacePanels.push({ id: "components", title: L.components.title, content: componentsPanel });
   if (!viewMode && agentPanel) workspacePanels.push({ id: "agent", title: L.dock.agent, content: agentPanel });
   if (!viewMode && api && layers && pages) workspacePanels.push({
     id: "layers",
     title: L.dock.layers,
     content: /* @__PURE__ */ jsx(LayersPanel, { api, activePageId, theme, embedded: true })
   });
+  for (const panel of workspacePanels) panel.icon = /* @__PURE__ */ jsx(WorkspaceIcon, { name: panel.id });
   return /* @__PURE__ */ jsx(
     WorkspaceLayout,
     {
       className,
       workspace,
-      onWorkspaceChange: changeWorkspace,
       panels: workspacePanels,
       theme,
       labels,
-      viewMode,
       children: /* @__PURE__ */ jsxs(
         "div",
         {
@@ -4505,6 +4711,7 @@ ${css}` : css;
               {
                 initialData,
                 viewModeEnabled: viewMode,
+                gridModeEnabled: workspace === "advanced" ? false : void 0,
                 langCode,
                 aiEnabled: false,
                 UIOptions: {
@@ -4550,9 +4757,12 @@ ${css}` : css;
                     files: prunedFiles
                   });
                 },
-                children: pages ? /* @__PURE__ */ jsx(
+                children: /* @__PURE__ */ jsx(
                   CanvasMenu,
                   {
+                    pages,
+                    workspace,
+                    onWorkspaceChange: changeWorkspace,
                     api,
                     activePageId,
                     viewMode,
@@ -4562,7 +4772,7 @@ ${css}` : css;
                     onSaveComponent,
                     labels
                   }
-                ) : null
+                )
               }
             ),
             swapTarget && api ? (() => {
@@ -4771,98 +4981,98 @@ function LibraryPanel({
   );
 }
 export {
-  getPageBackground as $,
-  convertToPages as A,
+  resolveBrandKit as $,
+  relayoutPages as A,
   BrandGallery as B,
   Canvas2 as C,
-  DEFAULT_LABELS as D,
-  EMPTY_BRAND as E,
-  createBlankScene as F,
-  dataUrlToBlob as G,
-  deletePage as H,
-  downloadBlob as I,
-  duplicatePage as J,
-  ensurePagePapers as K,
+  DesignPanel as D,
+  adoptStrayFramesInArray as E,
+  movePage as F,
+  movePageTo as G,
+  isPageLocked as H,
+  setPageLocked as I,
+  convertToPages as J,
+  adoptLooseIntoPage as K,
   LayersPanel as L,
   MEDIA_DROP_TYPE as M,
-  exportScenePdf as N,
-  exportScenePng as O,
-  PANEL_FONT as P,
-  exportSceneSvg as Q,
+  paginateSceneInArray as N,
+  clusterLooseElements as O,
+  PageNavigator as P,
+  looseElements as Q,
   RightDock as R,
-  exportStoredScenePng as S,
-  TEXT_PRESETS as T,
-  exportStoredSceneSvg as U,
+  patchElement as S,
+  usePageThumbnails as T,
+  PAGE_ALIGNMENTS as U,
   VideoFramePicker as V,
-  extendToPage as W,
-  externalizeInlineImages as X,
-  findInlineImageIds as Y,
-  fitAllPages as Z,
-  fontFamilyId as _,
+  alignToPage as W,
+  setAsBackground as X,
+  extendToPage as Y,
+  reorderPageMembers as Z,
+  sendMemberToBack as _,
   Canvas2Editor as a,
-  getPageSize as a0,
-  getSelectedVideo as a1,
-  getVideoMeta as a2,
-  hideNativeDragImage as a3,
-  imageAtScenePoint as a4,
-  insertImageFromBlob as a5,
-  insertImageFromUrl as a6,
-  insertImageWithPreview as a7,
-  insertTextPreset as a8,
-  insertVideo as a9,
-  setVideoPoster as aA,
-  storedScenePageCount as aB,
-  usePageThumbnails as aC,
-  isInlineDataUrl as aa,
-  isPageBackground as ab,
-  isPageLocked as ac,
-  isVideoElement as ad,
-  listPages as ae,
-  looseElements as af,
-  movePage as ag,
-  movePageTo as ah,
-  paginateSceneInArray as ai,
-  parseScene as aj,
-  patchElement as ak,
-  registerCustomFont as al,
-  registerCustomFonts as am,
-  relayoutPages as an,
-  renamePage as ao,
-  reorderPageMembers as ap,
-  replaceImageFromUrl as aq,
-  resizePage as ar,
-  resolveBrandKit as as,
-  resolveInsertPageId as at,
-  restoreScene as au,
-  sendMemberToBack as av,
-  serializeScene as aw,
-  setAsBackground as ax,
-  setPageBackgroundColor as ay,
-  setPageLocked as az,
+  EMPTY_BRAND as a0,
+  registerCustomFont as a1,
+  registerCustomFonts as a2,
+  fontFamilyId as a3,
+  serializeScene as a4,
+  parseScene as a5,
+  restoreScene as a6,
+  exportScenePng as a7,
+  exportSceneSvg as a8,
+  exportScenePdf as a9,
+  getVideoMeta as aA,
+  getSelectedVideo as aB,
+  VIDEO_MARKER as aC,
+  captureThumbnail as aa,
+  downloadBlob as ab,
+  exportStoredSceneSvg as ac,
+  exportStoredScenePng as ad,
+  storedScenePageCount as ae,
+  insertImageFromBlob as af,
+  insertImageFromUrl as ag,
+  insertImageWithPreview as ah,
+  replaceImageFromUrl as ai,
+  resolveInsertPageId as aj,
+  cascadePoints as ak,
+  imageAtScenePoint as al,
+  externalizeInlineImages as am,
+  findInlineImageIds as an,
+  isInlineDataUrl as ao,
+  dataUrlToBlob as ap,
+  TEXT_PRESETS as aq,
+  insertTextPreset as ar,
+  contrastTextColor as as,
+  getPageBackground as at,
+  setPageBackgroundColor as au,
+  ensurePagePapers as av,
+  isPageBackground as aw,
+  insertVideo as ax,
+  setVideoPoster as ay,
+  isVideoElement as az,
   CanvasMenu as b,
-  DesignPanel as c,
-  DragPreview as d,
-  LibraryPanel as e,
-  PageActions as f,
-  PageNavigator as g,
-  buildPersistableFiles as h,
-  packPagesInArray as i,
-  commitElements as j,
-  goToPage as k,
-  DEFAULT_PAGE_SIZE as l,
+  LibraryPanel as c,
+  PageActions as d,
+  DragPreview as e,
+  DEFAULT_LABELS as f,
+  PANEL_FONT as g,
+  packPagesInArray as h,
+  commitElements as i,
+  goToPage as j,
+  buildPersistableFiles as k,
+  hideNativeDragImage as l,
   mergeLabels as m,
-  PAGE_ALIGNMENTS as n,
+  DEFAULT_PAGE_SIZE as n,
   PAGE_SIZE_PRESETS as o,
   palette as p,
-  VIDEO_MARKER as q,
+  createBlankScene as q,
   renumberPagesInArray as r,
-  addPage as s,
-  adoptLooseIntoPage as t,
-  adoptStrayFramesInArray as u,
-  alignToPage as v,
-  captureThumbnail as w,
-  cascadePoints as x,
-  clusterLooseElements as y,
-  contrastTextColor as z
+  listPages as s,
+  getPageSize as t,
+  addPage as u,
+  deletePage as v,
+  fitAllPages as w,
+  renamePage as x,
+  duplicatePage as y,
+  resizePage as z
 };
-//# sourceMappingURL=LibraryPanel-DuqizML1.js.map
+//# sourceMappingURL=LibraryPanel-CyIW6tbs.js.map

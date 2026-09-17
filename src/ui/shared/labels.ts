@@ -14,7 +14,20 @@
 
 export interface Canvas2Labels {
   workspace: {
+    elements: string;
+    text: string;
+    brand: string;
+    page: string;
+    files: string;
+    searchElements: string;
+    noResults: string;
+    rectangle: string;
+    ellipse: string;
+    diamond: string;
+    arrow: string;
+    draw: string;
     label: string;
+    excalidraw: string;
     design: string;
     advanced: string;
     panels: string;
@@ -132,9 +145,22 @@ export interface Canvas2Labels {
 
 export const DEFAULT_LABELS: Canvas2Labels = {
   workspace: {
+    elements: 'Elementos',
+    text: 'Texto',
+    brand: 'Marca',
+    page: 'Página',
+    files: 'Archivos',
+    searchElements: 'Buscar elementos',
+    noResults: 'No se encontraron elementos.',
+    rectangle: 'Rectángulo',
+    ellipse: 'Círculo',
+    diamond: 'Rombo',
+    arrow: 'Flecha',
+    draw: 'Dibujar',
     label: 'Espacio de trabajo',
-    design: 'Diseño',
-    advanced: 'Avanzado',
+    excalidraw: 'Excalidraw',
+    design: 'Canva',
+    advanced: 'Experta',
     panels: 'Paneles del editor',
     showPanels: 'Mostrar paneles',
     hidePanels: 'Ocultar paneles',

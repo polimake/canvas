@@ -2,6 +2,7 @@ import { type ExcalidrawImperativeAPI } from '../../core/excal';
 import type { FilesMap } from '../hooks/pageThumbnails';
 import type { SvgFontFace } from '../../core/svgFonts';
 import { type PartialLabels } from '../shared/labels';
+import type { CanvasWorkspace } from '../workspaces/types';
 /**
  * Menú principal del editor: acciones de DOCUMENTO —convertir en páginas,
  * insertar texto, guardar como componente y exportar.
@@ -15,6 +16,10 @@ import { type PartialLabels } from '../shared/labels';
  * items de serie que merece la pena conservar.
  */
 export interface CanvasMenuProps {
+    /** Use the page actions, or retain the standard scene menu for a free canvas. */
+    pages?: boolean;
+    workspace?: CanvasWorkspace;
+    onWorkspaceChange?: (workspace: CanvasWorkspace) => void;
     /** Puede llegar null en el primer render: ver el comentario del montaje en Canvas2. */
     api: ExcalidrawImperativeAPI | null;
     /** Página activa, gobernada por Canvas2Editor. */
@@ -55,5 +60,5 @@ export interface CanvasMenuProps {
     /** Textos, inyectados por el host (ver labels.ts). */
     labels?: PartialLabels;
 }
-export declare function CanvasMenu({ api, activePageId, viewMode, hydrateFiles, fontFaces, brandFamilies, onSaveComponent, labels: labelsProp, }: CanvasMenuProps): import("react").JSX.Element;
+export declare function CanvasMenu({ pages: pageMode, workspace, onWorkspaceChange, api, activePageId, viewMode, hydrateFiles, fontFaces, brandFamilies, onSaveComponent, labels: labelsProp, }: CanvasMenuProps): import("react").JSX.Element;
 //# sourceMappingURL=CanvasMenu.d.ts.map

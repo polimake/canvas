@@ -49,7 +49,8 @@ Dos detalles que parecen menores y no lo son:
 
 ## Ejemplo completo
 
-El selector de espacios está incluido. `defaultWorkspace` elige el inicial;
+El menú permite elegir el espacio, guardado en `localStorage` con la clave
+`pm-canvas-workspace`. `defaultWorkspace` elige el inicial si no hay preferencia;
 `workspace` y `onWorkspaceChange` permiten controlarlo desde el host sin cambiar
 la `key` del editor. [Ejemplos y contrato](WORKSPACES.md).
 

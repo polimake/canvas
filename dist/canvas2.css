@@ -1,6 +1,27 @@
 /* canvas2 overrides for Excalidraw chrome — scoped to our editor wrapper
    ([data-canvas2]) so they can't leak to other Excalidraw instances. */
 
+/* Reuse the engine's selection-aware controls and undoable actions in a
+   horizontal toolbar. Advanced and mobile retain their native controls. */
+.canvas2-workspace[data-workspace="design"] [data-canvas2]:not([data-canvas2-narrow]) .selected-shape-actions {
+  position: absolute; left: 60px; right: 0; top: 0; z-index: 5;
+}
+.canvas2-workspace[data-workspace="design"] [data-canvas2]:not([data-canvas2-narrow]):has(.selected-shape-actions) .App-toolbar-container {
+  visibility: hidden;
+}
+.canvas2-workspace[data-workspace="design"] [data-canvas2]:not([data-canvas2-narrow]) .selected-shape-actions .Island {
+  position: relative; width: auto; max-width: 100%; overflow-x: auto; border-radius: 12px;
+  padding: 10px 14px; box-shadow: 0 3px 16px #00000012;
+}
+.canvas2-workspace[data-workspace="design"] [data-canvas2]:not([data-canvas2-narrow]) .selected-shape-actions .panelColumn {
+  display: flex; flex-direction: row; align-items: center; gap: 18px; width: max-content;
+}
+.canvas2-workspace[data-workspace="design"] [data-canvas2]:not([data-canvas2-narrow]) .selected-shape-actions .panelColumn > * { flex-shrink: 0; margin: 0; }
+.canvas2-workspace[data-workspace="design"] [data-canvas2]:not([data-canvas2-narrow]) .selected-shape-actions :is(legend, h3) {
+  margin: 0 0 6px; font-size: 10px; font-weight: 500; opacity: .7;
+}
+.canvas2-workspace[data-workspace="design"] [data-canvas2]:not([data-canvas2-narrow]) .selected-shape-actions .color-picker__top-picks { display: none; }
+
 /* El acento de Excalidraw es su morado (#6965db claro / #a8a5ff oscuro), y sale
    por la herramienta activa, los botones, las casillas y los diálogos. Se
    repinta con el azul de Polimake — los mismos valores que la ranura `active` de
@@ -186,6 +207,28 @@
 [data-canvas2] .App-toolbar__extra-tools-dropdown [data-testid="toolbar-laser"] ~ * {
   display: none !important;
 }
+
+/* Advanced keeps document colors intact inside dark editor chrome. */
+.canvas2-workspace[data-workspace="advanced"] .excalidraw canvas { filter: none !important; }
+.canvas2-workspace[data-workspace="advanced"] [data-canvas2]:not([data-canvas2-narrow]) .App-toolbar-container {
+  position: absolute; left: 0; top: 54px; z-index: 6;
+}
+.canvas2-workspace[data-workspace="advanced"] [data-canvas2]:not([data-canvas2-narrow]) .App-toolbar { border-radius: 3px; padding: 4px; box-shadow: 0 0 0 1px #ffffff10; }
+.canvas2-workspace[data-workspace="advanced"] [data-canvas2]:not([data-canvas2-narrow]) .App-toolbar > .Stack { flex-direction: column; gap: 2px; }
+.canvas2-workspace[data-workspace="advanced"] [data-canvas2]:not([data-canvas2-narrow]) .App-toolbar :is(.ToolIcon__icon, .App-toolbar__extra-tools-trigger) { width: 32px; height: 32px; border-radius: 3px; }
+.canvas2-workspace[data-workspace="advanced"] [data-canvas2]:not([data-canvas2-narrow]) .App-toolbar__divider { width: 24px; height: 1px; margin: 3px auto; }
+.canvas2-workspace[data-workspace="advanced"] [data-canvas2]:not([data-canvas2-narrow]) .App-toolbar__extra-tools-dropdown { left: 48px; top: 54px; right: auto; max-height: calc(100% - 110px); overflow-y: auto; }
+.canvas2-workspace[data-workspace="advanced"] [data-canvas2]:not([data-canvas2-narrow]) .selected-shape-actions { position: absolute; top: 0; left: 54px; right: 0; z-index: 5; }
+.canvas2-workspace[data-workspace="advanced"] [data-canvas2]:not([data-canvas2-narrow]) .selected-shape-actions .Island { position: relative; width: auto; max-width: 100%; overflow-x: auto; border-radius: 3px; padding: 8px 12px; box-shadow: 0 1px 0 #ffffff10; }
+.canvas2-workspace[data-workspace="advanced"] [data-canvas2]:not([data-canvas2-narrow]) .selected-shape-actions .panelColumn { display: flex; flex-direction: row; align-items: center; gap: 14px; width: max-content; }
+.canvas2-workspace[data-workspace="advanced"] [data-canvas2]:not([data-canvas2-narrow]) .selected-shape-actions .panelColumn > * { flex-shrink: 0; margin: 0; }
+.canvas2-workspace[data-workspace="advanced"] [data-canvas2]:not([data-canvas2-narrow]) .selected-shape-actions :is(legend, h3) { margin: 0 0 4px; font-size: 10px; font-weight: 500; opacity: .7; }
+.canvas2-workspace[data-workspace="advanced"] [data-canvas2]:not([data-canvas2-narrow]) .selected-shape-actions .color-picker__top-picks { display: none; }
+.canvas2-workspace[data-workspace="advanced"] [data-canvas2]:not([data-canvas2-narrow]) .App-toolbar > .Stack { display: flex; }
+.canvas2-workspace[data-workspace="advanced"] [data-canvas2] .excalidraw { --theme-filter: none; }
+.canvas2-workspace[data-workspace="advanced"] [data-canvas2]:not([data-canvas2-narrow]) .shapes-section > div { position: static !important; }
+.canvas2-workspace[data-workspace="advanced"] .canvas2-workspace-surface { container-type: size; }
+.canvas2-workspace[data-workspace="advanced"] [data-canvas2-narrow] .dropdown-menu--mobile { max-height: calc(100cqh - 88px); overflow-y: auto; }
 .canvas2-workspace {
   container-type: inline-size;
   width: 100%; height: 100%; min-height: 0; min-width: 0;
@@ -193,19 +236,52 @@
   color: var(--workspace-fg); background: var(--workspace-bg);
   font-size: 12px;
 }
-.canvas2-workspace, .canvas2-workspace *, .canvas2-workspace *::before, .canvas2-workspace *::after { box-sizing: border-box; }
-.canvas2-workspace-header {
-  display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  min-height: 44px; flex-shrink: 0; padding: 6px 12px; box-sizing: border-box;
-  border-bottom: 1px solid var(--workspace-border);
+.canvas2-workspace[data-workspace="design"] .canvas2-workspace-sidebar {
+  flex: 0 0 288px; width: 288px; flex-direction: row; overflow: hidden;
+  border-color: color-mix(in srgb, var(--workspace-fg) 10%, var(--workspace-bg));
 }
-.canvas2-workspace-choice { display: flex; align-items: center; gap: 10px; }
-.canvas2-workspace-header button, .canvas2-workspace-header select, .canvas2-workspace-tabs button {
+.canvas2-workspace[data-workspace="design"] .canvas2-workspace-sidebar:not(:has(.canvas2-resource-panel)) { flex-basis: 56px; width: 56px; }
+.canvas2-workspace[data-workspace="design"] .canvas2-workspace-tabs {
+  display: flex; flex-direction: column; flex-wrap: nowrap; flex: 0 0 56px;
+  width: 56px; gap: 4px; padding: 12px 6px; overflow-y: auto;
+  border: 0; border-right: 1px solid var(--workspace-border);
+}
+.canvas2-workspace[data-workspace="design"] .canvas2-workspace-tabs button {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 4px; min-height: 48px; flex-shrink: 0; padding: 6px 2px;
+  border: 0; border-radius: 7px; font-size: 10px; font-weight: 600;
+  background: transparent; transition: background 120ms;
+}
+.canvas2-workspace[data-workspace="design"] .canvas2-workspace-tabs button:hover,
+.canvas2-workspace[data-workspace="design"] .canvas2-workspace-tabs button[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--workspace-accent) 9%, var(--workspace-bg)); color: var(--workspace-accent);
+}
+.canvas2-resource-panel { display: flex; flex-direction: column; min-width: 0; flex: 1; overflow: hidden; background: var(--workspace-bg); }
+.canvas2-resource-heading { flex-shrink: 0; padding: 14px 12px 10px; font-size: 14px; font-weight: 650; letter-spacing: -.4px; }
+.canvas2-resource-panel > .canvas2-workspace-panel { padding: 4px 12px 12px; flex: 1; overflow: auto; }
+.canvas2-resource-search { width: 100%; min-height: 32px; padding: 0 10px; border: 1px solid var(--workspace-border); border-radius: 9px; font: inherit; color: inherit; background: var(--workspace-bg); }
+.canvas2-element-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+.canvas2-element-grid button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 12px 6px 8px; min-height: 80px; font: inherit; color: inherit; background: color-mix(in srgb, var(--workspace-fg) 4%, var(--workspace-bg)); border: 1px solid transparent; border-radius: 12px; cursor: pointer; }
+.canvas2-element-grid button:hover { border-color: var(--workspace-accent); }
+.canvas2-shape-preview { display: block; width: 34px; height: 34px; background: var(--workspace-accent); border-radius: 4px; }
+.canvas2-shape-preview[data-shape="ellipse"] { border-radius: 50%; }
+.canvas2-shape-preview[data-shape="diamond"] { transform: rotate(45deg) scale(.75); }
+.canvas2-text-presets { display: flex; flex-direction: column; gap: 12px; }
+.canvas2-text-presets button, .canvas2-drawing-tools button { min-height: 36px; border: 1px solid var(--workspace-border); border-radius: 10px; padding: 10px; font: inherit; text-align: left; color: inherit; background: var(--workspace-bg); cursor: pointer; }
+.canvas2-text-presets button:hover, .canvas2-drawing-tools button:hover { background: var(--workspace-hover); }
+.canvas2-text-presets button[data-preset="heading"] { font-size: 20px; font-weight: 700; }
+.canvas2-text-presets button[data-preset="subheading"] { font-size: 18px; font-weight: 600; }
+.canvas2-text-presets button[data-preset="body"] { font-size: 14px; }
+.canvas2-drawing-tools { display: flex; gap: 8px; margin-top: 16px; }
+.canvas2-drawing-tools button { flex: 1; text-align: center; }
+.canvas2-resource-empty { padding: 16px 0; opacity: .65; }
+.canvas2-workspace, .canvas2-workspace *, .canvas2-workspace *::before, .canvas2-workspace *::after { box-sizing: border-box; }
+.canvas2-workspace-tabs button {
   font: inherit; color: inherit; background: var(--workspace-bg);
   border: 1px solid var(--workspace-border); border-radius: 6px;
   padding: 6px 8px; min-height: 32px; cursor: pointer;
 }
-.canvas2-workspace-header button:hover, .canvas2-workspace-tabs button:hover { background: var(--workspace-hover); }
+.canvas2-workspace-tabs button:hover { background: var(--workspace-hover); }
 .canvas2-workspace :is(button, select, summary):focus-visible { outline: 2px solid var(--workspace-accent); outline-offset: 2px; }
 .canvas2-workspace-body { display: flex; flex: 1; min-height: 0; min-width: 0; position: relative; }
 .canvas2-workspace-sidebar {
@@ -214,6 +290,15 @@
   display: flex; flex-direction: column; box-sizing: border-box;
 }
 .canvas2-workspace-sidebar[hidden] { display: none; }
+.canvas2-workspace[data-workspace="excalidraw"] .canvas2-workspace-sidebar {
+  order: 1; flex: 0 0 40px; width: 40px; flex-direction: row;
+  overflow: hidden; border-right: 0; border-left: 1px solid var(--workspace-border);
+}
+.canvas2-workspace[data-workspace="excalidraw"] .canvas2-workspace-sidebar:has(.canvas2-resource-panel) { flex-basis: 272px; width: 272px; }
+.canvas2-native-tools { display: flex; flex: 0 0 40px; flex-direction: column; align-items: center; gap: 4px; padding: 8px 3px; overflow-y: auto; }
+.canvas2-native-tools button { width: 32px; min-height: 32px; display: grid; place-items: center; border: 0; border-radius: 6px; color: inherit; background: transparent; cursor: pointer; }
+.canvas2-native-tools svg { width: 18px; height: 18px; }
+.canvas2-native-tools button:hover, .canvas2-native-tools button[aria-pressed="true"] { background: var(--workspace-hover); color: var(--workspace-accent); }
 .canvas2-workspace-surface { flex: 1; min-width: 0; min-height: 0; position: relative; overflow: hidden; }
 .canvas2-workspace[data-workspace="advanced"] .canvas2-workspace-sidebar {
   order: 1; width: 288px; flex-basis: 288px;
@@ -222,15 +307,53 @@
 .canvas2-workspace-tabs { display: flex; flex-wrap: wrap; gap: 5px; padding: 10px; border-bottom: 1px solid var(--workspace-border); }
 .canvas2-workspace-tabs button[aria-pressed="true"] { border-color: var(--workspace-accent); color: var(--workspace-accent); }
 .canvas2-workspace-panel { min-height: 0; padding: 10px; overflow: auto; }
-.canvas2-workspace-stack details { border-bottom: 1px solid var(--workspace-border); }
-.canvas2-workspace-stack summary { padding: 12px; font-weight: 600; cursor: pointer; }
 @container (max-width: 900px) {
+  .canvas2-workspace[data-workspace="excalidraw"] .canvas2-workspace-sidebar {
+    position: absolute; left: auto; right: 0; top: 60px; bottom: 64px; z-index: 2;
+    width: 40px; box-shadow: none;
+  }
+  .canvas2-workspace[data-workspace="excalidraw"] .canvas2-workspace-sidebar:has(.canvas2-resource-panel) { width: min(272px, 80cqw); box-shadow: -4px 0 16px #0002; }
   .canvas2-workspace-sidebar, .canvas2-workspace[data-workspace="advanced"] .canvas2-workspace-sidebar {
-    position: absolute; top: 0; bottom: 0; left: 0; z-index: 110;
+    /* Keep the engine's toolbars and menus above the overlaid panels. */
+    position: absolute; top: 56px; bottom: 56px; left: 0; z-index: 1;
     width: min(288px, 85cqw); box-shadow: 4px 0 16px #0002;
   }
   .canvas2-workspace[data-workspace="advanced"] .canvas2-workspace-sidebar { left: auto; right: 0; }
+  .canvas2-workspace[data-workspace="design"] .canvas2-workspace-sidebar {
+    position: static; flex: 0 0 56px; width: 56px; overflow: visible; box-shadow: none;
+  }
+  .canvas2-workspace[data-workspace="design"] .canvas2-resource-panel {
+    position: absolute; left: 56px; top: 56px; bottom: 56px; z-index: 1;
+    width: min(268px, calc(100cqw - 88px)); border: 1px solid var(--workspace-border);
+    border-radius: 0 12px 12px 0; box-shadow: 4px 6px 24px #0001;
+  }
 }
-@container (max-width: 440px) {
-  .canvas2-workspace-choice > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+
+/* Advanced: compact, docked panels with an independent layer stack. */
+.canvas2-workspace[data-workspace="advanced"] .canvas2-workspace-sidebar { width: 300px; flex-basis: 300px; overflow: hidden; }
+.canvas2-advanced-panels { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.canvas2-advanced-properties { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.canvas2-advanced-properties > .canvas2-workspace-panel { flex: 1; padding: 14px; }
+.canvas2-advanced-panels .canvas2-workspace-tabs { flex-shrink: 0; gap: 0; padding: 0; background: var(--workspace-hover); }
+.canvas2-advanced-panels .canvas2-workspace-tabs button { border: 0; border-right: 1px solid var(--workspace-border); border-bottom: 2px solid transparent; border-radius: 0; background: transparent; padding: 10px 12px; font-size: 11px; }
+.canvas2-advanced-panels .canvas2-workspace-tabs button[aria-pressed="true"] { background: var(--workspace-bg); color: var(--workspace-fg); border-bottom-color: var(--workspace-accent); }
+.canvas2-advanced-layers { display: flex; flex-direction: column; flex: 1; min-height: 160px; border-top: 1px solid var(--workspace-border); }
+.canvas2-advanced-layers > .canvas2-workspace-panel { flex: 1; padding: 6px; }
+.canvas2-advanced-panel-heading { display: flex; align-items: center; gap: 8px; padding: 10px 12px; font-size: 11px; font-weight: 600; border-bottom: 1px solid var(--workspace-border); background: var(--workspace-hover); }
+.canvas2-advanced-panel-heading svg { width: 15px; height: 15px; }
+.canvas2-advanced-panels .canvas2-element-grid { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; }
+.canvas2-advanced-panels .canvas2-element-grid button { flex-direction: row; justify-content: flex-start; min-height: 40px; padding: 8px 12px; border-radius: 3px; }
+.canvas2-advanced-panels .canvas2-shape-preview { width: 20px; height: 20px; }
+.canvas2-advanced-panels :is(.canvas2-resource-search, .canvas2-text-presets button, .canvas2-drawing-tools button) { border-radius: 3px; }
+@container (max-width: 900px) {
+  .canvas2-workspace[data-workspace="advanced"] .canvas2-workspace-sidebar { width: min(240px, 60cqw); }
+}
+@container (max-width: 900px) {
+  /* A bottom dock leaves mobile toolbars and menus unobstructed. */
+  .canvas2-workspace[data-workspace="advanced"] .canvas2-workspace-body { flex-direction: column; }
+  .canvas2-workspace[data-workspace="advanced"] .canvas2-workspace-sidebar { position: static; width: 100%; flex: 0 0 36%; border-left: 0; border-top: 1px solid var(--workspace-border); box-shadow: none; }
+  .canvas2-advanced-panels { flex-direction: row; }
+  .canvas2-advanced-properties, .canvas2-advanced-layers { min-width: 0; min-height: 0; }
+  .canvas2-advanced-layers { border-top: 0; border-left: 1px solid var(--workspace-border); }
+  .canvas2-advanced-panels .canvas2-workspace-tabs button { padding: 8px; }
 }
