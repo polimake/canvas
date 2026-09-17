@@ -32,6 +32,7 @@ export {
   isPageLocked,
   setPageLocked,
   goToPage,
+  focusLayer,
 } from './core/pages';
 export type { PageInfo, PageSize, PageSizePreset } from './core/pages';
 // Paginar una escena que llegó sin páginas (importada, pegada, arrastrada).
@@ -181,6 +182,7 @@ export {
   cascadePoints,
   imageAtScenePoint,
   externalizeInlineImages,
+  hasUploadsInFlight,
   buildPersistableFiles,
   findInlineImageIds,
   isInlineDataUrl,

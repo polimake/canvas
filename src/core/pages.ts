@@ -412,6 +412,39 @@ export function goToPage(
   });
 }
 
+/**
+ * Seleccionar una capa y traerla a pantalla.
+ *
+ * Es el equivalente de `goToPage` para un elemento suelto: lo usa la capa de
+ * revisión para saltar desde un comentario a la capa que señala. Devuelve
+ * `false` si el id ya no está en la escena —el elemento se borró desde que se
+ * escribió el comentario—, para que quien llama pueda no ofrecer el salto en
+ * vez de dejar un control que no hace nada.
+ *
+ * Seleccionar es NAVEGAR, no editar: va con `capture: 'never'` para no dejar
+ * entrada en el historial. Deshacer justo después debe deshacer el último
+ * cambio real del usuario, no este salto de vista.
+ */
+export function focusLayer(
+  api: ExcalidrawImperativeAPI,
+  layerId: string,
+  opts?: { coverage?: number },
+): boolean {
+  const elements = api.getSceneElements();
+  const el = elements.find((e) => e.id === layerId && !e.isDeleted);
+  if (!el) return false;
+  // `commitElements` con los MISMOS elementos: no toca nada del contenido, solo
+  // adjunta el appState por el embudo de escritura del paquete.
+  commitElements(api, elements, 'never', { selectedElementIds: { [layerId]: true } });
+  api.scrollToContent(el, {
+    fitToViewport: true,
+    viewportZoomFactor: Math.min(1, Math.max(0.1, opts?.coverage ?? PAGE_VIEWPORT_COVERAGE)),
+    animate: true,
+    duration: 300,
+  });
+  return true;
+}
+
 /** Rename a page (its frame). */
 export function renamePage(
   api: ExcalidrawImperativeAPI,

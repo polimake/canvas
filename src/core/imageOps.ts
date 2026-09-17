@@ -63,6 +63,9 @@ function fitToPage(
   ) as readonly SceneElement[];
 
   // Apply geometry + send-to-back in a single updateScene (one undo step).
+  // "Al fondo" es al fondo del CONTENIDO: el papel de la página sigue debajo
+  // —lo garantiza `reorderMembersInArray`—, porque es opaco y una imagen por
+  // debajo de él no sería un fondo, sería una imagen que no se ve.
   const reordered = reorderMembersInArray(updated, frame.id, [elementId]);
   commitElements(api, reordered);
 }

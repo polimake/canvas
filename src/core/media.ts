@@ -96,6 +96,41 @@ function createFileId(): string {
   return `file_${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
 }
 
+/**
+ * Ficheros que `externalizeInlineImages` NO debe tocar, por dos motivos
+ * distintos que conviene no confundir:
+ *
+ *  1. SUBIÉNDOSE AHORA. El insertador con vista previa deja el base64 en la
+ *     escena mientras sube, y durante esa ventana el fichero es indistinguible
+ *     de uno pegado con Ctrl+V — así que el guardado lo cogía y lo subía POR SU
+ *     CUENTA. Dos ficheros en la mediateca por cada foto arrastrada, uno con su
+ *     nombre y otro llamado `canvas-<uuid>.ext`.
+ *
+ *  2. YA SUBIDO, pero huérfano. Al terminar, el repunte apunta el elemento a un
+ *     id NUEVO y la entrada vieja se queda en el mapa con su base64 dentro,
+ *     porque Excalidraw no ofrece forma de borrar una entrada. Sin recordarla,
+ *     el guardado siguiente la subiría igualmente — el mismo duplicado, un
+ *     minuto más tarde.
+ *
+ * Por eso los ids no se sueltan al terminar la subida: siguen siendo exactamente
+ * los que no hay que subir. Es un id por imagen arrastrada y vive lo que la
+ * pestaña.
+ *
+ * El registro es de módulo y no de instancia porque las dos rutas no comparten
+ * ningún objeto: una vive en el host (el `onDrop` de la página) y la otra en el
+ * guardado. El id es único por escena (`crypto.randomUUID`), así que dos
+ * editores abiertos a la vez no se pisan.
+ */
+const handledByUpload = new Set<string>();
+
+/** Subidas realmente en curso. Solo para tests y diagnóstico. */
+const uploadsInFlight = new Set<string>();
+
+/** ¿Hay alguna imagen subiéndose ahora mismo? */
+export function hasUploadsInFlight(): boolean {
+  return uploadsInFlight.size > 0;
+}
+
 function frames(api: ExcalidrawImperativeAPI): FrameElement[] {
   return api
     .getSceneElements()
@@ -284,9 +319,18 @@ export function dataUrlToBlob(dataUrl: string): Blob {
 function insertImageByReference(
   api: ExcalidrawImperativeAPI,
   file: { url: string; mimeType: string; width: number; height: number },
-  opts?: InsertImageOptions,
+  opts?: InsertImageOptions & {
+    /**
+     * Recibe el id del FICHERO recién creado. Lo usa el insertador con vista
+     * previa para anotarlo en `uploadsInFlight`: sin este canal tendría que
+     * deducirlo releyendo el mapa de ficheros, y no devolverlo en vez del id de
+     * elemento es deliberado (ver arriba).
+     */
+    onFileId?: (fileId: string) => void;
+  },
 ): string {
   const fileId = createFileId();
+  opts?.onFileId?.(fileId);
   const mimeType = file.mimeType?.startsWith('image/') ? file.mimeType : 'image/png';
 
   api.addFiles([
@@ -485,9 +529,12 @@ function blobToDataUrl(blob: Blob): Promise<string> {
  * BORRA el elemento. Nunca queda un base64 al que el guardado tenga que
  * enfrentarse.
  *
- * La ventana en la que sí existe dura lo que la subida. Si justo ahí cae un
- * autoguardado, `externalizeInlineImages` lo sube por su cuenta y deja un
- * duplicado en la mediateca — feo, pero la regla aguanta y el diseño se guarda.
+ * La ventana en la que sí existe dura lo que la subida, y durante ella el
+ * fichero queda anotado en `uploadsInFlight` para que `externalizeInlineImages`
+ * NO lo toque. Sin esa marca lo subía por su cuenta y dejaba un duplicado en la
+ * mediateca con el nombre `canvas-<uuid>.ext`: el guardado esperaba a que MM
+ * terminara de procesar, así que la ventana siempre se agotaba y el duplicado
+ * pasó de riesgo teórico a rutina.
  *
  * El cambio de fichero entra como `'never'` en el historial: es fontanería, y un
  * Ctrl+Z que devolviera el elemento al base64 recién sustituido sería justo lo
@@ -507,10 +554,21 @@ export async function insertImageWithPreview(
   const filename = opts?.filename ?? `canvas-${Date.now()}.png`;
   const local = await blobToDataUrl(blob);
   const { width, height } = await loadImageSize(local);
+  let pendingFileId: string | null = null;
   const elementId = insertImageByReference(
     api,
     { url: local, mimeType: blob.type || 'image/png', width, height },
-    opts,
+    {
+      ...opts,
+      // Anotado ANTES de que la subida empiece: el `addFiles` de ahí dentro ya
+      // dispara el `onChange` de la escena, así que un guardado puede entrar
+      // antes de la siguiente línea de esta función.
+      onFileId: (id) => {
+        pendingFileId = id;
+        uploadsInFlight.add(id);
+        handledByUpload.add(id);
+      },
+    },
   );
 
   let url: string;
@@ -527,6 +585,12 @@ export async function insertImageWithPreview(
       api.getSceneElements().filter((el) => el.id !== elementId),
       'never',
     );
+    // Ya no hay elemento, luego tampoco hay nada que externalizar ni que
+    // recordar: se sueltan los dos registros.
+    if (pendingFileId) {
+      uploadsInFlight.delete(pendingFileId);
+      handledByUpload.delete(pendingFileId);
+    }
     throw e;
   }
 
@@ -543,6 +607,12 @@ export async function insertImageWithPreview(
       ),
     'never',
   );
+  // La subida terminó, pero el id se QUEDA en `handledByUpload`: el repunte de
+  // arriba no reutiliza el id viejo, así que su entrada sigue en el mapa con el
+  // base64 dentro y sin dueño (Excalidraw no deja borrar entradas). Olvidarlo
+  // aquí haría que el guardado siguiente lo subiera como `canvas-<uuid>.ext`, o
+  // sea el mismo duplicado un minuto más tarde. Ver `handledByUpload`.
+  if (pendingFileId) uploadsInFlight.delete(pendingFileId);
   return elementId;
 }
 
@@ -558,11 +628,24 @@ export interface ExternalizeResult {
   externalized: number;
   /** Ids que no se pudieron subir. Con esto ≠ 0, NO se debe guardar. */
   failed: string[];
+  /**
+   * Ids que se han SALTADO porque ya se están subiendo por otra vía.
+   *
+   * No son un fallo: terminarán solos en unos segundos. Pero tampoco se puede
+   * guardar todavía, porque sus bytes siguen en la escena — quien llama debe
+   * reintentar, no abortar con un error a la cara del usuario.
+   */
+  skipped: string[];
 }
 
 /**
  * Convierte a ficheros de MediaMonster todo el base64 que haya entrado por la
  * vía nativa de Excalidraw (arrastrar / pegar / selector).
+ *
+ * Se saltan los ficheros anotados en `uploadsInFlight`: esos ya van camino de
+ * MM por la vía del insertador con vista previa, y subirlos aquí otra vez era la
+ * causa de los duplicados `canvas-<uuid>.ext` en la mediateca. Salen en
+ * `skipped`, que no es un fallo pero SÍ impide guardar todavía.
  *
  * Detalle importante: NO se reutiliza el id del fichero. `api.addFiles()`
  * delega en `addMissingFiles()`, que hace `continue` con todo id ya existente,
@@ -575,8 +658,16 @@ export async function externalizeInlineImages(
   uploader: MediaUploader,
 ): Promise<ExternalizeResult> {
   const files = (api.getFiles() ?? {}) as Record<string, FileEntry>;
-  const inline = Object.values(files).filter((f) => f && isInlineDataUrl(f.dataURL));
-  if (inline.length === 0) return { externalized: 0, failed: [] };
+  const all = Object.values(files).filter((f) => f && isInlineDataUrl(f.dataURL));
+  // Los que ya van de camino a MM por su propia vía no se tocan: subirlos aquí
+  // otra vez es exactamente el duplicado que este registro viene a impedir.
+  // `skipped` es solo lo que está subiéndose AHORA, porque es lo único que
+  // obliga a esperar. Los huérfanos de subidas ya terminadas también se saltan
+  // —por eso el filtro de `inline` mira el registro entero— pero no bloquean
+  // nada: nadie los referencia y el filtro de salida los descarta.
+  const skipped = all.filter((f) => uploadsInFlight.has(f.id)).map((f) => f.id);
+  const inline = all.filter((f) => !handledByUpload.has(f.id));
+  if (inline.length === 0) return { externalized: 0, failed: [], skipped };
 
   const remap = new Map<string, string>();
   const failed: string[] = [];
@@ -613,7 +704,7 @@ export async function externalizeInlineImages(
     commitElements(api, next, 'never');
   }
 
-  return { externalized: remap.size, failed };
+  return { externalized: remap.size, failed, skipped };
 }
 
 export interface PersistableFiles {

@@ -17,6 +17,7 @@ const {
   findInlineImageIds,
   isInlineDataUrl,
   externalizeInlineImages,
+  hasUploadsInFlight,
   insertImageFromUrl,
   insertImageFromBlob,
   insertImageWithPreview,
@@ -114,7 +115,7 @@ describe('externalizeInlineImages', () => {
 
     const result = await externalizeInlineImages(scene.api, uploader);
 
-    expect(result).toEqual({ externalized: 1, failed: [] });
+    expect(result).toEqual({ externalized: 1, failed: [], skipped: [] });
     expect(uploader).toHaveBeenCalledTimes(1);
 
     const img = scene.get().find((e: any) => e.id === 'img1');
@@ -167,10 +168,12 @@ describe('externalizeInlineImages', () => {
     expect(await externalizeInlineImages(scene.api, uploader)).toEqual({
       externalized: 0,
       failed: [],
+      skipped: [],
     });
     expect(uploader).not.toHaveBeenCalled();
     expect(scene.commits).toHaveLength(0);
   });
+
 });
 
 /**
@@ -428,6 +431,42 @@ describe('soltar del escritorio (pintar ya, subir después)', () => {
       (globalThis as { FileReader?: unknown }).FileReader = oldReader;
     }
   };
+
+  it('el guardado NO vuelve a subir lo que ya está subiendo (duplicado en la mediateca)', async () => {
+    // LA REGRESIÓN, la que se veía en producción: mientras esta función sube,
+    // el base64 vive en la escena, y `externalizeInlineImages` —que es quien
+    // rescata lo pegado con Ctrl+V— lo cogía y lo subía POR SU CUENTA. Cada foto
+    // arrastrada acababa dos veces en la mediateca: una con su nombre y otra
+    // llamada `canvas-<uuid>.ext`.
+    await withEnv(async () => {
+      const scene = fakeApi([frame('p1', 0, 0, 400, 400)]);
+      let resolver: (url: string) => void = () => {};
+      const subidaDelDrop = vi.fn(() => new Promise<string>((r) => (resolver = r)));
+
+      const pendiente = insertImageWithPreview(scene.api, PNG_BLOB(), subidaDelDrop, {
+        filename: 'foto-del-usuario.png',
+      });
+      for (let i = 0; i < 5; i += 1) await new Promise((r) => setTimeout(r, 0));
+
+      // Con la subida en vuelo, el base64 está en la escena...
+      expect(hasUploadsInFlight()).toBe(true);
+      // ...y aun así el guardado tiene que dejarlo en paz.
+      const subidaDelGuardado = vi.fn().mockResolvedValue(CDN);
+      const resultado = await externalizeInlineImages(scene.api, subidaDelGuardado);
+      expect(subidaDelGuardado).not.toHaveBeenCalled();
+      expect(resultado.externalized).toBe(0);
+      expect(resultado.skipped).toHaveLength(1);
+
+      resolver(CDN);
+      await pendiente;
+      // Terminada la subida no queda nada marcado, y el fichero ya es remoto:
+      // el siguiente guardado no tiene nada que externalizar ni que saltarse.
+      expect(hasUploadsInFlight()).toBe(false);
+      const despues = await externalizeInlineImages(scene.api, subidaDelGuardado);
+      expect(subidaDelGuardado).not.toHaveBeenCalled();
+      expect(despues.skipped).toHaveLength(0);
+    });
+  });
 
   it('la imagen está en la escena ANTES de que la subida termine', async () => {
     await withEnv(async () => {
