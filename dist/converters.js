@@ -1,4 +1,4 @@
-import { D, P, c, f, g, l, a, p, b, d, e, r, h, s } from "./chunks/legacy-BS2a1q37.js";
+import { D, P, c, f, g, h, l, e, a, p, b, d, r, s } from "./chunks/psd-BkuMvcm9.js";
 import { P as PAGE_GAP } from "./chunks/layout-BEpoNps2.js";
 import { customFontFamilyId } from "./fonts.js";
 function documentToScene(document, options = {}) {
@@ -104,14 +104,14 @@ export {
   documentToScene,
   f as flattenBezierPath,
   g as groupStyleRuns,
-  l as legacyToScene,
-  a as listImagePlaceholders,
-  p as parseLegacyText,
-  b as postScriptStyleToCss,
-  d as psdColorToHex,
-  e as psdToScene,
-  r as resetIdCounter,
-  h as resetPsdIdCounter,
+  h as legacyToScene,
+  l as listImagePlaceholders,
+  e as parseLegacyText,
+  a as postScriptStyleToCss,
+  p as psdColorToHex,
+  b as psdToScene,
+  d as resetIdCounter,
+  r as resetPsdIdCounter,
   s as splitPostScriptFont
 };
 //# sourceMappingURL=converters.js.map

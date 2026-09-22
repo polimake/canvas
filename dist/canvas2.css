@@ -208,7 +208,8 @@
   display: none !important;
 }
 
-/* Advanced keeps document colors intact inside dark editor chrome. */
+/* Advanced keeps document colors intact: in the dark theme the canvas is not
+   inverted, only the editor chrome around it changes. */
 .canvas2-workspace[data-workspace="advanced"] .excalidraw canvas { filter: none !important; }
 .canvas2-workspace[data-workspace="advanced"] [data-canvas2]:not([data-canvas2-narrow]) .App-toolbar-container {
   position: absolute; left: 0; top: 54px; z-index: 6;
