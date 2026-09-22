@@ -69,7 +69,7 @@ en una carpeta propia y añade su opción y etiquetas al menú. Conserva la
 superficie y la sesión en el mismo lugar del árbol React. Las operaciones de
 edición se implementan en `core`, y se reutilizan desde cada UI.
 
-Los textos `labels.workspace` admiten traducción. Diseño respeta `theme`; Avanzado usa un cromo oscuro y mantiene los colores originales del documento. La cuadrícula queda desactivada en Avanzado. No hay cabecera de espacios ni botón para ocultar paneles. Hasta 900 px
+Los textos `labels.workspace` admiten traducción. Los dos espacios respetan `theme`, que elige quien monta el editor; Avanzado, además, no invierte los colores del documento en oscuro. La cuadrícula queda desactivada en Avanzado. No hay cabecera de espacios ni botón para ocultar paneles. Hasta 900 px
 de contenedor, la barra de iconos permanece visible y su panel se superpone al
 lienzo entre las herramientas superiores e inferiores. En Avanzado, los paneles pasan a un dock inferior en pantallas estrechas.
 

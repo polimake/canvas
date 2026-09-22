@@ -357,7 +357,9 @@ export function Canvas2Editor({
 }: Canvas2EditorProps) {
   const [localWorkspace, setLocalWorkspace] = useState(() => readWorkspace(defaultWorkspace));
   const workspace = workspaceProp ?? localWorkspace;
-  const theme = workspace === 'advanced' && !viewMode ? 'dark' : themeProp;
+  // El tema lo elige quien monta el editor (Ajustes > Canvas en el desktop);
+  // el espacio avanzado ya no se lo cambia por su cuenta.
+  const theme = themeProp;
   useEffect(() => { saveWorkspace(workspace); }, [workspace]);
   const changeWorkspace = (next: CanvasWorkspace) => {
     if (next === workspace) return;
