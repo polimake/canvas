@@ -1,7 +1,7 @@
 import type { ExcalidrawImperativeAPI, SceneElement } from './excal';
 import type { FileEntry } from './media';
 import { commitElements } from './mutate';
-import { goToPage, packPagesInArray, renumberPagesInArray } from './pages';
+import { goToPage, packPagesInArray, pageElementsInOrder, renumberPagesInArray } from './pages';
 import { buildPersistableFiles } from './media';
 import type { CustomFontFace } from './fonts';
 import {
@@ -97,7 +97,10 @@ export function extractPageForComponent(
   if (!frame) return null;
 
   const members = elements.filter((e) => (e as { frameId?: string | null }).frameId === pageId);
-  const scoped = [frame, ...members];
+  // Miembros primero, marco al final: lo que se guarda como componente tiene
+  // que traer la misma forma que una página viva (ver `pageElementsInOrder`),
+  // o al reinsertarlo heredaría el apilado roto del issue #103.
+  const scoped = [...pageElementsInOrder([frame], members)];
   const persistable = buildPersistableFiles(scoped, api.getFiles());
 
   // El componente solo usa tipografías que sus textos referencian… saberlo

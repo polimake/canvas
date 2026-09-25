@@ -95,11 +95,41 @@ export function ensurePagePapers(
     return members.length > 1 && !isPageBackground(members[0]);
   });
 
-  if (missing.length === 0 && sunk.length === 0) return;
+  /**
+   * Páginas guardadas con la convención VIEJA: el marco delante de sus
+   * miembros. Excalidraw inserta lo que lleva `frameId` en el hueco del marco
+   * (`Scene.insertElement`), así que en esas escenas un texto pegado —o creado
+   * con la T— caía DELANTE del papel opaco y nacía invisible (issue #103).
+   *
+   * Los 1.271 diseños ya guardados tienen esa forma, y el arreglo de
+   * `pageElementsInOrder` solo cubre las páginas nuevas. Aquí se migran al
+   * abrirlas: mover el marco detrás de los suyos no cambia nada de lo que se
+   * ve —el marco no pinta— pero devuelve su sentido al hueco de inserción.
+   */
+  const frameBeforeMembers = frames.filter((f) => {
+    const frameAt = elements.indexOf(f);
+    if (frameAt < 0) return false;
+    return elements.some((e, i) => e.frameId === f.id && i > frameAt);
+  });
+
+  if (missing.length === 0 && sunk.length === 0 && frameBeforeMembers.length === 0) return;
 
   let combined: readonly SceneElement[] = [...elements];
   for (const frame of missing) {
     combined = [...combined, ...buildPageBackground(frame.id, frame, '#ffffff')];
+  }
+  // Recolocar cada marco tras sus miembros, sin tocar el orden relativo de
+  // nadie más: se saca el marco de su hueco y se reinserta justo después del
+  // último de los suyos.
+  for (const frame of frameBeforeMembers) {
+    const rest = combined.filter((e) => e.id !== frame.id);
+    let lastMember = -1;
+    rest.forEach((e, i) => {
+      if (e.frameId === frame.id) lastMember = i;
+    });
+    const self = combined.find((e) => e.id === frame.id);
+    if (!self || lastMember < 0) continue;
+    combined = [...rest.slice(0, lastMember + 1), self, ...rest.slice(lastMember + 1)];
   }
   // Una sola pasada por página: `reorderMembersInArray` hunde el papel de
   // oficio (ver `floorFirst` en zorder.ts), así que basta con nombrarla.

@@ -313,8 +313,10 @@ describe('extractPageForComponent', () => {
 
     const out = extractPageForComponent(api, 'p1', { fonts: [{ family: 'X', src: 'https://x/f.woff2' }] })!;
 
-    // Solo la página pedida, no la vecina.
-    expect(out.editorConfig.elements.map((e: any) => e.id)).toEqual(['p1', 'm1']);
+    // Solo la página pedida, no la vecina — y con la forma de una página viva:
+    // miembros primero, marco al final (`pageElementsInOrder`, issue #103). Un
+    // componente guardado al revés reinsertaba su contenido bajo el papel.
+    expect(out.editorConfig.elements.map((e: any) => e.id)).toEqual(['m1', 'p1']);
     expect(Object.keys(out.editorConfig.files)).toEqual(['f-remoto']);
     expect(out.editorConfig.fonts).toHaveLength(1);
     expect(out.inline).toEqual([]);

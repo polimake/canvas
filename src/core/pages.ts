@@ -266,6 +266,31 @@ export function renumberPagesInArray(
 }
 
 /**
+ * CONVENCIÓN DEL ARRAY DE UNA PÁGINA: primero los miembros, el marco al FINAL.
+ *
+ * No es cosmético, y antes estaba al revés. Excalidraw inserta un elemento que
+ * lleva `frameId` en el índice del PROPIO MARCO (`Scene.insertElement` hace
+ * `getElementIndex(element.frameId)`), dando por hecho su convención, en la que
+ * los hijos van antes que su marco: `[…hijo, hijo, marco]`. Bajo esa forma,
+ * caer en el hueco del marco significa «encima de todo lo de esta página».
+ *
+ * canvas2 los construía `[marco, papel, contenido…]`, la forma inversa, así que
+ * ese mismo cálculo metía el elemento nuevo DELANTE del papel —y el papel es un
+ * rectángulo OPACO (ver `zorder.ts`)—. Resultado: un texto pegado, o creado con
+ * la herramienta T, nacía invisible bajo el fondo de su propia página. Es el
+ * issue #103, y afectaba igual a imágenes y formas, no sólo a textos.
+ *
+ * Aquí se centraliza para que los tres sitios que montan una página (nueva,
+ * añadida y duplicada) no puedan volver a discrepar.
+ */
+export function pageElementsInOrder(
+  frame: readonly SceneElement[],
+  members: readonly SceneElement[],
+): readonly SceneElement[] {
+  return [...members, ...frame];
+}
+
+/**
  * Build a blank scene containing a single page frame. Feed the result to
  * `Canvas2Editor`'s `initialScene`.
  */
@@ -294,7 +319,9 @@ export function createBlankScene(
     PAPER_COLOR,
   );
   return {
-    elements: asSceneElements([...(frame as readonly SceneElement[]), ...paper]),
+    elements: asSceneElements([
+      ...pageElementsInOrder(frame as readonly SceneElement[], paper),
+    ]),
   };
 }
 
@@ -378,8 +405,7 @@ export function addPage(
 
   let combined: readonly SceneElement[] = [
     ...elements,
-    ...(created as readonly SceneElement[]),
-    ...paper,
+    ...pageElementsInOrder(created as readonly SceneElement[], paper),
   ];
   combined = packPagesInArray(combined, order);
   combined = renumberPagesInArray(combined, order);
@@ -693,9 +719,13 @@ export function duplicatePage(
   const members = elements.filter((e) => e.frameId === pageId);
   // La mecánica de clonado (ids frescos, remapeo de referencias internas) es
   // compartida con la instanciación de componentes — vive en components.ts.
-  const { clones, idMap } = cloneSceneElements([source, ...members], {
-    dx: source.width + PAGE_GAP,
-  });
+  // Miembros primero y el marco al final, como manda `pageElementsInOrder`: el
+  // clon tiene que nacer con la misma forma que una página nueva o la copia
+  // heredaría el fallo del issue #103 que el original ya no tiene.
+  const { clones, idMap } = cloneSceneElements(
+    [...pageElementsInOrder([source], members)],
+    { dx: source.width + PAGE_GAP },
+  );
 
   // Sin el marco clonado no hay página que insertar: seguir metía un `undefined`
   // en el orden y el reempaquetado se degradaba en silencio.

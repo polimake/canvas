@@ -85,6 +85,33 @@ describe('page background', () => {
     expect(api.getSceneElements().filter(isBg)).toHaveLength(2);
   });
 
+  it('migra una escena vieja: el marco pasa DETRAS de sus miembros', () => {
+    // Issue #103. Los disenos ya guardados traen `[marco, papel, contenido…]`,
+    // y Excalidraw inserta lo que lleva `frameId` en el hueco del MARCO, asi
+    // que en esa forma un texto pegado caia DELANTE del papel opaco: invisible.
+    // Al abrirlos, el normalizador los pasa a la forma nueva.
+    const { api, get, commits } = fakeApi([
+      frame('p1', 0, 0, 500, 500),
+      member('papel', 'p1', 0, 0, 500, 500, { customData: { c2: 'pageBackground' }, locked: true }),
+      member('foto', 'p1', 10, 10, 100, 100, { type: 'image' }),
+    ]);
+
+    const before = commits.length;
+    ensurePagePapers(api as any);
+    expect(commits.length).toBe(before + 1);
+    expect(commits[commits.length - 1].captureUpdate).toBe('NEVER');
+
+    const ids = get().map((e: any) => e.id);
+    // El marco, al final de los suyos; el papel sigue siendo el suelo.
+    expect(ids.indexOf('p1')).toBeGreaterThan(ids.indexOf('foto'));
+    expect(ids.indexOf('papel')).toBeLessThan(ids.indexOf('foto'));
+
+    // Idempotente: una vez migrada no vuelve a commitear (apto para onChange).
+    const settled = commits.length;
+    ensurePagePapers(api as any);
+    expect(commits.length).toBe(settled);
+  });
+
   it('vuelve a hundir un papel que se ha levantado', () => {
     // El fallo que dejaba una página tapada por su propio fondo PARA SIEMPRE:
     // la función solo miraba si el papel EXISTÍA, así que bastaba con que algo
