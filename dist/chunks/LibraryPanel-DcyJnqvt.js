@@ -1,7 +1,7 @@
 import { jsxs, jsx, Fragment as Fragment$1 } from "react/jsx-runtime";
 import { useState, useRef, useEffect, Fragment, useMemo, useCallback, useId } from "react";
 import "@excalidraw/excalidraw/index.css";
-import { newElementWith, CaptureUpdateAction, convertToExcalidrawElements, serializeAsJSON, restore, exportToBlob, exportToCanvas, exportToSvg, FONT_FAMILY, MainMenu, viewportCoordsToSceneCoords, getVisibleSceneBounds, Excalidraw, getNonDeletedElements } from "@excalidraw/excalidraw";
+import { CaptureUpdateAction, newElementWith, convertToExcalidrawElements, restore, serializeAsJSON, exportToCanvas, exportToBlob, exportToSvg, FONT_FAMILY, MainMenu, viewportCoordsToSceneCoords, getVisibleSceneBounds, Excalidraw, getNonDeletedElements } from "@excalidraw/excalidraw";
 import { cloneSceneElements } from "../components.js";
 import { P as PAGE_GAP } from "./layout-BEpoNps2.js";
 import { fontFormatHint, buildFontFaceCss, fontFamilyAlias, customFontFamilyId, normalizeFontSrc, dedupeFontFaces } from "../fonts.js";
@@ -127,10 +127,25 @@ function ensurePagePapers(api, capture = "never") {
     const members = elements.filter((e) => e.frameId === f.id);
     return members.length > 1 && !isPageBackground(members[0]);
   });
-  if (missing.length === 0 && sunk.length === 0) return;
+  const frameBeforeMembers = frames2.filter((f) => {
+    const frameAt = elements.indexOf(f);
+    if (frameAt < 0) return false;
+    return elements.some((e, i) => e.frameId === f.id && i > frameAt);
+  });
+  if (missing.length === 0 && sunk.length === 0 && frameBeforeMembers.length === 0) return;
   let combined = [...elements];
   for (const frame of missing) {
     combined = [...combined, ...buildPageBackground(frame.id, frame, "#ffffff")];
+  }
+  for (const frame of frameBeforeMembers) {
+    const rest = combined.filter((e) => e.id !== frame.id);
+    let lastMember = -1;
+    rest.forEach((e, i) => {
+      if (e.frameId === frame.id) lastMember = i;
+    });
+    const self = combined.find((e) => e.id === frame.id);
+    if (!self || lastMember < 0) continue;
+    combined = [...rest.slice(0, lastMember + 1), self, ...rest.slice(lastMember + 1)];
   }
   for (const frame of [...missing, ...sunk]) {
     combined = reorderMembersInArray(
@@ -279,6 +294,9 @@ function renumberPagesInArray(elements, orderedFrameIds) {
   });
   return changed ? next : elements;
 }
+function pageElementsInOrder(frame, members) {
+  return [...members, ...frame];
+}
 function createBlankScene(pageSize = DEFAULT_PAGE_SIZE) {
   const size = usableSize(pageSize);
   const id = createId();
@@ -302,7 +320,9 @@ function createBlankScene(pageSize = DEFAULT_PAGE_SIZE) {
     PAPER_COLOR$1
   );
   return {
-    elements: asSceneElements([...frame, ...paper])
+    elements: asSceneElements([
+      ...pageElementsInOrder(frame, paper)
+    ])
   };
 }
 function listPages(api) {
@@ -351,8 +371,7 @@ function addPage(api, pageSize = DEFAULT_PAGE_SIZE, opts = {}) {
   const paper = buildPageBackground(id, { x, y, width: size.width, height: size.height }, PAPER_COLOR$1);
   let combined = [
     ...elements,
-    ...created,
-    ...paper
+    ...pageElementsInOrder(created, paper)
   ];
   combined = packPagesInArray(combined, order);
   combined = renumberPagesInArray(combined, order);
@@ -506,9 +525,10 @@ function duplicatePage(api, pageId) {
   );
   if (!source) return null;
   const members = elements.filter((e) => e.frameId === pageId);
-  const { clones, idMap } = cloneSceneElements([source, ...members], {
-    dx: source.width + PAGE_GAP
-  });
+  const { clones, idMap } = cloneSceneElements(
+    [...pageElementsInOrder([source], members)],
+    { dx: source.width + PAGE_GAP }
+  );
   const cloneId = idMap.get(pageId);
   if (!cloneId) return null;
   for (const clone of clones) {
@@ -4865,99 +4885,100 @@ function LibraryPanel({
   );
 }
 export {
-  resolveBrandKit as $,
-  relayoutPages as A,
+  fontFamilyId as $,
+  contrastTextColor as A,
   BrandGallery as B,
   Canvas2 as C,
-  DesignPanel as D,
-  adoptStrayFramesInArray as E,
-  movePage as F,
-  movePageTo as G,
-  isPageLocked as H,
-  setPageLocked as I,
-  focusLayer as J,
-  convertToPages as K,
+  DEFAULT_LABELS as D,
+  EMPTY_BRAND as E,
+  convertToPages as F,
+  createBlankScene as G,
+  dataUrlToBlob as H,
+  deletePage as I,
+  downloadBlob as J,
+  duplicatePage as K,
   LayersPanel as L,
   MEDIA_DROP_TYPE as M,
-  adoptLooseIntoPage as N,
-  paginateSceneInArray as O,
-  PageNavigator as P,
-  clusterLooseElements as Q,
-  looseElements as R,
-  patchElement as S,
-  usePageThumbnails as T,
-  PAGE_ALIGNMENTS as U,
+  ensurePagePapers as N,
+  exportScenePdf as O,
+  PANEL_FONT as P,
+  exportScenePng as Q,
+  exportSceneSvg as R,
+  exportStoredScenePng as S,
+  TEXT_PRESETS as T,
+  exportStoredSceneSvg as U,
   VideoFramePicker as V,
-  alignToPage as W,
-  setAsBackground as X,
-  extendToPage as Y,
-  reorderPageMembers as Z,
-  sendMemberToBack as _,
+  extendToPage as W,
+  externalizeInlineImages as X,
+  findInlineImageIds as Y,
+  fitAllPages as Z,
+  focusLayer as _,
   Canvas2Editor as a,
-  EMPTY_BRAND as a0,
-  registerCustomFont as a1,
-  registerCustomFonts as a2,
-  fontFamilyId as a3,
-  serializeScene as a4,
-  parseScene as a5,
-  restoreScene as a6,
-  exportScenePng as a7,
-  exportSceneSvg as a8,
-  exportScenePdf as a9,
-  isVideoElement as aA,
-  getVideoMeta as aB,
-  getSelectedVideo as aC,
-  VIDEO_MARKER as aD,
-  captureThumbnail as aa,
-  downloadBlob as ab,
-  exportStoredSceneSvg as ac,
-  exportStoredScenePng as ad,
-  storedScenePageCount as ae,
-  insertImageFromBlob as af,
-  insertImageFromUrl as ag,
-  insertImageWithPreview as ah,
-  replaceImageFromUrl as ai,
-  resolveInsertPageId as aj,
-  cascadePoints as ak,
-  imageAtScenePoint as al,
-  externalizeInlineImages as am,
-  hasUploadsInFlight as an,
-  findInlineImageIds as ao,
-  isInlineDataUrl as ap,
-  dataUrlToBlob as aq,
-  TEXT_PRESETS as ar,
-  insertTextPreset as as,
-  contrastTextColor as at,
-  getPageBackground as au,
-  setPageBackgroundColor as av,
-  ensurePagePapers as aw,
-  isPageBackground as ax,
-  insertVideo as ay,
-  setVideoPoster as az,
+  getPageBackground as a0,
+  getPageSize as a1,
+  getSelectedVideo as a2,
+  getVideoMeta as a3,
+  hasUploadsInFlight as a4,
+  hideNativeDragImage as a5,
+  imageAtScenePoint as a6,
+  insertImageFromBlob as a7,
+  insertImageFromUrl as a8,
+  insertImageWithPreview as a9,
+  setPageBackgroundColor as aA,
+  setPageLocked as aB,
+  setVideoPoster as aC,
+  storedScenePageCount as aD,
+  usePageThumbnails as aE,
+  insertTextPreset as aa,
+  insertVideo as ab,
+  isInlineDataUrl as ac,
+  isPageBackground as ad,
+  isPageLocked as ae,
+  isVideoElement as af,
+  listPages as ag,
+  looseElements as ah,
+  movePage as ai,
+  movePageTo as aj,
+  paginateSceneInArray as ak,
+  parseScene as al,
+  patchElement as am,
+  registerCustomFont as an,
+  registerCustomFonts as ao,
+  relayoutPages as ap,
+  renamePage as aq,
+  reorderPageMembers as ar,
+  replaceImageFromUrl as as,
+  resizePage as at,
+  resolveBrandKit as au,
+  resolveInsertPageId as av,
+  restoreScene as aw,
+  sendMemberToBack as ax,
+  serializeScene as ay,
+  setAsBackground as az,
   CanvasMenu as b,
-  LibraryPanel as c,
-  PageActions as d,
-  DragPreview as e,
-  DEFAULT_LABELS as f,
-  PANEL_FONT as g,
-  packPagesInArray as h,
-  commitElements as i,
-  goToPage as j,
-  buildPersistableFiles as k,
-  hideNativeDragImage as l,
+  DesignPanel as c,
+  DragPreview as d,
+  LibraryPanel as e,
+  PageActions as f,
+  PageNavigator as g,
+  pageElementsInOrder as h,
+  buildPersistableFiles as i,
+  packPagesInArray as j,
+  commitElements as k,
+  goToPage as l,
   mergeLabels as m,
   DEFAULT_PAGE_SIZE as n,
-  PAGE_SIZE_PRESETS as o,
+  PAGE_ALIGNMENTS as o,
   palette as p,
-  createBlankScene as q,
+  PAGE_SIZE_PRESETS as q,
   renumberPagesInArray as r,
-  listPages as s,
-  getPageSize as t,
-  addPage as u,
-  deletePage as v,
-  fitAllPages as w,
-  renamePage as x,
-  duplicatePage as y,
-  resizePage as z
+  VIDEO_MARKER as s,
+  addPage as t,
+  adoptLooseIntoPage as u,
+  adoptStrayFramesInArray as v,
+  alignToPage as w,
+  captureThumbnail as x,
+  cascadePoints as y,
+  clusterLooseElements as z
 };
-//# sourceMappingURL=LibraryPanel-BWTCKHz6.js.map
+//# sourceMappingURL=LibraryPanel-DcyJnqvt.js.map

@@ -76,6 +76,25 @@ export declare function adoptStrayFramesInArray(elements: readonly SceneElement[
  */
 export declare function renumberPagesInArray(elements: readonly SceneElement[], orderedFrameIds: string[]): readonly SceneElement[];
 /**
+ * CONVENCIÓN DEL ARRAY DE UNA PÁGINA: primero los miembros, el marco al FINAL.
+ *
+ * No es cosmético, y antes estaba al revés. Excalidraw inserta un elemento que
+ * lleva `frameId` en el índice del PROPIO MARCO (`Scene.insertElement` hace
+ * `getElementIndex(element.frameId)`), dando por hecho su convención, en la que
+ * los hijos van antes que su marco: `[…hijo, hijo, marco]`. Bajo esa forma,
+ * caer en el hueco del marco significa «encima de todo lo de esta página».
+ *
+ * canvas2 los construía `[marco, papel, contenido…]`, la forma inversa, así que
+ * ese mismo cálculo metía el elemento nuevo DELANTE del papel —y el papel es un
+ * rectángulo OPACO (ver `zorder.ts`)—. Resultado: un texto pegado, o creado con
+ * la herramienta T, nacía invisible bajo el fondo de su propia página. Es el
+ * issue #103, y afectaba igual a imágenes y formas, no sólo a textos.
+ *
+ * Aquí se centraliza para que los tres sitios que montan una página (nueva,
+ * añadida y duplicada) no puedan volver a discrepar.
+ */
+export declare function pageElementsInOrder(frame: readonly SceneElement[], members: readonly SceneElement[]): readonly SceneElement[];
+/**
  * Build a blank scene containing a single page frame. Feed the result to
  * `Canvas2Editor`'s `initialScene`.
  */
