@@ -40,7 +40,6 @@ export interface Palette {
     warnText: string;
 }
 export declare const palette: Record<Canvas2Theme, Palette>;
-/** La app declara `--font-funnel-sans` en el `<html>`; el respaldo del `var()`
- *  deja una pila de sistema limpia para quien consuma el paquete fuera de ella. */
-export declare const PANEL_FONT = "var(--font-funnel-sans, \"Funnel Sans\"), \"Funnel Sans\", system-ui, -apple-system, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif";
+/** Fuente fija de los paneles; independiente de las fuentes del documento. */
+export declare const PANEL_FONT = "\"Funnel Sans\", sans-serif";
 //# sourceMappingURL=theme.d.ts.map

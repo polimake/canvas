@@ -1,0 +1,9 @@
+/* The monorepo fixture reuses the host's local font asset. */
+@font-face {
+  font-family: "Funnel Sans";
+  src: url("../../../../apps/tauri/src/fuentes/FunnelSans-Variable.woff2") format("woff2");
+  font-weight: 300 800;
+  font-display: swap;
+}
+
+button { font-family: inherit; }

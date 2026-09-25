@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Canvas2Editor } from '../../src/ui';
+import './demo.css';
 
 /** Standalone browser fixture: no Studio services or private documents. */
 function Demo() {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  return <main style={{ height: '100dvh', display: 'flex', flexDirection: 'column', fontFamily: 'system-ui' }}>
+  return <main style={{ height: '100dvh', display: 'flex', flexDirection: 'column', fontFamily: '"Funnel Sans", sans-serif' }}>
     <div style={{ padding: '8px 12px', display: 'flex', justifyContent: 'space-between', background: '#18181b', color: 'white' }}>
       <span>Polimake Canvas · Espacios de trabajo</span>
       <button onClick={() => setTheme(value => value === 'light' ? 'dark' : 'light')}>Claro / oscuro</button>

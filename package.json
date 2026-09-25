@@ -18,6 +18,7 @@
     "./dist/ui.js"
   ],
   "exports": {
+    "./vite": "./src/vite.ts",
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"

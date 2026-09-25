@@ -230,3 +230,18 @@
 .canvas2-workspace[data-workspace="advanced"] [data-canvas2]:not([data-canvas2-narrow]) .shapes-section > div { position: static !important; }
 .canvas2-workspace[data-workspace="advanced"] .canvas2-workspace-surface { container-type: size; }
 .canvas2-workspace[data-workspace="advanced"] [data-canvas2-narrow] .dropdown-menu--mobile { max-height: calc(100cqh - 88px); overflow-y: auto; }
+
+/* Incluye los diálogos que Excalidraw monta en document.body. */
+.excalidraw {
+  --ui-font: "Funnel Sans", sans-serif !important;
+  font-family: var(--ui-font);
+}
+
+.excalidraw :is(
+  .ExcTextField__label, .ExcTextField__input input, .RadioGroup__choice,
+  .ImageExportModal h3, .ImageExportModal__settings__setting__label,
+  button.ExportDialog-imageExportButton, .OverwriteConfirm__Description,
+  .ttd-dialog-input, .ttd-dialog-output-error p, .ttd-dialog-panel textarea,
+  .ErrorSplash-details textarea, .excalidraw__embeddable-hint,
+  .CollabButton-collaborators, .excalifont
+) { font-family: var(--ui-font) !important; }

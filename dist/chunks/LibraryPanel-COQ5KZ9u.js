@@ -890,7 +890,7 @@ const palette = {
     warnText: "#e3a33a"
   }
 };
-const PANEL_FONT = 'var(--font-funnel-sans, "Funnel Sans"), "Funnel Sans", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+const PANEL_FONT = '"Funnel Sans", sans-serif';
 function Svg({ children, size = 13 }) {
   const style = { display: "block", flexShrink: 0 };
   return /* @__PURE__ */ jsx(
@@ -4960,4 +4960,4 @@ export {
   duplicatePage as y,
   resizePage as z
 };
-//# sourceMappingURL=LibraryPanel-BWTCKHz6.js.map
+//# sourceMappingURL=LibraryPanel-COQ5KZ9u.js.map
