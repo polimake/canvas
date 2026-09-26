@@ -1,10 +1,10 @@
 import { jsxs, jsx, Fragment as Fragment$1 } from "react/jsx-runtime";
 import { useState, useRef, useEffect, Fragment, useMemo, useCallback, useId } from "react";
 import "@excalidraw/excalidraw/index.css";
-import { CaptureUpdateAction, newElementWith, convertToExcalidrawElements, restore, serializeAsJSON, exportToCanvas, exportToBlob, exportToSvg, FONT_FAMILY, MainMenu, viewportCoordsToSceneCoords, getVisibleSceneBounds, Excalidraw, getNonDeletedElements } from "@excalidraw/excalidraw";
+import { CaptureUpdateAction, newElementWith, convertToExcalidrawElements, restore, serializeAsJSON, exportToCanvas, exportToBlob, exportToSvg, MainMenu, FONT_FAMILY, viewportCoordsToSceneCoords, getVisibleSceneBounds, Excalidraw, getNonDeletedElements } from "@excalidraw/excalidraw";
 import { cloneSceneElements } from "../components.js";
 import { P as PAGE_GAP } from "./layout-BEpoNps2.js";
-import { fontFormatHint, buildFontFaceCss, fontFamilyAlias, customFontFamilyId, normalizeFontSrc, dedupeFontFaces } from "../fonts.js";
+import { fontFormatHint, buildFontFaceCss, fontFamilyAlias, normalizeFontSrc, customFontFamilyId, dedupeFontFaces } from "../fonts.js";
 import { createPortal } from "react-dom";
 const CAPTURE = {
   // One undo entry, immediately.
@@ -879,30 +879,32 @@ function usePageThumbnails(api, opts) {
   return thumbs;
 }
 const palette = {
+  // Monocromo cálido, como el resto del Studio desde el rediseño «Cosmos»: lo
+  // activo va en TINTA, no en azul (el azul es solo para «Subir», en la app), y
+  // los grises tiran a papel en vez de a acero.
   light: {
     bg: "#ffffff",
-    fg: "#1a1a1a",
-    sub: "#4a4a4f",
-    border: "#d7d7da",
-    active: "#3a39f5",
+    fg: "#111111",
+    sub: "#6e6962",
+    border: "#e7e2d9",
+    active: "#111111",
     activeFg: "#ffffff",
-    hover: "#e2e1e2",
+    hover: "#f3f0ea",
     danger: "var(--color-destructive, #e7000b)",
     dangerFg: "var(--color-state-ink, #ffffff)",
     warnBg: "rgba(138,90,0,0.10)",
     warnBorder: "rgba(138,90,0,0.35)",
     warnText: "#8a5a00"
   },
-  // El azul de marca es ilegal sobre negro: #3a39f5 sobre #1a1a1a saca 2,56.
-  // En oscuro el acento sube a #6e6ef8.
+  // En oscuro la tinta se invierte: lo activo es el papel sobre negro.
   dark: {
-    bg: "#1b1b1f",
-    fg: "#ffffff",
-    sub: "#9a9aa2",
-    border: "#2c2c32",
-    active: "#6e6ef8",
-    activeFg: "#0d0d18",
-    hover: "#26262b",
+    bg: "#1c1b19",
+    fg: "#f7f4ed",
+    sub: "#a39e96",
+    border: "#2e2c29",
+    active: "#f7f4ed",
+    activeFg: "#111111",
+    hover: "#282622",
     danger: "var(--color-destructive, #ff6467)",
     dangerFg: "var(--color-state-ink, #1a1a1a)",
     warnBg: "rgba(227,163,58,0.12)",
@@ -1301,24 +1303,24 @@ function PageNavigator({
       "data-canvas2-pages": "",
       style: {
         position: "absolute",
-        // 16 se solapaba con la isla inferior de Excalidraw en su distribución
-        // de móvil: medido en un iPhone de 390, la isla ocupa de y=781 a y=830 y
-        // la tira iba de 745 a 829 — encima, y además con más z-index, así que
-        // la tapaba. 74 la deja justo por arriba.
-        bottom: narrow ? 74 : 16,
+        // En la distribución de móvil de Excalidraw la altura y el ancho los
+        // pone canvas2.css: en reposo la tira baja a la fila de la isla
+        // inferior (entre el menú y deshacer), y con algo elegido, cuando esa
+        // isla se llena de acciones, sube por encima.
+        bottom: narrow ? void 0 : 16,
         left: "50%",
         transform: "translateX(-50%)",
         zIndex: 100,
         display: "flex",
         alignItems: "center",
         gap: 4,
-        maxWidth: "min(920px, 94%)",
-        padding: 6,
-        borderRadius: 12,
+        maxWidth: narrow ? void 0 : "min(920px, 94%)",
+        padding: 8,
+        // Isla como las de Excalidraw: sin borde, sombra suave.
+        borderRadius: 16,
         background: c.bg,
         color: c.fg,
-        border: `1px solid ${c.border}`,
-        boxShadow: "0 4px 16px rgba(0,0,0,0.18)",
+        boxShadow: "0 1px 2px rgba(17,17,17,0.04), 0 6px 20px rgba(17,17,17,0.07)",
         fontFamily: PANEL_FONT
       },
       children: [
@@ -1482,8 +1484,7 @@ function PageNavigator({
                               position: "relative",
                               width: THUMB_W,
                               height: thumbH,
-                              borderRadius: 3,
-                              border: `1px solid ${c.border}`,
+                              borderRadius: 6,
                               background: c.hover,
                               overflow: "hidden",
                               flexShrink: 0
@@ -1577,8 +1578,8 @@ function PageNavigator({
                         style: {
                           width: THUMB_W,
                           height: Math.round(THUMB_W * (ghostRatio.height / Math.max(1, ghostRatio.width))),
-                          borderRadius: 3,
-                          border: `1.5px dashed ${c.border}`,
+                          borderRadius: 6,
+                          background: c.hover,
                           display: "grid",
                           placeContent: "center",
                           lineHeight: 0
@@ -1936,7 +1937,7 @@ function adoptLooseIntoPage(api, pageId, opts = {}) {
   commitElements(api, siguiente, opts.capture ?? "undoable");
   return movidos;
 }
-function LooseWarning({ api, activePageId, theme, viewMode, labels }) {
+function LooseWarning({ api, activePageId, theme, viewMode, narrow, labels }) {
   const L = mergeLabels(labels);
   const c = palette[theme ?? "light"];
   const [loose, setLoose] = useState(0);
@@ -1954,9 +1955,12 @@ function LooseWarning({ api, activePageId, theme, viewMode, labels }) {
       "data-testid": "canvas2-loose-warning",
       style: {
         position: "absolute",
-        top: 12,
-        left: "50%",
-        transform: "translateX(-50%)",
+        // Con `left: 50%` el aviso solo disponía de medio contenedor: en un
+        // teléfono se quedaba en ~195px, una palabra por línea, tapando la
+        // barra de herramientas. `max-content` le deja el ancho de su texto; en
+        // móvil va justo debajo de la barra de arriba, entre la tira de iconos
+        // de la izquierda y las utilidades de Excalidraw de la derecha.
+        ...narrow ? { top: 64, left: 52, right: 48 } : { top: 12, left: "50%", transform: "translateX(-50%)", width: "max-content" },
         zIndex: 6,
         display: "flex",
         alignItems: "center",
@@ -1968,7 +1972,7 @@ function LooseWarning({ api, activePageId, theme, viewMode, labels }) {
         color: c.warnText,
         fontSize: 12,
         boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
-        maxWidth: "min(560px, 90vw)"
+        maxWidth: narrow ? void 0 : "min(560px, 90%)"
       },
       children: [
         /* @__PURE__ */ jsx("span", { style: { lineHeight: 1.35 }, children: L.loose.warning(loose) }),
@@ -2584,104 +2588,6 @@ function VideoFramePicker({
     }
   );
 }
-const registradas = /* @__PURE__ */ new Map();
-function registerCustomFont(name) {
-  var _a;
-  const alias = fontFamilyAlias(name);
-  if (!alias) return null;
-  const yaEsta = registradas.get(alias);
-  if (yaEsta !== void 0) return { alias, id: yaEsta };
-  const id = customFontFamilyId(alias);
-  const tabla = FONT_FAMILY;
-  const ocupante = (_a = Object.entries(tabla).find(([, valor]) => valor === id)) == null ? void 0 : _a[0];
-  if (ocupante !== void 0 && ocupante !== alias) {
-    console.error(
-      `[canvas2] la tipografía "${alias}" colisiona con "${ocupante}" (id ${id}); se usará la fuente por defecto. Renombra la familia en el brand kit.`
-    );
-    return null;
-  }
-  tabla[alias] = id;
-  registradas.set(alias, id);
-  return { alias, id };
-}
-function registerCustomFonts(faces) {
-  const ids = /* @__PURE__ */ new Map();
-  const salida = [];
-  for (const face of faces) {
-    const reg = registerCustomFont(face.family);
-    if (!reg) continue;
-    ids.set(reg.alias, reg.id);
-    salida.push({ ...face, family: reg.alias });
-  }
-  return { faces: salida, ids };
-}
-function fontFamilyId(name) {
-  const alias = fontFamilyAlias(name);
-  const tabla = FONT_FAMILY;
-  return tabla[alias] ?? tabla[name] ?? null;
-}
-const TEXT_PRESETS = [
-  { key: "heading", label: "Título", text: "Título", fontSize: 64, anchorY: 0.24 },
-  { key: "subheading", label: "Subtítulo", text: "Subtítulo", fontSize: 40, anchorY: 0.38 },
-  { key: "body", label: "Cuerpo de texto", text: "Escribe algo…", fontSize: 24, anchorY: 0.52 }
-];
-function frames(api) {
-  return api.getSceneElements().filter((e) => e.type === "frame").slice().sort((a, b) => a.x - b.x);
-}
-function luminance(hex) {
-  const match = /^#?([0-9a-f]{6})$/i.exec(hex ?? "");
-  if (!match) return 1;
-  const n = parseInt(match[1], 16);
-  const r = n >> 16 & 255;
-  const g = n >> 8 & 255;
-  const b = n & 255;
-  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-}
-function contrastTextColor(background) {
-  return luminance(background) > 0.5 ? "#1e1e1e" : "#ffffff";
-}
-function insertTextPreset(api, preset, opts) {
-  var _a;
-  const def = TEXT_PRESETS.find((p) => p.key === preset) ?? TEXT_PRESETS[0];
-  const pages = frames(api);
-  const target = (opts == null ? void 0 : opts.pageId) && pages.find((f) => f.id === opts.pageId) || pages[0] || null;
-  const scale = target ? target.width / 1080 : 1;
-  const fontSize = Math.max(8, def.fontSize * scale);
-  const anchorX = target ? target.x + target.width / 2 : 0;
-  const anchorY = target ? target.y + target.height * def.anchorY : 0;
-  const strokeColor = contrastTextColor(
-    target ? getPageBackground(api, target.id) ?? "#ffffff" : "#ffffff"
-  );
-  const skeleton = [
-    {
-      type: "text",
-      text: def.text,
-      fontSize,
-      // 2 = Excalidraw's built-in "normal" (non hand-drawn) family; the brand
-      // font wins when the project has one with a real file.
-      fontFamily: ((opts == null ? void 0 : opts.fontFamily) ? fontFamilyId(opts.fontFamily) : null) ?? 2,
-      strokeColor,
-      x: anchorX,
-      y: anchorY
-    }
-  ];
-  const created = convertToExcalidrawElements(skeleton, { regenerateIds: false }).map((el) => ({
-    ...el,
-    // Center on the anchor now that the converter measured the text box.
-    x: anchorX - el.width / 2,
-    y: anchorY - el.height / 2,
-    ...target ? { frameId: target.id } : {}
-  }));
-  const id = (_a = created[0]) == null ? void 0 : _a.id;
-  if (!id) return null;
-  commitElements(
-    api,
-    [...api.getSceneElements(), ...created],
-    "undoable",
-    { selectedElementIds: { [id]: true } }
-  );
-  return id;
-}
 function safeFilename(name) {
   return (name || "diseño").replace(/[\\/:*?"<>|]+/g, "-").trim() || "diseño";
 }
@@ -2694,7 +2600,6 @@ function CanvasMenu({
   viewMode = false,
   hydrateFiles,
   fontFaces,
-  brandFamilies,
   onSaveComponent,
   labels: labelsProp
 }) {
@@ -2807,24 +2712,6 @@ function CanvasMenu({
         children: L.menu.toPages
       }
     ),
-    !viewMode && /* @__PURE__ */ jsx(MainMenu.Group, { title: L.menu.insertText, children: TEXT_PRESETS.map((preset) => /* @__PURE__ */ jsx(
-      MainMenu.Item,
-      {
-        shortcut: `${preset.fontSize}px`,
-        textStyle: {
-          fontSize: preset.key === "heading" ? 15 : preset.key === "subheading" ? 13 : 12,
-          fontWeight: preset.key === "body" ? 400 : 700
-        },
-        onSelect: () => insertTextPreset(api, preset.key, {
-          pageId: activePageId ?? void 0,
-          // El cuerpo usa la tipografía de texto; título y subtítulo, la
-          // de titulares — con respaldo cruzado si la marca solo trae una.
-          fontFamily: preset.key === "body" ? (brandFamilies == null ? void 0 : brandFamilies.body) ?? (brandFamilies == null ? void 0 : brandFamilies.heading) : (brandFamilies == null ? void 0 : brandFamilies.heading) ?? (brandFamilies == null ? void 0 : brandFamilies.body)
-        }),
-        children: L.sizes[preset.key] ?? preset.label
-      },
-      preset.key
-    )) }),
     !viewMode && onSaveComponent && /* @__PURE__ */ jsx(MainMenu.Item, { onSelect: onSaveComponent, children: L.components.save }),
     /* @__PURE__ */ jsxs(
       MainMenu.Group,
@@ -2950,9 +2837,8 @@ function PageActions({
         padding: 1,
         borderRadius: 6,
         // Discreta a propósito: acompaña al nombre de la página, no compite con
-        // él. Sin sombra y con el mismo gris del rótulo del marco.
-        background: c.bg,
-        border: `1px solid ${c.border}`,
+        // él. Sin caja: iconos sueltos con el gris del rótulo del marco.
+        background: "transparent",
         color: c.sub,
         fontFamily: PANEL_FONT,
         opacity: 0.9
@@ -3174,7 +3060,7 @@ function BrandGallery({
           border: `1px solid ${c.border}`,
           boxShadow: "0 4px 16px rgba(0,0,0,0.18)"
         },
-        padding: 6,
+        padding: embedded ? 0 : 6,
         background: embedded ? "transparent" : c.bg,
         color: c.fg,
         font: `12px ${PANEL_FONT}`
@@ -3205,7 +3091,7 @@ function BrandGallery({
         ),
         embedded && aviso && /* @__PURE__ */ jsx("div", { style: { padding: "2px 4px", color: c.sub }, children: aviso }),
         (embedded || abierta) && /* @__PURE__ */ jsxs(Fragment$1, { children: [
-          brand.palette.length > 0 && /* @__PURE__ */ jsx("div", { style: { display: "flex", flexWrap: "wrap", gap: 5, padding: "6px 4px 2px" }, children: brand.palette.map((color2) => /* @__PURE__ */ jsx(
+          brand.palette.length > 0 && /* @__PURE__ */ jsx("div", { style: { display: "flex", flexWrap: "wrap", gap: embedded ? 8 : 5, padding: embedded ? "0 0 14px" : "6px 4px 2px" }, children: brand.palette.map((color2) => /* @__PURE__ */ jsx(
             "button",
             {
               type: "button",
@@ -3213,11 +3099,13 @@ function BrandGallery({
               title: seleccion.length ? L.brand.applyToSelection(color2) : `${color2} · ${L.brand.defaultColor}`,
               "aria-label": color2,
               style: {
-                width: 24,
-                height: 24,
-                borderRadius: 6,
+                width: embedded ? 32 : 24,
+                height: embedded ? 32 : 24,
+                borderRadius: 999,
                 background: color2,
-                border: `1px solid ${c.border}`,
+                // Filo interior en vez de borde: un blanco de marca sigue viéndose.
+                border: "none",
+                boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.1)",
                 cursor: "pointer",
                 padding: 0
               }
@@ -3229,9 +3117,9 @@ function BrandGallery({
             {
               style: {
                 display: "grid",
-                gridTemplateColumns: "repeat(3, 1fr)",
-                gap: 4,
-                padding: "4px 4px 2px"
+                gridTemplateColumns: embedded ? "repeat(2, 1fr)" : "repeat(3, 1fr)",
+                gap: embedded ? 8 : 4,
+                padding: embedded ? 0 : "4px 4px 2px"
               },
               children: logos.map((logo) => /* @__PURE__ */ jsxs(
                 "button",
@@ -3245,10 +3133,10 @@ function BrandGallery({
                     display: "flex",
                     flexDirection: "column",
                     alignItems: "center",
-                    gap: 2,
-                    padding: 3,
-                    borderRadius: 6,
-                    border: `1px solid ${c.border}`
+                    gap: embedded ? 6 : 2,
+                    padding: embedded ? 8 : 3,
+                    borderRadius: embedded ? 14 : 6,
+                    background: c.hover
                   },
                   children: [
                     /* @__PURE__ */ jsx(
@@ -3256,7 +3144,7 @@ function BrandGallery({
                       {
                         style: {
                           width: "100%",
-                          height: 26,
+                          height: embedded ? 56 : 26,
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
@@ -3265,7 +3153,7 @@ function BrandGallery({
                           backgroundImage: "linear-gradient(45deg,rgba(128,128,128,.25) 25%,transparent 25%,transparent 75%,rgba(128,128,128,.25) 75%),linear-gradient(45deg,rgba(128,128,128,.25) 25%,transparent 25%,transparent 75%,rgba(128,128,128,.25) 75%)",
                           backgroundSize: "8px 8px",
                           backgroundPosition: "0 0, 4px 4px",
-                          borderRadius: 4
+                          borderRadius: embedded ? 8 : 4
                         },
                         children: /* @__PURE__ */ jsx(
                           "img",
@@ -3280,7 +3168,7 @@ function BrandGallery({
                         )
                       }
                     ),
-                    /* @__PURE__ */ jsx("span", { style: { fontSize: 10, color: c.sub }, children: logo.label })
+                    /* @__PURE__ */ jsx("span", { style: { fontSize: embedded ? 11 : 10, color: c.sub }, children: logo.label })
                   ]
                 },
                 logo.url
@@ -3348,10 +3236,10 @@ function DesignPanel({
   const inputStyle = {
     width: "100%",
     minWidth: 0,
-    padding: "4px 6px",
-    borderRadius: 6,
-    border: `1px solid ${c.border}`,
-    background: "transparent",
+    padding: "6px 10px",
+    borderRadius: 999,
+    border: "none",
+    background: c.hover,
     color: c.fg,
     fontSize: 12,
     fontFamily: PANEL_FONT
@@ -3396,13 +3284,13 @@ function DesignPanel({
                 style: {
                   all: "unset",
                   cursor: "pointer",
-                  padding: "3px 8px",
-                  borderRadius: 6,
+                  // Píldoras rellenas, sin borde; la puesta, en tinta.
+                  padding: "5px 10px",
+                  borderRadius: 999,
                   fontSize: 11,
                   fontWeight: 600,
                   color: puesto ? c.activeFg : c.sub,
-                  background: puesto ? c.active : "transparent",
-                  border: `1px solid ${puesto ? c.active : c.border}`
+                  background: puesto ? c.active : c.hover
                 },
                 children: L.sizes[preset.key] ?? preset.label
               },
@@ -3445,13 +3333,12 @@ function DesignPanel({
                   all: "unset",
                   flexShrink: 0,
                   cursor: customSize ? "pointer" : "default",
-                  padding: "4px 9px",
-                  borderRadius: 6,
+                  padding: "6px 12px",
+                  borderRadius: 999,
                   fontSize: 11,
                   fontWeight: 600,
                   color: customSize ? c.activeFg : c.sub,
-                  background: customSize ? c.active : "transparent",
-                  border: `1px solid ${c.border}`,
+                  background: customSize ? c.active : c.hover,
                   opacity: customSize ? 1 : 0.6
                 },
                 children: L.menu.apply
@@ -3475,7 +3362,8 @@ function DesignPanel({
                   {
                     type: "checkbox",
                     checked: scaleContent,
-                    onChange: (e) => setScaleContent(e.target.checked)
+                    onChange: (e) => setScaleContent(e.target.checked),
+                    style: { accentColor: c.fg }
                   }
                 ),
                 L.menu.scaleContent
@@ -3496,9 +3384,10 @@ function DesignPanel({
                   cursor: "pointer",
                   width: 20,
                   height: 20,
-                  borderRadius: 6,
+                  borderRadius: 999,
                   background: color2,
-                  border: `1px solid ${c.border}`
+                  // Filo interior en vez de borde: el blanco sigue viéndose.
+                  boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.1)"
                 }
               },
               color2
@@ -3537,12 +3426,12 @@ function DesignPanel({
                   all: "unset",
                   cursor: "pointer",
                   marginLeft: "auto",
-                  padding: "3px 7px",
-                  borderRadius: 6,
+                  padding: "5px 10px",
+                  borderRadius: 999,
                   fontSize: 11,
                   fontWeight: 600,
                   color: c.sub,
-                  border: `1px solid ${c.border}`
+                  background: c.hover
                 },
                 children: L.menu.backgroundRemove
               }
@@ -3552,6 +3441,104 @@ function DesignPanel({
       ]
     }
   );
+}
+const registradas = /* @__PURE__ */ new Map();
+function registerCustomFont(name) {
+  var _a;
+  const alias = fontFamilyAlias(name);
+  if (!alias) return null;
+  const yaEsta = registradas.get(alias);
+  if (yaEsta !== void 0) return { alias, id: yaEsta };
+  const id = customFontFamilyId(alias);
+  const tabla = FONT_FAMILY;
+  const ocupante = (_a = Object.entries(tabla).find(([, valor]) => valor === id)) == null ? void 0 : _a[0];
+  if (ocupante !== void 0 && ocupante !== alias) {
+    console.error(
+      `[canvas2] la tipografía "${alias}" colisiona con "${ocupante}" (id ${id}); se usará la fuente por defecto. Renombra la familia en el brand kit.`
+    );
+    return null;
+  }
+  tabla[alias] = id;
+  registradas.set(alias, id);
+  return { alias, id };
+}
+function registerCustomFonts(faces) {
+  const ids = /* @__PURE__ */ new Map();
+  const salida = [];
+  for (const face of faces) {
+    const reg = registerCustomFont(face.family);
+    if (!reg) continue;
+    ids.set(reg.alias, reg.id);
+    salida.push({ ...face, family: reg.alias });
+  }
+  return { faces: salida, ids };
+}
+function fontFamilyId(name) {
+  const alias = fontFamilyAlias(name);
+  const tabla = FONT_FAMILY;
+  return tabla[alias] ?? tabla[name] ?? null;
+}
+const TEXT_PRESETS = [
+  { key: "heading", label: "Título", text: "Título", fontSize: 64, anchorY: 0.24 },
+  { key: "subheading", label: "Subtítulo", text: "Subtítulo", fontSize: 40, anchorY: 0.38 },
+  { key: "body", label: "Cuerpo de texto", text: "Escribe algo…", fontSize: 24, anchorY: 0.52 }
+];
+function frames(api) {
+  return api.getSceneElements().filter((e) => e.type === "frame").slice().sort((a, b) => a.x - b.x);
+}
+function luminance(hex) {
+  const match = /^#?([0-9a-f]{6})$/i.exec(hex ?? "");
+  if (!match) return 1;
+  const n = parseInt(match[1], 16);
+  const r = n >> 16 & 255;
+  const g = n >> 8 & 255;
+  const b = n & 255;
+  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+}
+function contrastTextColor(background) {
+  return luminance(background) > 0.5 ? "#1e1e1e" : "#ffffff";
+}
+function insertTextPreset(api, preset, opts) {
+  var _a;
+  const def = TEXT_PRESETS.find((p) => p.key === preset) ?? TEXT_PRESETS[0];
+  const pages = frames(api);
+  const target = (opts == null ? void 0 : opts.pageId) && pages.find((f) => f.id === opts.pageId) || pages[0] || null;
+  const scale = target ? target.width / 1080 : 1;
+  const fontSize = Math.max(8, def.fontSize * scale);
+  const anchorX = target ? target.x + target.width / 2 : 0;
+  const anchorY = target ? target.y + target.height * def.anchorY : 0;
+  const strokeColor = contrastTextColor(
+    target ? getPageBackground(api, target.id) ?? "#ffffff" : "#ffffff"
+  );
+  const skeleton = [
+    {
+      type: "text",
+      text: def.text,
+      fontSize,
+      // 2 = Excalidraw's built-in "normal" (non hand-drawn) family; the brand
+      // font wins when the project has one with a real file.
+      fontFamily: ((opts == null ? void 0 : opts.fontFamily) ? fontFamilyId(opts.fontFamily) : null) ?? 2,
+      strokeColor,
+      x: anchorX,
+      y: anchorY
+    }
+  ];
+  const created = convertToExcalidrawElements(skeleton, { regenerateIds: false }).map((el) => ({
+    ...el,
+    // Center on the anchor now that the converter measured the text box.
+    x: anchorX - el.width / 2,
+    y: anchorY - el.height / 2,
+    ...target ? { frameId: target.id } : {}
+  }));
+  const id = (_a = created[0]) == null ? void 0 : _a.id;
+  if (!id) return null;
+  commitElements(
+    api,
+    [...api.getSceneElements(), ...created],
+    "undoable",
+    { selectedElementIds: { [id]: true } }
+  );
+  return id;
 }
 function InsertPanel({ api, pageId, text = false, labels, families }) {
   const [query, setQuery] = useState("");
@@ -3870,14 +3857,18 @@ function LayersPanel({
       style: {
         all: "unset",
         cursor: "pointer",
-        display: "inline-flex",
-        alignItems: "center",
+        display: "inline-grid",
+        placeItems: "center",
         lineHeight: 1,
-        padding: "3px 3px",
-        borderRadius: 4,
-        color: danger ? c.danger : "inherit",
-        opacity: 0.8
+        width: 26,
+        height: 26,
+        borderRadius: 999,
+        // Gris como las demás; el rojo solo al apuntar (ver workspaces.css).
+        color: c.sub,
+        ["--layer-danger"]: c.danger
       },
+      "data-danger": danger ? "" : void 0,
+      className: "canvas2-layer-btn",
       children: node
     }
   );
@@ -3924,15 +3915,16 @@ function LayersPanel({
             style: {
               display: "flex",
               alignItems: "center",
-              padding: "8px 12px",
-              fontSize: 12,
+              gap: 8,
+              padding: embedded ? "0 0 12px" : "8px 12px",
+              fontSize: 11,
               fontWeight: 600,
-              color: c.sub,
-              borderBottom: `1px solid ${c.border}`
+              color: c.sub
             },
             children: [
-              /* @__PURE__ */ jsx("span", { style: { flex: 1 }, children: embedded ? "" : "Capas" }),
-              !viewMode && /* @__PURE__ */ jsx("span", { style: { display: "inline-flex", gap: 2 }, children: PAGE_ALIGNMENTS.map((a) => {
+              /* @__PURE__ */ jsx("span", { style: { flex: 1 }, children: embedded ? "Alinear" : "Capas" }),
+              !viewMode && // Una píldora de seis botones, como un control segmentado.
+              /* @__PURE__ */ jsx("span", { style: { display: "inline-flex", gap: 0, padding: 2, borderRadius: 999, background: c.hover }, children: PAGE_ALIGNMENTS.map((a) => {
                 const Icon = ALIGN_ICON[a.key];
                 return /* @__PURE__ */ jsx(
                   "button",
@@ -3943,13 +3935,15 @@ function LayersPanel({
                     style: {
                       all: "unset",
                       cursor: "pointer",
-                      display: "inline-flex",
-                      alignItems: "center",
+                      display: "inline-grid",
+                      placeItems: "center",
                       lineHeight: 1,
-                      padding: "2px 3px",
-                      borderRadius: 4,
-                      opacity: 0.8
+                      width: 28,
+                      height: 26,
+                      borderRadius: 999,
+                      color: c.fg
                     },
+                    className: "canvas2-layer-btn",
                     children: /* @__PURE__ */ jsx(Icon, {})
                   },
                   a.key
@@ -3958,8 +3952,8 @@ function LayersPanel({
             ]
           }
         ),
-        /* @__PURE__ */ jsxs("div", { style: { flex: 1, minHeight: 0, overflowY: "auto", padding: 4 }, children: [
-          rows.length === 0 && /* @__PURE__ */ jsx("div", { style: { padding: 12, fontSize: 12, color: c.sub }, children: "Esta página está vacía." }),
+        /* @__PURE__ */ jsxs("div", { style: { flex: 1, minHeight: 0, overflowY: "auto", padding: embedded ? 0 : 4, display: "flex", flexDirection: "column", gap: 2 }, children: [
+          rows.length === 0 && /* @__PURE__ */ jsx("div", { style: { padding: "28px 12px", fontSize: 12, color: c.sub, textAlign: "center", borderRadius: 14, background: c.hover }, children: "Esta página está vacía." }),
           rows.map((el) => {
             const isSel = !!selected[el.id];
             const hidden = el.opacity === 0;
@@ -3975,25 +3969,29 @@ function LayersPanel({
                   if (!viewMode) handleDrop(el.id);
                 },
                 onClick: () => selectOnCanvas(el.id),
+                className: "canvas2-layer-row",
+                "data-selected": isSel ? "" : void 0,
                 style: {
                   display: "flex",
                   alignItems: "center",
-                  gap: 6,
+                  gap: 10,
                   padding: "5px 6px",
-                  borderRadius: 8,
+                  borderRadius: 12,
                   cursor: "pointer",
-                  background: isSel ? c.active : "transparent",
-                  color: isSel ? c.activeFg : c.fg,
-                  opacity: hidden ? 0.5 : 1
+                  // Seleccionada = relleno cálido y peso, no una losa de tinta:
+                  // la lista se lee de un vistazo sin que una fila grite.
+                  background: isSel ? c.hover : "transparent",
+                  color: c.fg,
+                  opacity: hidden ? 0.45 : 1
                 },
                 children: [
-                  /* @__PURE__ */ jsx("span", { style: { width: 16, height: 16, display: "inline-flex", justifyContent: "center", alignItems: "center" }, children: thumb(el) ? /* @__PURE__ */ jsx(
+                  /* @__PURE__ */ jsx("span", { style: { width: 32, height: 32, flexShrink: 0, display: "inline-grid", placeItems: "center", borderRadius: 8, overflow: "hidden", background: c.hover, color: c.sub }, children: thumb(el) ? /* @__PURE__ */ jsx(
                     "img",
                     {
                       src: thumb(el),
                       alt: "",
                       draggable: false,
-                      style: { width: 16, height: 16, objectFit: "cover", borderRadius: 3, display: "block" }
+                      style: { width: 32, height: 32, objectFit: "cover", display: "block" }
                     }
                   ) : typeIcon(el.type) }),
                   /* @__PURE__ */ jsx(
@@ -4002,7 +4000,8 @@ function LayersPanel({
                       style: {
                         flex: 1,
                         minWidth: 0,
-                        fontSize: 12,
+                        fontSize: 13,
+                        fontWeight: isSel ? 600 : 400,
                         whiteSpace: "nowrap",
                         overflow: "hidden",
                         textOverflow: "ellipsis"
@@ -4010,7 +4009,9 @@ function LayersPanel({
                       children: displayName(el)
                     }
                   ),
-                  !viewMode && /* @__PURE__ */ jsxs(Fragment$1, { children: [
+                  !viewMode && // Las acciones salen al pasar por la fila (o si está elegida):
+                  // cinco iconos en cada fila, siempre, eran el ruido del panel.
+                  /* @__PURE__ */ jsxs("span", { className: "canvas2-layer-actions", style: { display: "inline-flex", flexShrink: 0 }, children: [
                     el.type === "image" && iconBtn("Usar como fondo", () => setAsBackground(api, el.id, activePageId), /* @__PURE__ */ jsx(CoverIcon, {})),
                     el.type === "image" && iconBtn("Extender a la página", () => extendToPage(api, el.id, activePageId), /* @__PURE__ */ jsx(StretchIcon, {})),
                     iconBtn(
@@ -4042,9 +4043,11 @@ function LayersPanel({
             style: {
               display: "flex",
               alignItems: "center",
-              gap: 6,
-              padding: "8px 10px",
-              borderTop: `1px solid ${c.border}`,
+              gap: 10,
+              marginTop: 10,
+              padding: "8px 12px",
+              borderRadius: 999,
+              background: c.hover,
               fontSize: 12,
               color: c.sub,
               cursor: "default"
@@ -4071,10 +4074,10 @@ function LayersPanel({
                   style: {
                     flex: 1,
                     minWidth: 0,
-                    padding: "2px 6px",
-                    borderRadius: 6,
-                    border: `1px solid ${c.border}`,
-                    background: "transparent",
+                    padding: "2px 8px",
+                    borderRadius: 999,
+                    border: "none",
+                    background: c.bg,
                     color: c.fg,
                     fontSize: 12,
                     fontFamily: PANEL_FONT
@@ -4145,24 +4148,37 @@ function AdvancedWorkspace({ panels }) {
     ] })
   ] });
 }
-function ExcalidrawWorkspace({ panels }) {
-  const [selected, setSelected] = useState(null);
-  const active = panels.find((panel) => panel.id === selected);
+function ExcalidrawWorkspace({ panels, narrow = false, actions = [], openPanel, onOpenPanelChange }) {
+  const active = panels.find((panel) => panel.id === openPanel);
   const id = useId();
   return /* @__PURE__ */ jsxs(Fragment$1, { children: [
-    /* @__PURE__ */ jsx("div", { className: "canvas2-native-tools", role: "toolbar", "aria-orientation": "vertical", children: panels.map((panel) => /* @__PURE__ */ jsx(
-      "button",
-      {
-        type: "button",
-        title: panel.title,
-        "aria-label": panel.title,
-        "aria-pressed": (active == null ? void 0 : active.id) === panel.id,
-        "aria-controls": (active == null ? void 0 : active.id) === panel.id ? id : void 0,
-        onClick: () => setSelected((active == null ? void 0 : active.id) === panel.id ? null : panel.id),
-        children: panel.icon
-      },
-      panel.id
-    )) }),
+    /* @__PURE__ */ jsxs("div", { className: "canvas2-native-tools", role: "toolbar", "aria-orientation": "vertical", children: [
+      panels.filter((panel) => narrow || !panel.inToolbar).map((panel) => /* @__PURE__ */ jsx(
+        "button",
+        {
+          type: "button",
+          title: panel.title,
+          "aria-label": panel.title,
+          "aria-pressed": (active == null ? void 0 : active.id) === panel.id,
+          "aria-controls": (active == null ? void 0 : active.id) === panel.id ? id : void 0,
+          onClick: () => onOpenPanelChange((active == null ? void 0 : active.id) === panel.id ? null : panel.id),
+          children: panel.icon
+        },
+        panel.id
+      )),
+      actions.map((action) => /* @__PURE__ */ jsx(
+        "button",
+        {
+          type: "button",
+          title: action.label,
+          "aria-label": action.label,
+          "aria-pressed": action.pressed ?? void 0,
+          onClick: action.onSelect,
+          children: action.icon
+        },
+        action.id
+      ))
+    ] }),
     active && /* @__PURE__ */ jsxs("section", { id, className: "canvas2-resource-panel", role: "region", "aria-label": active.title, children: [
       /* @__PURE__ */ jsx("header", { className: "canvas2-resource-heading", children: active.title }),
       /* @__PURE__ */ jsx("div", { className: "canvas2-workspace-panel", children: active.content })
@@ -4175,7 +4191,11 @@ function WorkspaceLayout({
   workspace,
   panels,
   theme = "light",
-  labels
+  labels,
+  narrow = false,
+  actions = [],
+  openPanel,
+  onOpenPanelChange
 }) {
   const L = mergeLabels(labels).workspace;
   const c = palette[theme];
@@ -4185,12 +4205,15 @@ function WorkspaceLayout({
       className: `canvas2-workspace ${className ?? ""}`,
       "data-workspace": workspace,
       "data-panel-collapsed": !panels.length ? "" : void 0,
+      "data-narrow": narrow ? "" : void 0,
       style: {
         "--workspace-bg": c.bg,
         "--workspace-fg": c.fg,
         "--workspace-border": c.border,
         "--workspace-hover": c.hover,
         "--workspace-accent": c.active,
+        "--workspace-accent-fg": c.activeFg,
+        "--workspace-sub": c.sub,
         fontFamily: PANEL_FONT
       },
       children: /* @__PURE__ */ jsxs("div", { className: "canvas2-workspace-body", children: [
@@ -4199,8 +4222,8 @@ function WorkspaceLayout({
           {
             className: "canvas2-workspace-sidebar",
             "aria-label": L.panels,
-            hidden: !panels.length,
-            children: workspace === "excalidraw" ? /* @__PURE__ */ jsx(ExcalidrawWorkspace, { panels }) : workspace === "design" ? /* @__PURE__ */ jsx(DesignWorkspace, { panels }) : /* @__PURE__ */ jsx(AdvancedWorkspace, { panels })
+            hidden: !actions.length && !panels.some((panel) => workspace !== "excalidraw" || narrow || !panel.inToolbar || panel.id === openPanel),
+            children: workspace === "excalidraw" ? /* @__PURE__ */ jsx(ExcalidrawWorkspace, { panels, narrow, actions, openPanel, onOpenPanelChange }) : workspace === "design" ? /* @__PURE__ */ jsx(DesignWorkspace, { panels }) : /* @__PURE__ */ jsx(AdvancedWorkspace, { panels })
           }
         ),
         /* @__PURE__ */ jsx("div", { className: "canvas2-workspace-surface", children })
@@ -4236,6 +4259,20 @@ function useIsNarrow(ref) {
     return () => observer.disconnect();
   }, [ref]);
   return narrow;
+}
+const TOOLBAR_ROW = ".App-toolbar > .Stack_horizontal";
+function ToolbarSlot({ root, children }) {
+  const [row, setRow] = useState(null);
+  useEffect(() => {
+    const host = root.current;
+    if (!host) return;
+    const find = () => setRow(host.querySelector(TOOLBAR_ROW));
+    find();
+    const observer = new MutationObserver(find);
+    observer.observe(host, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [root]);
+  return row ? createPortal(children, row) : null;
 }
 function copyDropEffect(effectAllowed) {
   return effectAllowed === "move" || effectAllowed === "linkMove" ? "move" : "copy";
@@ -4304,10 +4341,13 @@ function Canvas2Editor({
   labels,
   resolveVideoSrc,
   releaseVideoSrc,
-  onPickVideoFrame
+  onPickVideoFrame,
+  rightEdge,
+  toolbarActions
 }) {
   var _a;
   const [localWorkspace, setLocalWorkspace] = useState(() => readWorkspace(defaultWorkspace));
+  const [openPanel, setOpenPanel] = useState(null);
   const workspace = workspaceProp ?? localWorkspace;
   const theme = themeProp;
   useEffect(() => {
@@ -4393,7 +4433,8 @@ ${css}` : css;
         frameRendering: { enabled: true, clip: true, name: true, outline: false },
         ...brandDefaults(brand),
         ...(base == null ? void 0 : base.appState) ?? {},
-        ...pages ? { viewBackgroundColor: "#f2f3f5" } : {}
+        // La mesa: papel cálido (el escenario del Studio), no el gris acero de antes.
+        ...pages ? { viewBackgroundColor: "#efece6" } : {}
       }
     };
   });
@@ -4517,27 +4558,29 @@ ${css}` : css;
   }, [pages, api]);
   const L = mergeLabels(labels);
   const workspacePanels = [];
-  if (!viewMode && componentsPanel) workspacePanels.push({ id: "components", title: L.components.title, content: componentsPanel });
+  if (!viewMode && componentsPanel) workspacePanels.push({ id: "components", title: L.components.title, content: componentsPanel, inToolbar: true });
   if (!viewMode && api) {
-    workspacePanels.push({
-      id: "elements",
-      title: L.workspace.elements,
-      content: /* @__PURE__ */ jsx(InsertPanel, { api, pageId: activePageId, labels })
-    });
-    workspacePanels.push({
-      id: "text",
-      title: L.workspace.text,
-      content: /* @__PURE__ */ jsx(
-        InsertPanel,
-        {
-          api,
-          pageId: activePageId,
-          text: true,
-          labels,
-          families: { heading: brand.headingFamily, body: brand.bodyFamily }
-        }
-      )
-    });
+    if (workspace !== "excalidraw") {
+      workspacePanels.push({
+        id: "elements",
+        title: L.workspace.elements,
+        content: /* @__PURE__ */ jsx(InsertPanel, { api, pageId: activePageId, labels })
+      });
+      workspacePanels.push({
+        id: "text",
+        title: L.workspace.text,
+        content: /* @__PURE__ */ jsx(
+          InsertPanel,
+          {
+            api,
+            pageId: activePageId,
+            text: true,
+            labels,
+            families: { heading: brand.headingFamily, body: brand.bodyFamily }
+          }
+        )
+      });
+    }
   }
   if (!viewMode && library) workspacePanels.push({ id: "library", title: L.workspace.files, content: library });
   if (!viewMode && api && brandKit) workspacePanels.push({
@@ -4557,14 +4600,28 @@ ${css}` : css;
     content: /* @__PURE__ */ jsx(LayersPanel, { api, activePageId, theme, embedded: true })
   });
   for (const panel of workspacePanels) panel.icon = /* @__PURE__ */ jsx(WorkspaceIcon, { name: panel.id });
+  const pillPanels = workspace === "excalidraw" ? workspacePanels.filter((panel) => panel.inToolbar) : [];
+  const pillActions = [
+    ...pillPanels.map((panel) => ({
+      id: panel.id,
+      label: panel.title,
+      pressed: openPanel === panel.id,
+      onSelect: () => setOpenPanel((current) => current === panel.id ? null : panel.id)
+    })),
+    ...workspace === "excalidraw" && !viewMode ? toolbarActions ?? [] : []
+  ];
   return /* @__PURE__ */ jsx(
     WorkspaceLayout,
     {
       className,
       workspace,
       panels: workspacePanels,
+      narrow,
+      actions: narrow && workspace === "excalidraw" && !viewMode ? (toolbarActions ?? []).map((action) => ({ ...action, icon: action.icon ?? /* @__PURE__ */ jsx(WorkspaceIcon, { name: "library" }) })) : void 0,
       theme,
       labels,
+      openPanel,
+      onOpenPanelChange: setOpenPanel,
       children: /* @__PURE__ */ jsxs(
         "div",
         {
@@ -4684,7 +4741,6 @@ ${css}` : css;
                     viewMode,
                     hydrateFiles,
                     fontFaces: fuentes.faces,
-                    brandFamilies: { heading: brand.headingFamily, body: brand.bodyFamily },
                     onSaveComponent,
                     labels
                   }
@@ -4733,6 +4789,7 @@ ${css}` : css;
                 activePageId,
                 theme,
                 viewMode,
+                narrow,
                 labels
               }
             ),
@@ -4751,6 +4808,35 @@ ${css}` : css;
                 labels
               }
             ),
+            pillActions.length > 0 && !narrow ? /* @__PURE__ */ jsxs(ToolbarSlot, { root: rootRef, children: [
+              /* @__PURE__ */ jsx("span", { className: "canvas2-toolbar-divider", "aria-hidden": "true" }),
+              pillActions.map((action) => /* @__PURE__ */ jsx(
+                "button",
+                {
+                  type: "button",
+                  className: "canvas2-toolbar-text",
+                  "aria-pressed": action.pressed ?? void 0,
+                  onClick: action.onSelect,
+                  children: action.label
+                },
+                action.id
+              ))
+            ] }) : null,
+            rightEdge && !narrow ? /* @__PURE__ */ jsx(
+              "div",
+              {
+                "data-canvas2-right-edge": "",
+                style: {
+                  position: "absolute",
+                  right: 0,
+                  bottom: 16,
+                  zIndex: 100,
+                  display: "flex",
+                  alignItems: "center"
+                },
+                children: rightEdge
+              }
+            ) : null,
             pages && api && !viewMode && /* @__PURE__ */ jsx(
               PageActions,
               {
@@ -4981,4 +5067,4 @@ export {
   cascadePoints as y,
   clusterLooseElements as z
 };
-//# sourceMappingURL=LibraryPanel-DcyJnqvt.js.map
+//# sourceMappingURL=LibraryPanel-BBmy3i0x.js.map

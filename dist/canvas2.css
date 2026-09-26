@@ -24,8 +24,9 @@
 
 /* El acento de Excalidraw es su morado (#6965db claro / #a8a5ff oscuro), y sale
    por la herramienta activa, los botones, las casillas y los diálogos. Se
-   repinta con el azul de Polimake — los mismos valores que la ranura `active` de
-   theme.ts, para que el cromo propio y el suyo no vayan a dos colores.
+   repinta en TINTA — la ranura `active` de theme.ts —: desde el rediseño
+   «Cosmos» el cromo es monocromo y el azul queda para la acción principal de la
+   app, así que el cromo propio y el de Excalidraw van al mismo negro.
 
    Se sobrescribe la familia ENTERA de `--color-primary*` que declara su hoja de
    estilos: dejar una sola fuera deja un morado asomando en el hover o en el
@@ -33,21 +34,21 @@
    (hasta el Azul Marino #1c2d9d) y «light» son tintes sobre blanco; en oscuro va
    al revés, aclarando sobre el azul del tema, igual que hace Excalidraw. */
 [data-canvas2] .excalidraw {
-  --color-primary: #3a39f5;
-  --color-primary-hover: #1c2d9d;
-  --color-primary-darker: #1c2d9d;
-  --color-primary-darkest: #1c2d9d;
-  --color-primary-light: #e7e7fe;
-  --color-primary-light-darker: #dcdbfd;
+  --color-primary: #111111;
+  --color-primary-hover: #333333;
+  --color-primary-darker: #000000;
+  --color-primary-darkest: #000000;
+  --color-primary-light: #f3f0ea;
+  --color-primary-light-darker: #ebe7df;
 }
 
 [data-canvas2] .excalidraw.theme--dark {
-  --color-primary: #6c86ff;
-  --color-primary-hover: #8298ff;
-  --color-primary-darker: #7b92ff;
-  --color-primary-darkest: #8ca1ff;
-  --color-primary-light: #404b7f;
-  --color-primary-light-darker: #394169;
+  --color-primary: #f7f4ed;
+  --color-primary-hover: #ffffff;
+  --color-primary-darker: #ffffff;
+  --color-primary-darkest: #ffffff;
+  --color-primary-light: #282622;
+  --color-primary-light-darker: #322f2a;
 }
 
 /* Keep the hamburger (main) menu in its default top-left spot, but stack it
@@ -173,13 +174,13 @@
   opacity: 0.3;
 }
 
-/* La ficha de puntos que cierra la tira ("añadir página"). */
+/* La ficha que cierra la tira ("añadir página"): relleno suave, sin borde. */
 [data-canvas2] .canvas2-page-ghost {
-  transition: border-color 120ms ease, color 120ms ease;
+  transition: filter 120ms ease, color 120ms ease;
 }
 [data-canvas2] button:hover > .canvas2-page-ghost,
 [data-canvas2] button:focus-visible > .canvas2-page-ghost {
-  border-style: solid;
+  filter: brightness(0.94);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -230,6 +231,146 @@
 .canvas2-workspace[data-workspace="advanced"] [data-canvas2]:not([data-canvas2-narrow]) .shapes-section > div { position: static !important; }
 .canvas2-workspace[data-workspace="advanced"] .canvas2-workspace-surface { container-type: size; }
 .canvas2-workspace[data-workspace="advanced"] [data-canvas2-narrow] .dropdown-menu--mobile { max-height: calc(100cqh - 88px); overflow-y: auto; }
+
+/* ── Cromo «Cosmos» ─────────────────────────────────────────────────────────
+   Islas de Excalidraw como píldoras blancas con un filo fino de 1px y SIN sombra
+   (maqueta Cosmos, tablero «Lienzo»: el anillo va en `--shadow-island`, así no
+   mueve nada de sitio); iconos en gris cálido y lo activo sobre gris claro. Fuera el ruido que no aporta en un editor
+   de páginas: los números de atajo bajo cada herramienta y el candado de
+   «mantener herramienta». El avanzado conserva su aspecto compacto propio. */
+.canvas2-workspace:not([data-workspace="advanced"]) [data-canvas2] .excalidraw {
+  --ui-font: var(--font-funnel-sans, "Funnel Sans"), "Funnel Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --shadow-island: 0 0 0 1px #e8e7e5;
+  --island-bg-color: #ffffff;
+  --icon-fill-color: #6e6962;
+  --button-hover-bg: #f3f0ea;
+  --color-surface-low: transparent;
+  --color-surface-mid: #f3f0ea;
+  --color-surface-high: #f3f0ea;
+  --color-surface-primary-container: #efeeec;
+  --color-on-primary-container: #111111;
+  --text-primary-color: #111111;
+  --color-slider-track: #111111;
+  --color-slider-thumb: #111111;
+}
+.canvas2-workspace:not([data-workspace="advanced"]) [data-canvas2] .excalidraw.theme--dark {
+  --shadow-island: 0 0 0 1px #34312c;
+  --island-bg-color: #262420;
+  --icon-fill-color: #a39e96;
+  --button-hover-bg: #282622;
+  --color-surface-mid: #282622;
+  --color-surface-high: #282622;
+  --color-surface-primary-container: #34312c;
+  --color-on-primary-container: #f7f4ed;
+  --text-primary-color: #f7f4ed;
+  --color-slider-track: #f7f4ed;
+  --color-slider-thumb: #f7f4ed;
+}
+
+/* Barra de herramientas: una píldora. */
+.canvas2-workspace:not([data-workspace="advanced"]) [data-canvas2] .App-toolbar {
+  border-radius: 999px; padding: 5px 6px;
+}
+.canvas2-workspace:not([data-workspace="advanced"]) [data-canvas2] .App-toolbar :is(.ToolIcon__icon, .App-toolbar__extra-tools-trigger) {
+  border-radius: 999px;
+}
+.canvas2-workspace:not([data-workspace="advanced"]) [data-canvas2] .ToolIcon__keybinding,
+.canvas2-workspace:not([data-workspace="advanced"]) [data-canvas2] .App-toolbar .ToolIcon__lock {
+  display: none !important;
+}
+.canvas2-workspace:not([data-workspace="advanced"]) [data-canvas2] .App-toolbar__divider {
+  background: transparent; margin: 0 2px;
+}
+/* Activa = círculo gris claro con el icono en tinta (el hover no la apaga). */
+.canvas2-workspace:not([data-workspace="advanced"]) [data-canvas2] .ToolIcon_type_radio:checked + .ToolIcon__icon,
+.canvas2-workspace:not([data-workspace="advanced"]) [data-canvas2] .ToolIcon_type_checkbox:checked + .ToolIcon__icon {
+  background: var(--color-surface-primary-container) !important;
+  --icon-fill-color: var(--color-on-primary-container);
+  color: var(--color-on-primary-container);
+}
+
+/* Menú, zoom y deshacer: píldoras blancas con la misma sombra, sin el anillo. */
+.canvas2-workspace:not([data-workspace="advanced"]) [data-canvas2] :is(.main-menu-trigger, .zoom-actions, .undo-redo-buttons) {
+  background: var(--island-bg-color); box-shadow: var(--shadow-island); border-radius: 999px;
+}
+.canvas2-workspace:not([data-workspace="advanced"]) [data-canvas2] .main-menu-trigger { width: 36px; padding: 0; justify-content: center; }
+.canvas2-workspace:not([data-workspace="advanced"]) [data-canvas2] :is(.zoom-actions, .undo-redo-buttons) .ToolIcon__icon,
+.canvas2-workspace:not([data-workspace="advanced"]) [data-canvas2] :is(.zoom-actions, .undo-redo-buttons) button {
+  background: transparent; border-radius: 999px;
+}
+.canvas2-workspace:not([data-workspace="advanced"]) [data-canvas2] :is(.zoom-actions, .undo-redo-buttons) button:hover .ToolIcon__icon,
+.canvas2-workspace:not([data-workspace="advanced"]) [data-canvas2] :is(.zoom-actions, .undo-redo-buttons) button:hover {
+  background: var(--button-hover-bg);
+}
+.canvas2-workspace:not([data-workspace="advanced"]) [data-canvas2] .reset-zoom-button { font-variant-numeric: tabular-nums; color: var(--icon-fill-color); }
+
+/* Panel de propiedades de la selección: tarjeta redondeada, sin borde. */
+.canvas2-workspace:not([data-workspace="advanced"]) [data-canvas2] .App-menu__left .Island,
+.canvas2-workspace:not([data-workspace="advanced"]) [data-canvas2] .selected-shape-actions .Island {
+  border-radius: 16px;
+}
+.canvas2-workspace:not([data-workspace="advanced"]) [data-canvas2] .dropdown-menu-container { border-radius: 14px; }
+
+/* Paneles y acciones del host dentro de la píldora de herramientas, tras un
+   separador y en texto: «Componentes · Recursos», como en el diseño. */
+[data-canvas2] .canvas2-toolbar-divider {
+  width: 1px; height: 18px; margin: 0 4px; align-self: center; flex-shrink: 0; background: #e3e3e5;
+}
+[data-canvas2] .excalidraw.theme--dark .canvas2-toolbar-divider { background: #34312c; }
+[data-canvas2] .canvas2-toolbar-text {
+  height: 36px; padding: 0 12px; flex-shrink: 0; border: 0; border-radius: 999px;
+  background: transparent; color: var(--text-primary-color, #111111);
+  font: inherit; font-family: var(--ui-font); font-size: 13px; white-space: nowrap; cursor: pointer;
+  transition: background 120ms;
+}
+[data-canvas2] .canvas2-toolbar-text:hover { background: var(--button-hover-bg, #f3f0ea); }
+[data-canvas2] .canvas2-toolbar-text[aria-pressed="true"] {
+  background: var(--color-surface-primary-container, #efeeec); color: var(--color-on-primary-container, #111111);
+}
+[data-canvas2] .canvas2-toolbar-text:focus-visible { outline: 2px solid var(--color-primary, #111111); outline-offset: 1px; }
+
+/* ── Móvil de Excalidraw: la fila de abajo ─────────────────────────────────
+   Sin nada elegido, la isla inferior de Excalidraw es una franja blanca de
+   lado a lado con solo el menú a la izquierda y deshacer/rehacer a la derecha:
+   un hueco blanco enorme en medio. En reposo la isla se vuelve transparente,
+   el menú y deshacer quedan como dos piezas sueltas, y la tira de páginas baja
+   a esa misma fila, entre los dos.
+
+   «En reposo» = editar, duplicar y borrar están ocultos (Excalidraw los deja
+   en el DOM con `--hide`; con algo elegido pasan a `--show`). Entonces la isla
+   vuelve a ser la barra entera y la tira sube por encima. */
+[data-canvas2-narrow] .App-bottom-bar .Island:not(:has(.App-toolbar-content > .ToolIcon_type_button--show)) {
+  background: transparent;
+  box-shadow: none;
+  pointer-events: none;
+}
+[data-canvas2-narrow] .App-bottom-bar .Island:not(:has(.App-toolbar-content > .ToolIcon_type_button--show)) .App-toolbar-content > * {
+  pointer-events: auto;
+}
+[data-canvas2-narrow] .App-bottom-bar .Island:not(:has(.App-toolbar-content > .ToolIcon_type_button--show)) .App-toolbar-content > div:last-child {
+  display: flex;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--island-bg-color);
+  box-shadow: var(--shadow-island);
+}
+[data-canvas2-narrow] [data-canvas2-pages] {
+  bottom: 8px;
+  /* Entre el menú (izquierda) y deshacer/rehacer (derecha). */
+  max-width: calc(100% - 200px);
+}
+[data-canvas2-narrow]:has(.App-bottom-bar .App-toolbar-content > .ToolIcon_type_button--show) [data-canvas2-pages] {
+  bottom: 74px;
+  max-width: 94%;
+}
+[data-canvas2-narrow] .App-bottom-bar .Island:not(:has(.App-toolbar-content > .ToolIcon_type_button--show)) .main-menu-trigger {
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--island-bg-color);
+  box-shadow: var(--shadow-island);
+}
 .canvas2-workspace {
   container-type: inline-size;
   width: 100%; height: 100%; min-height: 0; min-width: 0;
@@ -291,11 +432,51 @@
   display: flex; flex-direction: column; box-sizing: border-box;
 }
 .canvas2-workspace-sidebar[hidden] { display: none; }
+/* Floats over the canvas: no column, no chrome, just the icons. */
 .canvas2-workspace[data-workspace="excalidraw"] .canvas2-workspace-sidebar {
-  order: 1; flex: 0 0 40px; width: 40px; flex-direction: row;
-  overflow: hidden; border-right: 0; border-left: 1px solid var(--workspace-border);
+  /* De arriba (a la altura de la barra y el menú) hasta abajo del todo. */
+  position: absolute; right: 0; top: 16px; bottom: 16px; z-index: 3;
+  /* row-reverse: the icons stay on the edge and the panel opens to their LEFT. */
+  width: 40px; flex-direction: row-reverse; overflow: visible; /* la sombra del panel no se recorta */
+  background: transparent; border: 0; pointer-events: none;
 }
-.canvas2-workspace[data-workspace="excalidraw"] .canvas2-workspace-sidebar:has(.canvas2-resource-panel) { flex-basis: 272px; width: 272px; }
+.canvas2-workspace[data-workspace="excalidraw"] .canvas2-workspace-sidebar > * { pointer-events: auto; }
+.canvas2-workspace[data-workspace="excalidraw"] .canvas2-native-tools { height: fit-content; }
+/* Contain the engine's own z-indexes so the floating strip always sits above them. */
+.canvas2-workspace[data-workspace="excalidraw"] .canvas2-workspace-surface { isolation: isolate; z-index: 0; }
+.canvas2-workspace[data-workspace="excalidraw"] .canvas2-workspace-sidebar:has(.canvas2-resource-panel) { width: min(328px, 85cqw); }
+/* Iconos: botones redondos en gris cálido; el abierto, en tinta. */
+.canvas2-workspace[data-workspace="excalidraw"] .canvas2-native-tools { gap: 6px; padding: 6px 4px; }
+.canvas2-workspace[data-workspace="excalidraw"] .canvas2-native-tools button {
+  width: 32px; min-height: 32px; border-radius: 999px; color: var(--workspace-sub);
+  transition: background 120ms, color 120ms;
+}
+.canvas2-workspace[data-workspace="excalidraw"] .canvas2-native-tools button:hover { background: var(--workspace-hover); color: var(--workspace-fg); }
+.canvas2-workspace[data-workspace="excalidraw"] .canvas2-native-tools button[aria-pressed="true"] { background: var(--workspace-accent); color: var(--workspace-accent-fg); }
+/* El panel abierto: tarjeta flotante con el mismo filo de 1px que las islas, sin sombra. */
+.canvas2-workspace[data-workspace="excalidraw"] .canvas2-resource-panel {
+  margin: 0 4px 0 0; border-radius: 18px; overflow: hidden;
+  flex: 0 0 auto; width: calc(100% - 44px); height: 100%;
+  box-shadow: 0 0 0 1px var(--workspace-border, #e8e7e5);
+}
+.canvas2-workspace[data-workspace="excalidraw"] .canvas2-resource-heading { padding: 18px 18px 12px; font-size: 15px; font-weight: 600; letter-spacing: -.2px; }
+.canvas2-workspace[data-workspace="excalidraw"] .canvas2-resource-panel > .canvas2-workspace-panel { padding: 0 18px 18px; }
+.canvas2-workspace[data-workspace="excalidraw"] .canvas2-resource-search {
+  min-height: 36px; padding: 0 14px; border: 0; border-radius: 999px; background: var(--workspace-hover);
+}
+.canvas2-workspace[data-workspace="excalidraw"] .canvas2-resource-search::placeholder { color: var(--workspace-sub); }
+.canvas2-workspace[data-workspace="excalidraw"] .canvas2-element-grid { gap: 8px; margin-top: 14px; }
+.canvas2-workspace[data-workspace="excalidraw"] .canvas2-element-grid button {
+  min-height: 96px; border: 0; border-radius: 14px; background: var(--workspace-hover); color: var(--workspace-sub);
+  transition: color 120ms, box-shadow 120ms;
+}
+.canvas2-workspace[data-workspace="excalidraw"] .canvas2-element-grid button:hover { color: var(--workspace-fg); box-shadow: inset 0 0 0 1px var(--workspace-fg); }
+.canvas2-workspace[data-workspace="excalidraw"] .canvas2-shape-preview { background: var(--workspace-fg); }
+.canvas2-workspace[data-workspace="excalidraw"] :is(.canvas2-text-presets, .canvas2-drawing-tools) button {
+  border: 0; border-radius: 14px; padding: 12px 14px; background: var(--workspace-hover);
+}
+.canvas2-workspace[data-workspace="excalidraw"] .canvas2-drawing-tools button { border-radius: 999px; padding: 9px 14px; }
+.canvas2-workspace[data-workspace="excalidraw"] :is(.canvas2-text-presets, .canvas2-drawing-tools) button:hover { background: color-mix(in srgb, var(--workspace-fg) 8%, var(--workspace-hover)); }
 .canvas2-native-tools { display: flex; flex: 0 0 40px; flex-direction: column; align-items: center; gap: 4px; padding: 8px 3px; overflow-y: auto; }
 .canvas2-native-tools button { width: 32px; min-height: 32px; display: grid; place-items: center; border: 0; border-radius: 6px; color: inherit; background: transparent; cursor: pointer; }
 .canvas2-native-tools svg { width: 18px; height: 18px; }
@@ -357,4 +538,38 @@
   .canvas2-advanced-properties, .canvas2-advanced-layers { min-width: 0; min-height: 0; }
   .canvas2-advanced-layers { border-top: 0; border-left: 1px solid var(--workspace-border); }
   .canvas2-advanced-panels .canvas2-workspace-tabs button { padding: 8px; }
+}
+
+/* Capas: la fila se ilumina al pasar y enseña sus acciones; en reposo solo
+   miniatura y nombre. Con teclado (focus-within) y elegida, también se ven. */
+.canvas2-workspace .canvas2-layer-row { transition: background 120ms; }
+.canvas2-workspace .canvas2-layer-row:hover { background: var(--workspace-hover) !important; }
+.canvas2-workspace .canvas2-layer-row[data-selected]:hover { background: color-mix(in srgb, var(--workspace-fg) 6%, var(--workspace-hover)) !important; }
+.canvas2-workspace .canvas2-layer-actions { opacity: 0; transition: opacity 120ms; }
+.canvas2-workspace .canvas2-layer-row:is(:hover, :focus-within, [data-selected]) .canvas2-layer-actions { opacity: 1; }
+.canvas2-workspace .canvas2-layer-btn { transition: background 120ms, color 120ms; }
+.canvas2-workspace .canvas2-layer-btn:hover { background: color-mix(in srgb, var(--workspace-fg) 8%, transparent); color: var(--workspace-fg); }
+.canvas2-workspace .canvas2-layer-btn[data-danger]:hover { color: var(--layer-danger); }
+@media (hover: none) { .canvas2-workspace .canvas2-layer-actions { opacity: 1; } }
+
+/* Móvil de Excalidraw (`data-narrow`, el mismo corte que usa el editor): el
+   borde derecho es de sus utilidades (biblioteca, candado, mano) y la tira se
+   montaba encima. Pasa al borde izquierdo, que en móvil está libre, en una
+   tarjeta como la de Excalidraw pero reflejada, y el panel abre a la derecha.
+   Arriba libra la barra de herramientas; abajo, la fila del menú y las páginas. */
+.canvas2-workspace[data-workspace="excalidraw"][data-narrow] .canvas2-workspace-sidebar {
+  left: 0; right: auto; top: 68px; bottom: 96px; z-index: 3;
+  flex-direction: row; box-shadow: none;
+}
+.canvas2-workspace[data-workspace="excalidraw"][data-narrow] .canvas2-native-tools {
+  flex-basis: auto; padding: 4px; gap: 4px;
+  background: var(--workspace-bg); border-radius: 0 12px 12px 0;
+  box-shadow: 0 0 0 1px var(--workspace-border);
+}
+.canvas2-workspace[data-workspace="excalidraw"][data-narrow] .canvas2-workspace-sidebar:has(.canvas2-resource-panel) {
+  width: min(320px, calc(100cqw - 24px));
+}
+.canvas2-workspace[data-workspace="excalidraw"][data-narrow] .canvas2-resource-panel {
+  margin: 0 0 0 8px; width: auto; flex: 1 1 auto; min-width: 0;
+  box-shadow: 0 0 0 1px var(--workspace-border), 4px 6px 24px #0002;
 }

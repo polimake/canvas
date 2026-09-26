@@ -21,7 +21,9 @@ export interface LooseWarningProps {
     activePageId: string | null;
     theme?: 'light' | 'dark';
     viewMode?: boolean;
+    /** Excalidraw está en su distribución de móvil: ver `narrow.ts`. */
+    narrow?: boolean;
     labels?: PartialLabels;
 }
-export declare function LooseWarning({ api, activePageId, theme, viewMode, labels }: LooseWarningProps): import("react").JSX.Element | null;
+export declare function LooseWarning({ api, activePageId, theme, viewMode, narrow, labels }: LooseWarningProps): import("react").JSX.Element | null;
 //# sourceMappingURL=LooseWarning.d.ts.map

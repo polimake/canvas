@@ -152,7 +152,7 @@ export function BrandGallery({
               border: `1px solid ${c.border}`,
               boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
             }),
-        padding: 6,
+        padding: embedded ? 0 : 6,
         background: embedded ? 'transparent' : c.bg,
         color: c.fg,
         font: `12px ${PANEL_FONT}`,
@@ -190,7 +190,7 @@ export function BrandGallery({
       {(embedded || abierta) && (
         <>
           {brand.palette.length > 0 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, padding: '6px 4px 2px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: embedded ? 8 : 5, padding: embedded ? '0 0 14px' : '6px 4px 2px' }}>
               {brand.palette.map((color) => (
                 <button
                   key={color}
@@ -201,11 +201,13 @@ export function BrandGallery({
                   }
                   aria-label={color}
                   style={{
-                    width: 24,
-                    height: 24,
-                    borderRadius: 6,
+                    width: embedded ? 32 : 24,
+                    height: embedded ? 32 : 24,
+                    borderRadius: 999,
                     background: color,
-                    border: `1px solid ${c.border}`,
+                    // Filo interior en vez de borde: un blanco de marca sigue viéndose.
+                    border: 'none',
+                    boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.1)',
                     cursor: 'pointer',
                     padding: 0,
                   }}
@@ -218,9 +220,9 @@ export function BrandGallery({
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(3, 1fr)',
-                gap: 4,
-                padding: '4px 4px 2px',
+                gridTemplateColumns: embedded ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)',
+                gap: embedded ? 8 : 4,
+                padding: embedded ? 0 : '4px 4px 2px',
               }}
             >
               {logos.map((logo) => (
@@ -235,16 +237,16 @@ export function BrandGallery({
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    gap: 2,
-                    padding: 3,
-                    borderRadius: 6,
-                    border: `1px solid ${c.border}`,
+                    gap: embedded ? 6 : 2,
+                    padding: embedded ? 8 : 3,
+                    borderRadius: embedded ? 14 : 6,
+                    background: c.hover,
                   }}
                 >
                   <span
                     style={{
                       width: '100%',
-                      height: 26,
+                      height: embedded ? 56 : 26,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -254,7 +256,7 @@ export function BrandGallery({
                         'linear-gradient(45deg,rgba(128,128,128,.25) 25%,transparent 25%,transparent 75%,rgba(128,128,128,.25) 75%),linear-gradient(45deg,rgba(128,128,128,.25) 25%,transparent 25%,transparent 75%,rgba(128,128,128,.25) 75%)',
                       backgroundSize: '8px 8px',
                       backgroundPosition: '0 0, 4px 4px',
-                      borderRadius: 4,
+                      borderRadius: embedded ? 8 : 4,
                     }}
                   >
                     <img
@@ -267,7 +269,7 @@ export function BrandGallery({
                       }}
                     />
                   </span>
-                  <span style={{ fontSize: 10, color: c.sub }}>{logo.label}</span>
+                  <span style={{ fontSize: embedded ? 11 : 10, color: c.sub }}>{logo.label}</span>
                 </button>
               ))}
             </div>

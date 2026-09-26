@@ -110,10 +110,10 @@ export function DesignPanel({
   const inputStyle: CSSProperties = {
     width: '100%',
     minWidth: 0,
-    padding: '4px 6px',
-    borderRadius: 6,
-    border: `1px solid ${c.border}`,
-    background: 'transparent',
+    padding: '6px 10px',
+    borderRadius: 999,
+    border: 'none',
+    background: c.hover,
     color: c.fg,
     fontSize: 12,
     fontFamily: PANEL_FONT,
@@ -161,13 +161,13 @@ export function DesignPanel({
                   style={{
                     all: 'unset',
                     cursor: 'pointer',
-                    padding: '3px 8px',
-                    borderRadius: 6,
+                    // Píldoras rellenas, sin borde; la puesta, en tinta.
+                    padding: '5px 10px',
+                    borderRadius: 999,
                     fontSize: 11,
                     fontWeight: 600,
                     color: puesto ? c.activeFg : c.sub,
-                    background: puesto ? c.active : 'transparent',
-                    border: `1px solid ${puesto ? c.active : c.border}`,
+                    background: puesto ? c.active : c.hover,
                   }}
                 >
                   {L.sizes[preset.key] ?? preset.label}
@@ -204,13 +204,12 @@ export function DesignPanel({
                 all: 'unset',
                 flexShrink: 0,
                 cursor: customSize ? 'pointer' : 'default',
-                padding: '4px 9px',
-                borderRadius: 6,
+                padding: '6px 12px',
+                borderRadius: 999,
                 fontSize: 11,
                 fontWeight: 600,
                 color: customSize ? c.activeFg : c.sub,
-                background: customSize ? c.active : 'transparent',
-                border: `1px solid ${c.border}`,
+                background: customSize ? c.active : c.hover,
                 opacity: customSize ? 1 : 0.6,
               }}
             >
@@ -232,6 +231,7 @@ export function DesignPanel({
               type="checkbox"
               checked={scaleContent}
               onChange={(e) => setScaleContent(e.target.checked)}
+              style={{ accentColor: c.fg }}
             />
             {L.menu.scaleContent}
           </label>
@@ -250,9 +250,10 @@ export function DesignPanel({
                   cursor: 'pointer',
                   width: 20,
                   height: 20,
-                  borderRadius: 6,
+                  borderRadius: 999,
                   background: color,
-                  border: `1px solid ${c.border}`,
+                  // Filo interior en vez de borde: el blanco sigue viéndose.
+                  boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.1)',
                 }}
               />
             ))}
@@ -285,12 +286,12 @@ export function DesignPanel({
                 all: 'unset',
                 cursor: 'pointer',
                 marginLeft: 'auto',
-                padding: '3px 7px',
-                borderRadius: 6,
+                padding: '5px 10px',
+                borderRadius: 999,
                 fontSize: 11,
                 fontWeight: 600,
                 color: c.sub,
-                border: `1px solid ${c.border}`,
+                background: c.hover,
               }}
             >
               {L.menu.backgroundRemove}

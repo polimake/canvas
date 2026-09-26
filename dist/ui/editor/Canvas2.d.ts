@@ -224,6 +224,26 @@ export interface Canvas2EditorProps {
         url: string;
         mimeType?: string;
     } | null>;
+    /**
+     * Controles del host abajo, pegados al borde derecho y sin fondo (p. ej.
+     * plegar la columna de al lado). No sale en pantalla estrecha, donde
+     * Excalidraw ocupa el pie con su propia barra.
+     */
+    rightEdge?: ReactNode;
+    /**
+     * Botones del host en texto al final de la píldora de herramientas (p. ej.
+     * «Recursos», que abre la mediateca en la columna de al lado). Solo en la
+     * vista Excalidraw y en pantalla ancha.
+     */
+    toolbarActions?: Canvas2ToolbarAction[];
+}
+export interface Canvas2ToolbarAction {
+    id: string;
+    label: string;
+    pressed?: boolean;
+    onSelect: () => void;
+    /** Icono en móvil, donde la acción va en la tira de iconos y no en texto. Sin él, una carpeta. */
+    icon?: ReactNode;
 }
 /**
  * Valores por defecto del `appState` derivados de la marca: lo que se aplica a
@@ -247,7 +267,7 @@ export declare const MEDIA_DROP_TYPE = "application/x-canvas2-media";
  * this behind a `next/dynamic(..., { ssr: false })` boundary in the host app
  * (see apps/web/src/app/canvas/page.tsx).
  */
-export declare function Canvas2Editor({ workspace: workspaceProp, defaultWorkspace, onWorkspaceChange, className, initialScene, onSceneChange, viewMode, theme: themeProp, langCode, onReady, nativeImageExport, fontOverrides, changeDebounceMs, pages, pageSize, layers, pageThumbnails, pageThumbnailFiles, brandKit, hydrateFiles, dockedSidebarBreakpoint, library, componentsPanel, agentPanel, onSaveComponent, onActivePageChange, onMediaDrop, mediaDropType, onFilesDrop, labels, resolveVideoSrc, releaseVideoSrc, onPickVideoFrame, }: Canvas2EditorProps): import("react").JSX.Element;
+export declare function Canvas2Editor({ workspace: workspaceProp, defaultWorkspace, onWorkspaceChange, className, initialScene, onSceneChange, viewMode, theme: themeProp, langCode, onReady, nativeImageExport, fontOverrides, changeDebounceMs, pages, pageSize, layers, pageThumbnails, pageThumbnailFiles, brandKit, hydrateFiles, dockedSidebarBreakpoint, library, componentsPanel, agentPanel, onSaveComponent, onActivePageChange, onMediaDrop, mediaDropType, onFilesDrop, labels, resolveVideoSrc, releaseVideoSrc, onPickVideoFrame, rightEdge, toolbarActions, }: Canvas2EditorProps): import("react").JSX.Element;
 /** Backwards-compatible alias — the bare wrapper is now a controlled editor. */
 export declare const Canvas2: typeof Canvas2Editor;
 export default Canvas2Editor;

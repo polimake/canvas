@@ -174,24 +174,24 @@ export function PageNavigator({
       data-canvas2-pages=""
       style={{
         position: 'absolute',
-        // 16 se solapaba con la isla inferior de Excalidraw en su distribución
-        // de móvil: medido en un iPhone de 390, la isla ocupa de y=781 a y=830 y
-        // la tira iba de 745 a 829 — encima, y además con más z-index, así que
-        // la tapaba. 74 la deja justo por arriba.
-        bottom: narrow ? 74 : 16,
+        // En la distribución de móvil de Excalidraw la altura y el ancho los
+        // pone canvas2.css: en reposo la tira baja a la fila de la isla
+        // inferior (entre el menú y deshacer), y con algo elegido, cuando esa
+        // isla se llena de acciones, sube por encima.
+        bottom: narrow ? undefined : 16,
         left: '50%',
         transform: 'translateX(-50%)',
         zIndex: 100,
         display: 'flex',
         alignItems: 'center',
         gap: 4,
-        maxWidth: 'min(920px, 94%)',
-        padding: 6,
-        borderRadius: 12,
+        maxWidth: narrow ? undefined : 'min(920px, 94%)',
+        padding: 8,
+        // Isla como las de Excalidraw: sin borde, sombra suave.
+        borderRadius: 16,
         background: c.bg,
         color: c.fg,
-        border: `1px solid ${c.border}`,
-        boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+        boxShadow: '0 1px 2px rgba(17,17,17,0.04), 0 6px 20px rgba(17,17,17,0.07)',
         fontFamily: PANEL_FONT,
       }}
     >
@@ -355,8 +355,7 @@ export function PageNavigator({
                 position: 'relative',
                 width: THUMB_W,
                 height: thumbH,
-                borderRadius: 3,
-                border: `1px solid ${c.border}`,
+                borderRadius: 6,
                 background: c.hover,
                 overflow: 'hidden',
                 flexShrink: 0,
@@ -452,8 +451,8 @@ export function PageNavigator({
             style={{
               width: THUMB_W,
               height: Math.round(THUMB_W * (ghostRatio.height / Math.max(1, ghostRatio.width))),
-              borderRadius: 3,
-              border: `1.5px dashed ${c.border}`,
+              borderRadius: 6,
+              background: c.hover,
               display: 'grid',
               placeContent: 'center',
               lineHeight: 0,
