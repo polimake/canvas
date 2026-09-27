@@ -1138,6 +1138,13 @@ const DEFAULT_LABELS = {
     "yt-thumb": "Miniatura YouTube",
     a4: "A4",
     default: "Lienzo clásico"
+  },
+  mode: {
+    group: "Modo del lienzo",
+    view: "Ver",
+    comment: "Comentar",
+    edit: "Editar",
+    done: "Listo"
   }
 };
 function mergeLabels(custom) {
@@ -2883,6 +2890,41 @@ function PageActions({
     }
   );
 }
+const ORDER = ["view", "comment", "edit"];
+const ICONS = {
+  view: "M247.31,124.76c-.35-.79-8.82-19.58-27.65-38.41C194.57,61.26,162.88,48,128,48S61.43,61.26,36.34,86.35C17.51,105.18,9,124,8.69,124.76a8,8,0,0,0,0,6.5c.35.79,8.82,19.57,27.65,38.4C61.43,194.74,93.12,208,128,208s66.57-13.26,91.66-38.34c18.83-18.83,27.3-37.61,27.65-38.4A8,8,0,0,0,247.31,124.76ZM128,192c-30.78,0-57.67-11.19-79.93-33.25A133.47,133.47,0,0,1,25,128,133.33,133.33,0,0,1,48.07,97.25C70.33,75.19,97.22,64,128,64s57.67,11.19,79.93,33.25A133.46,133.46,0,0,1,231.05,128C223.84,141.46,192.43,192,128,192Zm0-112a48,48,0,1,0,48,48A48.05,48.05,0,0,0,128,80Zm0,80a32,32,0,1,1,32-32A32,32,0,0,1,128,160Z",
+  comment: "M216,48H40A16,16,0,0,0,24,64V224a15.84,15.84,0,0,0,9.25,14.5A16.05,16.05,0,0,0,40,240a15.89,15.89,0,0,0,10.25-3.78l.09-.07L83,208H216a16,16,0,0,0,16-16V64A16,16,0,0,0,216,48ZM40,224h0ZM216,192H80a8,8,0,0,0-5.23,1.95L40,224V64H216Z",
+  edit: "M227.31,73.37,182.63,28.68a16,16,0,0,0-22.63,0L36.69,152A15.86,15.86,0,0,0,32,163.31V208a16,16,0,0,0,16,16H92.69A15.86,15.86,0,0,0,104,219.31L227.31,96a16,16,0,0,0,0-22.63ZM92.69,208H48V163.31l88-88L180.69,120ZM192,108.68,147.31,64l24-24L216,84.68Z"
+};
+function ModeSwitch({ mode, onChange, modes, theme = "light", narrow = false, labels }) {
+  const available = ORDER.filter((m) => modes.includes(m));
+  if (available.length < 2) return null;
+  return /* @__PURE__ */ jsx(
+    "div",
+    {
+      className: "canvas2-mode-tools",
+      role: "toolbar",
+      "aria-orientation": "vertical",
+      "aria-label": labels.group,
+      "data-theme": theme,
+      "data-narrow": narrow ? "" : void 0,
+      children: available.map((m) => /* @__PURE__ */ jsx(
+        "button",
+        {
+          type: "button",
+          title: labels[m],
+          "aria-label": labels[m],
+          "aria-pressed": mode === m,
+          onClick: () => {
+            if (m !== mode) onChange(m);
+          },
+          children: /* @__PURE__ */ jsx("svg", { viewBox: "0 0 256 256", fill: "currentColor", "aria-hidden": "true", children: /* @__PURE__ */ jsx("path", { d: ICONS[m] }) })
+        },
+        m
+      ))
+    }
+  );
+}
 const HEX = /^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 function color(value) {
   if (typeof value !== "string") return null;
@@ -4343,6 +4385,7 @@ function Canvas2Editor({
   releaseVideoSrc,
   onPickVideoFrame,
   rightEdge,
+  modeControl,
   toolbarActions
 }) {
   var _a;
@@ -4430,7 +4473,9 @@ ${css}` : css;
         // radius knob). Pages must read as straight-edged sheets, so the
         // native outline is off and each page's locked "paper" rect (sharp
         // corners, hairline border) is the page's visual instead.
-        frameRendering: { enabled: true, clip: true, name: true, outline: false },
+        // Al mirar (`viewMode`) sin el «Página N»: se fija ya aquí porque
+        // Excalidraw aplica `initialData` después del primer efecto y lo pisaría.
+        frameRendering: { enabled: true, clip: true, name: !viewMode, outline: false },
         ...brandDefaults(brand),
         ...(base == null ? void 0 : base.appState) ?? {},
         // La mesa: papel cálido (el escenario del Studio), no el gris acero de antes.
@@ -4505,6 +4550,16 @@ ${css}` : css;
     if (!pages || !api || viewMode) return;
     return api.onChange(normalizePages);
   }, [pages, api, viewMode, normalizePages]);
+  useEffect(() => {
+    var _a2;
+    if (!pages || !api) return;
+    const current = (_a2 = api.getAppState()) == null ? void 0 : _a2.frameRendering;
+    if (!current || current.name === !viewMode) return;
+    api.updateScene({
+      appState: { frameRendering: { ...current, name: !viewMode } },
+      captureUpdate: CaptureUpdateAction.NEVER
+    });
+  }, [pages, api, viewMode]);
   useEffect(() => {
     if (!pages || !api) return;
     let timer = null;
@@ -4628,6 +4683,7 @@ ${css}` : css;
           ref: rootRef,
           "data-canvas2": "",
           "data-canvas2-narrow": narrow ? "" : void 0,
+          "data-canvas2-readonly": viewMode ? "" : void 0,
           style: { position: "relative", width: "100%", height: "100%" },
           onDragOverCapture: (e) => {
             if (!onFilesDrop || viewMode) return;
@@ -4829,7 +4885,8 @@ ${css}` : css;
                 style: {
                   position: "absolute",
                   right: 0,
-                  bottom: 16,
+                  top: "50%",
+                  transform: "translateY(-50%)",
                   zIndex: 100,
                   display: "flex",
                   alignItems: "center"
@@ -4837,6 +4894,7 @@ ${css}` : css;
                 children: rightEdge
               }
             ) : null,
+            modeControl ? /* @__PURE__ */ jsx(ModeSwitch, { ...modeControl, theme, narrow, labels: L.mode }) : null,
             pages && api && !viewMode && /* @__PURE__ */ jsx(
               PageActions,
               {
@@ -4971,76 +5029,77 @@ function LibraryPanel({
   );
 }
 export {
-  fontFamilyId as $,
-  contrastTextColor as A,
+  focusLayer as $,
+  clusterLooseElements as A,
   BrandGallery as B,
   Canvas2 as C,
   DEFAULT_LABELS as D,
   EMPTY_BRAND as E,
-  convertToPages as F,
-  createBlankScene as G,
-  dataUrlToBlob as H,
-  deletePage as I,
-  downloadBlob as J,
-  duplicatePage as K,
+  contrastTextColor as F,
+  convertToPages as G,
+  createBlankScene as H,
+  dataUrlToBlob as I,
+  deletePage as J,
+  downloadBlob as K,
   LayersPanel as L,
-  MEDIA_DROP_TYPE as M,
-  ensurePagePapers as N,
-  exportScenePdf as O,
+  ModeSwitch as M,
+  duplicatePage as N,
+  ensurePagePapers as O,
   PANEL_FONT as P,
-  exportScenePng as Q,
-  exportSceneSvg as R,
-  exportStoredScenePng as S,
+  exportScenePdf as Q,
+  exportScenePng as R,
+  exportSceneSvg as S,
   TEXT_PRESETS as T,
-  exportStoredSceneSvg as U,
+  exportStoredScenePng as U,
   VideoFramePicker as V,
-  extendToPage as W,
-  externalizeInlineImages as X,
-  findInlineImageIds as Y,
-  fitAllPages as Z,
-  focusLayer as _,
+  exportStoredSceneSvg as W,
+  extendToPage as X,
+  externalizeInlineImages as Y,
+  findInlineImageIds as Z,
+  fitAllPages as _,
   Canvas2Editor as a,
-  getPageBackground as a0,
-  getPageSize as a1,
-  getSelectedVideo as a2,
-  getVideoMeta as a3,
-  hasUploadsInFlight as a4,
-  hideNativeDragImage as a5,
-  imageAtScenePoint as a6,
-  insertImageFromBlob as a7,
-  insertImageFromUrl as a8,
-  insertImageWithPreview as a9,
-  setPageBackgroundColor as aA,
-  setPageLocked as aB,
-  setVideoPoster as aC,
-  storedScenePageCount as aD,
-  usePageThumbnails as aE,
-  insertTextPreset as aa,
-  insertVideo as ab,
-  isInlineDataUrl as ac,
-  isPageBackground as ad,
-  isPageLocked as ae,
-  isVideoElement as af,
-  listPages as ag,
-  looseElements as ah,
-  movePage as ai,
-  movePageTo as aj,
-  paginateSceneInArray as ak,
-  parseScene as al,
-  patchElement as am,
-  registerCustomFont as an,
-  registerCustomFonts as ao,
-  relayoutPages as ap,
-  renamePage as aq,
-  reorderPageMembers as ar,
-  replaceImageFromUrl as as,
-  resizePage as at,
-  resolveBrandKit as au,
-  resolveInsertPageId as av,
-  restoreScene as aw,
-  sendMemberToBack as ax,
-  serializeScene as ay,
-  setAsBackground as az,
+  fontFamilyId as a0,
+  getPageBackground as a1,
+  getPageSize as a2,
+  getSelectedVideo as a3,
+  getVideoMeta as a4,
+  hasUploadsInFlight as a5,
+  hideNativeDragImage as a6,
+  imageAtScenePoint as a7,
+  insertImageFromBlob as a8,
+  insertImageFromUrl as a9,
+  setAsBackground as aA,
+  setPageBackgroundColor as aB,
+  setPageLocked as aC,
+  setVideoPoster as aD,
+  storedScenePageCount as aE,
+  usePageThumbnails as aF,
+  insertImageWithPreview as aa,
+  insertTextPreset as ab,
+  insertVideo as ac,
+  isInlineDataUrl as ad,
+  isPageBackground as ae,
+  isPageLocked as af,
+  isVideoElement as ag,
+  listPages as ah,
+  looseElements as ai,
+  movePage as aj,
+  movePageTo as ak,
+  paginateSceneInArray as al,
+  parseScene as am,
+  patchElement as an,
+  registerCustomFont as ao,
+  registerCustomFonts as ap,
+  relayoutPages as aq,
+  renamePage as ar,
+  reorderPageMembers as as,
+  replaceImageFromUrl as at,
+  resizePage as au,
+  resolveBrandKit as av,
+  resolveInsertPageId as aw,
+  restoreScene as ax,
+  sendMemberToBack as ay,
+  serializeScene as az,
   CanvasMenu as b,
   DesignPanel as c,
   DragPreview as d,
@@ -5054,17 +5113,17 @@ export {
   goToPage as l,
   mergeLabels as m,
   DEFAULT_PAGE_SIZE as n,
-  PAGE_ALIGNMENTS as o,
+  MEDIA_DROP_TYPE as o,
   palette as p,
-  PAGE_SIZE_PRESETS as q,
+  PAGE_ALIGNMENTS as q,
   renumberPagesInArray as r,
-  VIDEO_MARKER as s,
-  addPage as t,
-  adoptLooseIntoPage as u,
-  adoptStrayFramesInArray as v,
-  alignToPage as w,
-  captureThumbnail as x,
-  cascadePoints as y,
-  clusterLooseElements as z
+  PAGE_SIZE_PRESETS as s,
+  VIDEO_MARKER as t,
+  addPage as u,
+  adoptLooseIntoPage as v,
+  adoptStrayFramesInArray as w,
+  alignToPage as x,
+  captureThumbnail as y,
+  cascadePoints as z
 };
-//# sourceMappingURL=LibraryPanel-BBmy3i0x.js.map
+//# sourceMappingURL=LibraryPanel-rjmoRHFT.js.map

@@ -7,6 +7,7 @@ import {
   viewportCoordsToSceneCoords,
   getNonDeletedElements,
   getVisibleSceneBounds,
+  CaptureUpdateAction,
   type ExcalidrawImperativeAPI,
   type SceneElement,
 } from '../../core/excal';
@@ -15,6 +16,7 @@ import { LooseWarning } from '../overlays/LooseWarning';
 import { VideoFramePicker } from '../overlays/VideoFramePicker';
 import { CanvasMenu } from '../navigation/CanvasMenu';
 import { PageActions } from '../navigation/PageActions';
+import { ModeSwitch, type Canvas2ModeControl } from '../navigation/ModeSwitch';
 import { DesignPanel } from '../panels/DesignPanel';
 import { InsertPanel } from '../panels/InsertPanel';
 import { BrandGallery } from '../panels/BrandGallery';
@@ -250,11 +252,17 @@ export interface Canvas2EditorProps {
     timeSec: number,
   ) => Promise<{ url: string; mimeType?: string } | null>;
   /**
-   * Controles del host abajo, pegados al borde derecho y sin fondo (p. ej.
-   * plegar la columna de al lado). No sale en pantalla estrecha, donde
-   * Excalidraw ocupa el pie con su propia barra.
+   * Controles del host pegados al borde derecho, a media altura y sin fondo
+   * (p. ej. plegar la columna de al lado). Abajo a la derecha va el modo. No
+   * sale en pantalla estrecha.
    */
   rightEdge?: ReactNode;
+  /**
+   * Selector de modo del host (Ver · Comentar · Editar), en una píldora abajo
+   * a la derecha con solo los modos permitidos. canvas2 solo lo pinta; el host
+   * decide qué significa cada modo (y pasa `viewMode`).
+   */
+  modeControl?: Canvas2ModeControl;
   /**
    * Botones del host en texto al final de la píldora de herramientas (p. ej.
    * «Recursos», que abre la mediateca en la columna de al lado). Solo en la
@@ -377,6 +385,7 @@ export function Canvas2Editor({
   releaseVideoSrc,
   onPickVideoFrame,
   rightEdge,
+  modeControl,
   toolbarActions,
 }: Canvas2EditorProps) {
   const [localWorkspace, setLocalWorkspace] = useState(() => readWorkspace(defaultWorkspace));
@@ -527,7 +536,9 @@ export function Canvas2Editor({
         // radius knob). Pages must read as straight-edged sheets, so the
         // native outline is off and each page's locked "paper" rect (sharp
         // corners, hairline border) is the page's visual instead.
-        frameRendering: { enabled: true, clip: true, name: true, outline: false },
+        // Al mirar (`viewMode`) sin el «Página N»: se fija ya aquí porque
+        // Excalidraw aplica `initialData` después del primer efecto y lo pisaría.
+        frameRendering: { enabled: true, clip: true, name: !viewMode, outline: false },
         ...brandDefaults(brand),
         ...(base?.appState ?? {}),
         // La mesa: papel cálido (el escenario del Studio), no el gris acero de antes.
@@ -658,6 +669,19 @@ export function Canvas2Editor({
     return api.onChange(normalizePages);
   }, [pages, api, viewMode, normalizePages]);
 
+  // Al mirar, la pieza se lee como pieza: fuera el «Página N» encima de cada
+  // hoja. Es estado de vista (no se guarda: `onSceneChange` solo lleva el fondo)
+  // y no entra en el historial.
+  useEffect(() => {
+    if (!pages || !api) return;
+    const current = api.getAppState()?.frameRendering;
+    if (!current || current.name === !viewMode) return;
+    api.updateScene({
+      appState: { frameRendering: { ...current, name: !viewMode } },
+      captureUpdate: CaptureUpdateAction.NEVER,
+    });
+  }, [pages, api, viewMode]);
+
   // Viewport-following: after a pan/zoom settles, the page occupying the most
   // visible area becomes the active page — so Exportar/Texto/Fondo/Tamaño act
   // on what the user is LOOKING at, not on the last-clicked chip.
@@ -771,6 +795,8 @@ export function Canvas2Editor({
       ref={rootRef}
       data-canvas2=""
       data-canvas2-narrow={narrow ? '' : undefined}
+      // Al mirar o comentar no hay menú arriba a la izquierda: solo al editar.
+      data-canvas2-readonly={viewMode ? '' : undefined}
       style={{ position: 'relative', width: '100%', height: '100%' }}
       // Soltar desde la biblioteca. Se escucha en el envoltorio y no dentro de
       // Excalidraw porque su lienzo ya tiene su propio manejador de drop (para
@@ -1025,7 +1051,8 @@ export function Canvas2Editor({
           style={{
             position: 'absolute',
             right: 0,
-            bottom: 16,
+            top: '50%',
+            transform: 'translateY(-50%)',
             zIndex: 100,
             display: 'flex',
             alignItems: 'center',
@@ -1033,6 +1060,9 @@ export function Canvas2Editor({
         >
           {rightEdge}
         </div>
+      ) : null}
+      {modeControl ? (
+        <ModeSwitch {...modeControl} theme={theme} narrow={narrow} labels={L.mode} />
       ) : null}
       {pages && api && !viewMode && (
         <PageActions

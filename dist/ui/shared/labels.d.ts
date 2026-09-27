@@ -140,6 +140,14 @@ export interface Canvas2Labels {
     };
     /** Nombres de los tamaños de página, por clave de preset. */
     sizes: Record<string, string>;
+    /** Selector de modo (Ver · Comentar · Editar) del host. */
+    mode: {
+        group: string;
+        view: string;
+        comment: string;
+        edit: string;
+        done: string;
+    };
 }
 export declare const DEFAULT_LABELS: Canvas2Labels;
 /** Igual que `Canvas2Labels` pero con cada sección y clave opcional. */

@@ -62,6 +62,7 @@ describe('mergeLabels', () => {
       'brand',
       'sizes',
       'workspace',
+      'mode',
     ];
     for (const s of secciones) {
       expect(DEFAULT_LABELS[s], `falta la sección ${s}`).toBeTruthy();

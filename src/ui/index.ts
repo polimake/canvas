@@ -15,6 +15,8 @@ export type { BrandGalleryProps } from './panels/BrandGallery';
 export { LibraryPanel } from './panels/LibraryPanel';
 export type { LibraryPanelProps } from './panels/LibraryPanel';
 export { PageActions } from './navigation/PageActions';
+export { ModeSwitch } from './navigation/ModeSwitch';
+export type { Canvas2Mode, Canvas2ModeControl } from './navigation/ModeSwitch';
 export type { PageActionsProps } from './navigation/PageActions';
 export { VideoFramePicker } from './overlays/VideoFramePicker';
 export type { VideoFramePickerProps } from './overlays/VideoFramePicker';

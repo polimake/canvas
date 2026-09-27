@@ -1,6 +1,7 @@
 export { Canvas2Editor, Canvas2, default } from './ui/editor/Canvas2';
 export type { Canvas2EditorProps, Canvas2Scene, Canvas2Api } from './ui/editor/Canvas2';
 export type { CanvasWorkspace } from './ui/workspaces/types';
+export type { Canvas2Mode, Canvas2ModeControl } from './ui/navigation/ModeSwitch';
 export { MEDIA_DROP_TYPE } from './ui/editor/Canvas2';
 export { PageNavigator } from './ui/navigation/PageNavigator';
 export type { PageNavigatorProps } from './ui/navigation/PageNavigator';
