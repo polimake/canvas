@@ -15,7 +15,6 @@ import '@excalidraw/excalidraw/index.css';
 export { Excalidraw, MainMenu, CaptureUpdateAction, convertToExcalidrawElements, exportToBlob, exportToCanvas, exportToSvg, serializeAsJSON, restore, newElementWith, getNonDeletedElements, getVisibleSceneBounds, viewportCoordsToSceneCoords, FONT_FAMILY, } from '@excalidraw/excalidraw';
 export type { ExcalidrawImperativeAPI, ExcalidrawInitialDataState, } from '@excalidraw/excalidraw/types';
 import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
-import type { convertToExcalidrawElements as ConvertFn } from '@excalidraw/excalidraw';
 /** One element as returned by the live scene. */
 export type SceneElement = ReturnType<ExcalidrawImperativeAPI['getSceneElements']>[number];
 /** The elements array accepted by `updateScene`. */
@@ -24,6 +23,4 @@ export type SceneElements = Parameters<ExcalidrawImperativeAPI['updateScene']>[0
 export type FrameElement = Extract<SceneElement, {
     type: 'frame';
 }>;
-/** The skeleton array accepted by `convertToExcalidrawElements`. */
-export type ElementSkeletons = Parameters<typeof ConvertFn>[0];
 //# sourceMappingURL=excal.d.ts.map

@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { useEffect, type ReactNode, type ButtonHTMLAttributes } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { excalMock, fakeApi, member } from './helpers';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { excalMock, fakeApi, member, frame } from './helpers';
 import { WORKSPACE_STORAGE_KEY } from '../src/ui/workspaces/preference';
 
 let engine = fakeApi([member('shape', '', 20, 20, 100, 100)]);
@@ -33,6 +33,7 @@ const checked = (name: string) => screen.getByRole('menuitemradio', { name }).ge
 
 beforeEach(() => {
   localStorage.clear();
+  HTMLElement.prototype.scrollIntoView = vi.fn();
   engine = fakeApi([member('shape', '', 20, 20, 100, 100)]);
   mounted.mockClear();
   unmounted.mockClear();
@@ -143,4 +144,27 @@ describe('workspace switching', () => {
     choose('Experta');
     expect(checked('Experta')).toBe('true');
   });
+});
+
+
+it('waits for hydration and opens the page selected in the preview', () => {
+  const frames = [frame('p1', 0, 0, 300, 400), frame('p2', 420, 0, 300, 400), frame('p3', 840, 0, 300, 400)];
+  engine = fakeApi([]);
+  const scroll = vi.spyOn(engine.api, 'scrollToContent');
+  const active = vi.fn();
+  render(<Canvas2Editor pages initialScene={{ elements: frames as never }} initialPageIndex={2} onActivePageChange={active} />);
+  expect(scroll).not.toHaveBeenCalled();
+  expect(engine.get()).toEqual([]);
+  act(() => { engine.api.updateScene({ elements: frames }); });
+  expect(scroll).toHaveBeenCalledWith(expect.objectContaining({ id: 'p3' }), expect.anything());
+  expect(active).toHaveBeenLastCalledWith('p3');
+  expect(engine.get().filter((element) => element.type === 'frame')).toHaveLength(3);
+});
+
+it('clamps a preview page that was removed before entering the editor', () => {
+  engine = fakeApi([frame('p1', 0, 0, 300, 400), frame('p2', 420, 0, 300, 400)]);
+  const active = vi.fn();
+  render(<Canvas2Editor pages initialPageIndex={8} onActivePageChange={active} />);
+  act(() => { engine.api.updateScene({ elements: engine.get() }); });
+  expect(active).toHaveBeenLastCalledWith('p2');
 });

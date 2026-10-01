@@ -504,5 +504,3 @@ export function LayersPanel({
     </div>
   );
 }
-
-export default LayersPanel;

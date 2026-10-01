@@ -56,7 +56,6 @@ export type {
 } from '@excalidraw/excalidraw/types';
 
 import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
-import type { convertToExcalidrawElements as ConvertFn } from '@excalidraw/excalidraw';
 
 // ─── Canonical derived aliases (single source for the whole package) ──────────
 /** One element as returned by the live scene. */
@@ -65,5 +64,3 @@ export type SceneElement = ReturnType<ExcalidrawImperativeAPI['getSceneElements'
 export type SceneElements = Parameters<ExcalidrawImperativeAPI['updateScene']>[0]['elements'];
 /** A frame element (our "page"). */
 export type FrameElement = Extract<SceneElement, { type: 'frame' }>;
-/** The skeleton array accepted by `convertToExcalidrawElements`. */
-export type ElementSkeletons = Parameters<typeof ConvertFn>[0];

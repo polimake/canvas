@@ -1,8 +1,6 @@
 export declare const ChevronLeftIcon: () => import("react").JSX.Element;
 export declare const ChevronRightIcon: () => import("react").JSX.Element;
-export declare const CaretDownIcon: () => import("react").JSX.Element;
 export declare const DuplicateIcon: () => import("react").JSX.Element;
-export declare const PencilIcon: () => import("react").JSX.Element;
 export declare const LockIcon: () => import("react").JSX.Element;
 export declare const UnlockIcon: () => import("react").JSX.Element;
 export declare const TrashIcon: () => import("react").JSX.Element;
@@ -10,8 +8,6 @@ export declare const EyeIcon: () => import("react").JSX.Element;
 export declare const EyeOffIcon: () => import("react").JSX.Element;
 export declare const PlusIcon: () => import("react").JSX.Element;
 export declare const TextIcon: () => import("react").JSX.Element;
-export declare const FillIcon: () => import("react").JSX.Element;
-export declare const ExportIcon: () => import("react").JSX.Element;
 export declare const CoverIcon: () => import("react").JSX.Element;
 export declare const StretchIcon: () => import("react").JSX.Element;
 export declare const ImageIcon: () => import("react").JSX.Element;

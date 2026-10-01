@@ -4366,6 +4366,7 @@ function Canvas2Editor({
   changeDebounceMs = 400,
   pages = false,
   pageSize,
+  initialPageIndex = 0,
   layers = false,
   pageThumbnails = false,
   pageThumbnailFiles,
@@ -4511,8 +4512,10 @@ ${css}` : css;
       relayoutPages(api, "never");
       setActivePageId((current) => {
         if (current) return current;
-        goToPage(api, existing[0].id);
-        return existing[0].id;
+        const index = Number.isFinite(initialPageIndex) ? Math.trunc(initialPageIndex) : 0;
+        const page = existing[Math.max(0, Math.min(index, existing.length - 1))];
+        goToPage(api, page.id);
+        return page.id;
       });
     };
     const RETRY_MS = 250;
@@ -4539,7 +4542,7 @@ ${css}` : css;
       unsub == null ? void 0 : unsub();
       if (timer) clearTimeout(timer);
     };
-  }, [pages, api, pageSize, initialData]);
+  }, [pages, api, initialPageIndex, pageSize, initialData]);
   const normalizePages = useDebouncedCallback(() => {
     const live = apiRef.current;
     if (!live || !didInitPages.current) return;
@@ -5126,4 +5129,4 @@ export {
   captureThumbnail as y,
   cascadePoints as z
 };
-//# sourceMappingURL=LibraryPanel-rjmoRHFT.js.map
+//# sourceMappingURL=LibraryPanel-Dtlr_WoW.js.map

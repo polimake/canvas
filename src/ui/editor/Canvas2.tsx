@@ -117,6 +117,8 @@ export interface Canvas2EditorProps {
   pages?: boolean;
   /** Page/artboard size when `pages` is enabled. Defaults to IG 4:5 1080×1350. */
   pageSize?: PageSize;
+  /** Zero-based page to show once the initial scene has hydrated. */
+  initialPageIndex?: number;
   /** Show the right-side layers panel (the active page's elements). Requires
    *  `pages` (it's scoped to the active artboard). */
   layers?: boolean;
@@ -366,6 +368,7 @@ export function Canvas2Editor({
   changeDebounceMs = 400,
   pages = false,
   pageSize,
+  initialPageIndex = 0,
   layers = false,
   pageThumbnails = false,
   pageThumbnailFiles,
@@ -596,8 +599,10 @@ export function Canvas2Editor({
       relayoutPages(api, 'never');
       setActivePageId((current) => {
         if (current) return current;
-        goToPage(api, existing[0].id);
-        return existing[0].id;
+        const index = Number.isFinite(initialPageIndex) ? Math.trunc(initialPageIndex) : 0;
+        const page = existing[Math.max(0, Math.min(index, existing.length - 1))];
+        goToPage(api, page.id);
+        return page.id;
       });
     };
     /**
@@ -639,7 +644,7 @@ export function Canvas2Editor({
       unsub?.();
       if (timer) clearTimeout(timer);
     };
-  }, [pages, api, pageSize, initialData]);
+  }, [pages, api, initialPageIndex, pageSize, initialData]);
 
   /**
    * Normalización continua de la fila de páginas.

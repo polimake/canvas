@@ -38,22 +38,10 @@ export const ChevronRightIcon = () => (
   </Svg>
 );
 
-export const CaretDownIcon = () => (
-  <Svg size={10}>
-    <path d="M6 9l6 6 6-6" />
-  </Svg>
-);
-
 export const DuplicateIcon = () => (
   <Svg>
     <rect x="9" y="9" width="12" height="12" rx="1" />
     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-  </Svg>
-);
-
-export const PencilIcon = () => (
-  <Svg>
-    <path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
   </Svg>
 );
 
@@ -105,21 +93,6 @@ export const TextIcon = () => (
     <path d="M4 6V4h16v2" />
     <path d="M12 4v16" />
     <path d="M9 20h6" />
-  </Svg>
-);
-
-export const FillIcon = () => (
-  <Svg>
-    <path d="M19 11L9 1 2.5 7.5a2 2 0 0 0 0 2.8l6.2 6.2a2 2 0 0 0 2.8 0L19 11Z" />
-    <path d="M21 16s2 2.2 2 3.5a2 2 0 1 1-4 0c0-1.3 2-3.5 2-3.5Z" />
-  </Svg>
-);
-
-export const ExportIcon = () => (
-  <Svg>
-    <path d="M12 3v12" />
-    <path d="M7 10l5 5 5-5" />
-    <path d="M4 21h16" />
   </Svg>
 );
 

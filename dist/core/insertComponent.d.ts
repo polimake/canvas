@@ -1,7 +1,7 @@
 import type { ExcalidrawImperativeAPI, SceneElement } from './excal';
 import type { FileEntry } from './media';
 import type { CustomFontFace } from './fonts';
-import { extractComponentFragment, type ComponentFragment, type SlotValues } from './components';
+import { type ComponentFragment, type SlotValues } from './components';
 /**
  * Inserta un componente como página nueva tras `afterPageId` (por defecto, la
  * última página) y navega hasta ella. Un solo commit = una sola entrada de
@@ -39,5 +39,4 @@ export declare function extractPageForComponent(api: ExcalidrawImperativeAPI, pa
     };
     inline: string[];
 } | null;
-export { extractComponentFragment };
 //# sourceMappingURL=insertComponent.d.ts.map

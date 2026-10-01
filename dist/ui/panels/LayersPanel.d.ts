@@ -15,5 +15,4 @@ export interface LayersPanelProps {
  * has no per-element hidden flag, so visibility is emulated with `opacity: 0`.
  */
 export declare function LayersPanel({ api, activePageId, theme, viewMode, embedded, }: LayersPanelProps): import("react").JSX.Element | null;
-export default LayersPanel;
 //# sourceMappingURL=LayersPanel.d.ts.map

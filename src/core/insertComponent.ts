@@ -4,12 +4,7 @@ import { commitElements } from './mutate';
 import { goToPage, packPagesInArray, pageElementsInOrder, renumberPagesInArray } from './pages';
 import { buildPersistableFiles } from './media';
 import type { CustomFontFace } from './fonts';
-import {
-  extractComponentFragment,
-  instantiateComponent,
-  type ComponentFragment,
-  type SlotValues,
-} from './components';
+import { instantiateComponent, type ComponentFragment, type SlotValues } from './components';
 
 /**
  * Mitad IMPURA del motor de componentes: la que habla con la API de Excalidraw.
@@ -116,5 +111,3 @@ export function extractPageForComponent(
     inline: persistable.inline,
   };
 }
-
-export { extractComponentFragment };
