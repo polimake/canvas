@@ -167,7 +167,7 @@ export {
   exportStoredScenePng,
   storedScenePageCount,
 } from './core/export';
-export type { ExportOptions } from './core/export';
+export type { ExportOptions, ImageExportOptions } from './core/export';
 
 // ─── Media (imágenes: SIEMPRE en MediaMonster, nunca base64 en el diseño) ─────
 // No se exporta ningún insertador por dataURL: la única forma de meter una

@@ -59,12 +59,15 @@ function dimensions(opts?: { scale?: number }) {
   });
 }
 
-function frames(api: ExcalidrawImperativeAPI): FrameElement[] {
-  return api
-    .getSceneElements()
+function framesIn(elements: readonly SceneElement[]): FrameElement[] {
+  return elements
     .filter((e): e is FrameElement => e.type === 'frame')
     .slice()
     .sort((a, b) => a.x - b.x);
+}
+
+function frames(api: ExcalidrawImperativeAPI): FrameElement[] {
+  return framesIn(api.getSceneElements());
 }
 
 function findFrame(api: ExcalidrawImperativeAPI, pageId?: string): FrameElement | null {
@@ -80,20 +83,41 @@ function exportAppState(api: ExcalidrawImperativeAPI, opts?: ExportOptions) {
   };
 }
 
-/** Export the scene (or one page) to a PNG blob. */
+export interface ImageExportOptions extends ExportOptions {
+  /** PNG by default. Page previews go out as WebP: a fraction of the bytes. */
+  mimeType?: 'image/png' | 'image/webp' | 'image/jpeg';
+  /** 0–1, for WebP and JPEG. */
+  quality?: number;
+  /**
+   * The scene to export instead of the live one: a snapshot taken BEFORE an
+   * await. A save that exported after its network round-trip read whatever
+   * the editor held by then — nothing, if it had closed — and uploaded a
+   * 20×20 blank as the design's preview (seen in prod 2026-10-02).
+   */
+  elements?: readonly SceneElement[];
+}
+
+/** Export the scene (or one page) to an image blob, PNG unless asked otherwise. */
 export function exportScenePng(
   api: ExcalidrawImperativeAPI,
-  opts?: ExportOptions,
+  opts?: ImageExportOptions,
 ): Promise<Blob> {
+  const elements = opts?.elements ?? api.getSceneElements();
+  const frame = opts?.pageId ? (framesIn(elements).find((f) => f.id === opts.pageId) ?? null) : null;
+  // A page that isn't there must not fall back to "the whole scene".
+  if (opts?.pageId && !frame) {
+    return Promise.reject(new Error(`exportScenePng: la página ${opts.pageId} no está en la escena`));
+  }
   return exportToBlob({
-    elements: api.getSceneElements(),
+    elements,
     appState: exportAppState(api, opts),
     files: opts?.files ?? api.getFiles(),
-    exportingFrame: findFrame(api, opts?.pageId),
+    exportingFrame: frame,
     ...(opts?.maxWidthOrHeight
       ? { maxWidthOrHeight: opts.maxWidthOrHeight }
       : { getDimensions: dimensions(opts) }),
-    mimeType: 'image/png',
+    mimeType: opts?.mimeType ?? 'image/png',
+    ...(opts?.quality !== undefined ? { quality: opts.quality } : {}),
   });
 }
 
