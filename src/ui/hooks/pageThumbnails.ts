@@ -76,8 +76,23 @@ export function usePageThumbnails(
   useEffect(() => {
     if (!api || !enabled) return;
     let cancelled = false;
+    // El latido corre cada 600 ms mientras el editor está montado (también con
+    // la pestaña en otra vista). Antes cada tick tomaba la huella de cada página
+    // y guardaba un objeto nuevo aunque nada cambiase: un render del navegador
+    // cada 600 ms. Ahora un tick sin cambios en la escena no hace nada.
+    let lastSceneVersion = -1;
+    let running = false;
 
     const tick = async () => {
+      if (running || document.visibilityState === 'hidden') return;
+      // Versión de la escena entera: número de elementos + suma de versiones
+      // (borrar uno lo saca de la lista). Sin cambios → nada que rasterizar.
+      const all = api.getSceneElements();
+      let sceneVersion = all.length;
+      for (const el of all) sceneVersion += el.version;
+      if (sceneVersion === lastSceneVersion) return;
+      running = true;
+      let changed = false;
       const files = filesRef.current;
       const pages = listPages(api);
       const live = new Set(pages.map((p) => p.id));
@@ -88,6 +103,7 @@ export function usePageThumbnails(
           URL.revokeObjectURL(urlsRef.current[id]);
           delete urlsRef.current[id];
           delete stampsRef.current[id];
+          changed = true;
         }
       }
 
@@ -106,6 +122,7 @@ export function usePageThumbnails(
           const prev = urlsRef.current[page.id];
           urlsRef.current[page.id] = next;
           stampsRef.current[page.id] = stamp;
+          changed = true;
           if (prev) setTimeout(() => URL.revokeObjectURL(prev), 1_000);
         } catch (err) {
           // Una página que no rasteriza se queda sin miniatura y el chip cae a
@@ -121,7 +138,10 @@ export function usePageThumbnails(
           stampsRef.current[page.id] = stamp;
         }
       }
-      if (!cancelled) setThumbs({ ...urlsRef.current });
+      running = false;
+      if (cancelled) return;
+      lastSceneVersion = sceneVersion;
+      if (changed) setThumbs({ ...urlsRef.current });
     };
 
     void tick();
