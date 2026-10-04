@@ -295,7 +295,9 @@ function createBlankScene(pageSize = DEFAULT_PAGE_SIZE) {
       customData: { [PAGE_MARKER]: { index: 0 } }
     }
   ];
-  const frame = convertToExcalidrawElements(skeleton, { regenerateIds: false });
+  const frame = convertToExcalidrawElements(skeleton, { regenerateIds: false }).map(
+    (el) => el.type === "frame" ? { ...el, x: 0, y: 0, width: size.width, height: size.height } : el
+  );
   const paper = buildPageBackground(
     id,
     { x: 0, y: 0, width: size.width, height: size.height },
@@ -4960,4 +4962,4 @@ export {
   duplicatePage as y,
   resizePage as z
 };
-//# sourceMappingURL=LibraryPanel-COQ5KZ9u.js.map
+//# sourceMappingURL=LibraryPanel-B3bo5izJ.js.map

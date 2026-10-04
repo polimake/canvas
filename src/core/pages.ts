@@ -287,7 +287,13 @@ export function createBlankScene(
       customData: { [PAGE_MARKER]: { index: 0 } },
     },
   ];
-  const frame = convertToExcalidrawElements(skeleton, { regenerateIds: false });
+  // Excalidraw coloca un marco sin hijos con su margen de 10 px: en (−10, −10)
+  // en vez de en (0, 0), y el papel, que sí va en (0, 0), sobresalía de la
+  // página por la derecha y por abajo (Studio lo marca «recortado», 04/10).
+  // La página es la que se pide.
+  const frame = convertToExcalidrawElements(skeleton, { regenerateIds: false }).map((el) =>
+    el.type === 'frame' ? { ...el, x: 0, y: 0, width: size.width, height: size.height } : el,
+  );
   const paper = buildPageBackground(
     id,
     { x: 0, y: 0, width: size.width, height: size.height },

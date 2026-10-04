@@ -423,3 +423,24 @@ describe('single-undo + ordering guarantees', () => {
     });
   });
 });
+
+describe('createBlankScene', () => {
+  it('la página va en (0, 0) con su papel encima, aunque Excalidraw la mueva por su margen', async () => {
+    // Como Excalidraw de verdad: un marco sin hijos sale en (−10, −10) (04/10).
+    const real = excalMock.convertToExcalidrawElements;
+    const spy = vi.spyOn(excalMock, 'convertToExcalidrawElements').mockImplementation((skeletons: any[], opts?: unknown) =>
+      real(skeletons, opts).map((el: any) => (el.type === 'frame' ? { ...el, x: -10, y: -10 } : el)),
+    );
+    try {
+      const { createBlankScene } = await import('../src/core/pages');
+      const { elements } = createBlankScene({ width: 1080, height: 1350 });
+      const pagina = elements.find((e: any) => e.type === 'frame') as any;
+      const papel = elements.find((e: any) => e.type === 'rectangle') as any;
+      expect([pagina.x, pagina.y, pagina.width, pagina.height]).toEqual([0, 0, 1080, 1350]);
+      expect([papel.x, papel.y, papel.width, papel.height]).toEqual([0, 0, 1080, 1350]);
+      expect(papel.frameId).toBe(pagina.id);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+});
