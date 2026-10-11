@@ -4,6 +4,7 @@ import { excalMock, fakeApi, frame, member } from './helpers';
 vi.mock('../src/core/excal', () => excalMock);
 
 const { insertTextPreset, contrastTextColor, TEXT_PRESETS } = await import('../src/core/text.js');
+const { DEFAULT_LABELS } = await import('../src/ui/shared/labels.js');
 
 describe('text presets', () => {
   it('presets anchor at distinct vertical positions (no exact overlap)', () => {
@@ -63,5 +64,24 @@ describe('text presets', () => {
   it('every preset declares a distinct anchor', () => {
     const anchors = TEXT_PRESETS.map((p) => p.anchorY);
     expect(new Set(anchors).size).toBe(anchors.length);
+  });
+
+  it('escribe el texto de quien llama, y sin él (o vacío) el del preset', () => {
+    // Lo que se escribe se guarda con el diseño: lo da quien tiene las etiquetas.
+    const { api } = fakeApi([frame('p1', 0, 0, 1080, 1350)]);
+    const textoDe = (id: string | null) => api.getSceneElements().find((e: any) => e.id === id).text;
+
+    expect(textoDe(insertTextPreset(api as any, 'heading', { pageId: 'p1', text: 'Heading' }))).toBe('Heading');
+    expect(textoDe(insertTextPreset(api as any, 'heading', { pageId: 'p1' }))).toBe('Título');
+    expect(textoDe(insertTextPreset(api as any, 'body', { pageId: 'p1', text: '' }))).toBe('Escribe algo…');
+  });
+
+  it('las etiquetas de serie dicen lo mismo que los presets', () => {
+    // Están escritos dos veces: aquí, que no puede importar de `ui/`, y en las
+    // etiquetas, que es lo que pinta e inserta el editor.
+    for (const preset of TEXT_PRESETS) {
+      expect(DEFAULT_LABELS.text[preset.key], preset.key).toBe(preset.label);
+      expect(DEFAULT_LABELS.text[`${preset.key}Text` as const], preset.key).toBe(preset.text);
+    }
   });
 });

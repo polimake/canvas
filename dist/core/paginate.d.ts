@@ -1,6 +1,7 @@
 import { type ExcalidrawImperativeAPI, type SceneElement } from './excal';
 import { type CaptureMode } from './mutate';
 import { type PageSize } from './pages';
+import { type PageNames } from './pageNames';
 /**
  * Elementos que NO pertenecen a ninguna página: ni son marcos ni están dentro
  * de uno. Son los candidatos a agruparse en páginas nuevas.
@@ -36,6 +37,8 @@ export interface PaginateOptions {
     scaleUp?: boolean;
     /** Color del papel de las páginas nuevas. */
     paperColor?: string;
+    /** Cómo se llaman las páginas nuevas (ver `pageNames.ts`); sin él, las de serie. */
+    names?: PageNames;
 }
 export interface PaginateResult {
     elements: readonly SceneElement[];

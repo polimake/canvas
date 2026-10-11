@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { MainMenu, type ExcalidrawImperativeAPI } from '../../core/excal';
 import { listPages, goToPage, type PageInfo } from '../../core/pages';
 import { convertToPages, looseElements } from '../../core/paginate';
@@ -8,7 +8,7 @@ import { TEXT_PRESETS, insertTextPreset } from '../../core/text';
 import { exportScenePng, exportSceneSvg, exportScenePdf, downloadBlob } from '../../core/export';
 import type { FilesMap } from '../hooks/pageThumbnails';
 import type { SvgFontFace } from '../../core/svgFonts';
-import { mergeLabels, type PartialLabels } from '../shared/labels';
+import { mergeLabels, textPresetLabel, type PartialLabels } from '../shared/labels';
 import type { CanvasWorkspace } from '../workspaces/types';
 
 /**
@@ -65,8 +65,9 @@ export interface CanvasMenuProps {
   labels?: PartialLabels;
 }
 
-function safeFilename(name: string): string {
-  return (name || 'diseño').replace(/[\\/:*?"<>|]+/g, '-').trim() || 'diseño';
+/** `fallback` es el nombre de serie (`labels.menu.exportName`), para cuando la página no da uno. */
+function safeFilename(name: string | undefined, fallback: string): string {
+  return (name || fallback).replace(/[\\/:*?"<>|]+/g, '-').trim() || fallback;
 }
 
 export function CanvasMenu({
@@ -93,7 +94,12 @@ export function CanvasMenu({
       ))}
     </MainMenu.Group>
   ) : null;
-  const [pages, setPages] = useState<PageInfo[]>(() => (api ? listPages(api) : []));
+  // El nombre de la página acaba en el del fichero exportado: el de una página
+  // sin nombre sale del host. Por referencia, para que la suscripción de abajo
+  // no dependa de las etiquetas.
+  const pageNames = useRef(L.pages);
+  pageNames.current = L.pages;
+  const [pages, setPages] = useState<PageInfo[]>(() => (api ? listPages(api, L.pages) : []));
   const [loose, setLoose] = useState(0);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState(false);
@@ -106,7 +112,7 @@ export function CanvasMenu({
   useEffect(() => {
     if (!api) return;
     const refresh = () => {
-      setPages(listPages(api));
+      setPages(listPages(api, pageNames.current));
       setLoose(looseElements(api.getSceneElements()).length);
     };
     refresh();
@@ -118,7 +124,7 @@ export function CanvasMenu({
     setExporting(true);
     setExportError(false);
     try {
-      const base = safeFilename(activePage?.name ?? 'diseño');
+      const base = safeFilename(activePage?.name, L.menu.exportName);
       // Los bytes de las imágenes remotas, traídos por el host. Sin esto el
       // canvas está contaminado y cualquier rasterizado muere.
       // El SVG necesita los bytes en base64: van DENTRO del fichero, y un
@@ -136,7 +142,7 @@ export function CanvasMenu({
         for (const page of pages) {
           downloadBlob(
             await exportScenePng(api, { pageId: page.id, files }),
-            `${safeFilename(page.name)}.png`,
+            `${safeFilename(page.name, L.menu.exportName)}.png`,
           );
         }
       } else if (kind === 'svg') {
@@ -153,7 +159,7 @@ export function CanvasMenu({
         const blob = new Blob([new XMLSerializer().serializeToString(svg)], { type: 'image/svg+xml' });
         downloadBlob(blob, `${base}.svg`);
       } else {
-        downloadBlob(await exportScenePdf(api, { files }), `${safeFilename(pages[0]?.name ?? 'diseño')}.pdf`);
+        downloadBlob(await exportScenePdf(api, { files }), `${safeFilename(pages[0]?.name, L.menu.exportName)}.pdf`);
       }
     } catch (err) {
       console.error('[canvas2] export failed', err);
@@ -214,6 +220,7 @@ export function CanvasMenu({
               // carrusel dibujado en miniatura sale a tamaño real, no como
               // sellos centrados en una página gigante.
               scaleUp: Boolean(activePage),
+              names: L.pages,
             });
             // Salta a la primera página creada: si no, la conversión ocurre
             // fuera de la pantalla y parece que no ha pasado nada.
@@ -244,10 +251,11 @@ export function CanvasMenu({
                     preset.key === 'body'
                       ? brandFamilies?.body ?? brandFamilies?.heading
                       : brandFamilies?.heading ?? brandFamilies?.body,
+                  text: L.text[`${preset.key}Text` as const],
                 })
               }
             >
-              {L.sizes[preset.key] ?? preset.label}
+              {textPresetLabel(L, preset.key)}
             </MainMenu.Item>
           ))}
         </MainMenu.Group>

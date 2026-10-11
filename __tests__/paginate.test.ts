@@ -132,6 +132,29 @@ describe('clusterLooseElements', () => {
 });
 
 describe('convertToPages', () => {
+  it('cada página nueva y su papel caen en el mismo sitio, aunque Excalidraw mueva el marco por su margen', () => {
+    // Como Excalidraw de verdad: un marco sin hijos sale en (x − 10, y − 10).
+    const real = excalMock.convertToExcalidrawElements;
+    const spy = vi.spyOn(excalMock, 'convertToExcalidrawElements').mockImplementation((skeletons: any[], opts?: unknown) =>
+      real(skeletons, opts).map((el: any) => (el.type === 'frame' ? { ...el, x: el.x - 10, y: el.y - 10 } : el)),
+    );
+    try {
+      const { api, get } = fakeApi([loose('s1', 0, 0, 1080, 1350), loose('s2', 1200, 0, 1080, 1350)]);
+      convertToPages(api as any);
+      const frames = get().filter((e) => e.type === 'frame');
+      expect(frames).toHaveLength(2);
+      for (const f of frames) {
+        const papel = get().find((e) => e.frameId === f.id && e.customData?.c2 === 'pageBackground');
+        const slide = get().find((e) => e.frameId === f.id && e.type === 'image');
+        expect([papel?.x, papel?.y, papel?.width, papel?.height]).toEqual([f.x, f.y, 1080, 1350]);
+        // Y el slide, que mide lo mismo que la página, la llena sin desplazarse.
+        expect([slide?.x, slide?.y]).toEqual([f.x, f.y]);
+      }
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it('convierte un carrusel suelto en páginas alineadas, con papel y numeradas', () => {
     const { api, get, commits } = fakeApi([
       loose('s1', 0, 0, 1080, 1350),
@@ -260,6 +283,18 @@ describe('convertToPages', () => {
     ]);
     convertToPages(api as any);
     expect(commits).toHaveLength(0);
+  });
+
+  it('las páginas nuevas llevan el nombre que da quien llama; las que había, el suyo', () => {
+    const { api, get } = fakeApi([
+      frame('p1', 0, 0, 1080, 1350, { name: 'Página 1' }),
+      loose('suelto', 5000, 0, 1080, 1350),
+    ]);
+    convertToPages(api as any, { names: { defaultName: (n) => `Page ${n}` } });
+    const frames = get()
+      .filter((e) => e.type === 'frame')
+      .sort((a, b) => a.x - b.x);
+    expect(frames.map((f) => f.name)).toEqual(['Página 1', 'Page 2']);
   });
 
   it('la función pura no muta el array de entrada', () => {

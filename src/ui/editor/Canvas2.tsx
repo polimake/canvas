@@ -367,6 +367,12 @@ export function Canvas2Editor({
     onWorkspaceChange?.(next);
   };
   const brand = useMemo(() => resolveBrandKit(brandKit), [brandKit]);
+  const L = mergeLabels(labels);
+  // Los nombres que se ponen a las páginas (y que se guardan con el diseño) van
+  // por referencia: los efectos que crean o adoptan páginas se montan una vez y
+  // tienen que leer los de ahora sin volver a suscribirse en cada render.
+  const pageNames = useRef(L.pages);
+  pageNames.current = L.pages;
 
   // Las fuentes de la marca se añaden DETRÁS de las del host: si ambos declaran
   // la misma familia, gana la última regla @font-face, y el host es quien sabe
@@ -490,7 +496,7 @@ export function Canvas2Editor({
   // which replaced the scene and wiped the injected page.
   const [initialData] = useState<Canvas2Scene | null>(() => {
     const base: Canvas2Scene | null =
-      initialScene ?? (pages ? (createBlankScene(pageSize) as Canvas2Scene) : null);
+      initialScene ?? (pages ? (createBlankScene(pageSize, L.pages) as Canvas2Scene) : null);
     return {
       ...(base ?? {}),
       appState: {
@@ -549,13 +555,13 @@ export function Canvas2Editor({
       if (timer) clearTimeout(timer);
       const existing = listPages(api);
       if (existing.length === 0) {
-        const id = addPage(api, pageSize, { capture: 'never' });
+        const id = addPage(api, pageSize, { capture: 'never', names: pageNames.current });
         goToPage(api, id);
         setActivePageId(id);
         return;
       }
       ensurePagePapers(api, 'never');
-      relayoutPages(api, 'never');
+      relayoutPages(api, 'never', pageNames.current);
       setActivePageId((current) => {
         if (current) return current;
         goToPage(api, existing[0].id);
@@ -620,7 +626,7 @@ export function Canvas2Editor({
     const live = apiRef.current;
     if (!live || !didInitPages.current) return;
     ensurePagePapers(live, 'never');
-    relayoutPages(live, 'never');
+    relayoutPages(live, 'never', pageNames.current);
   }, 600);
 
   useEffect(() => {
@@ -692,7 +698,6 @@ export function Canvas2Editor({
     return () => window.removeEventListener('keydown', onKey);
   }, [pages, api]);
 
-  const L = mergeLabels(labels);
   const workspacePanels: WorkspacePanel[] = [];
   if (!viewMode && componentsPanel) workspacePanels.push({ id: 'components', title: L.components.title, content: componentsPanel });
   if (!viewMode && api) {
@@ -709,7 +714,7 @@ export function Canvas2Editor({
     content: <DesignPanel api={api} activePageId={activePageId} theme={theme} brandKit={brandKit} labels={labels} /> });
   if (!viewMode && agentPanel) workspacePanels.push({ id: 'agent', title: L.dock.agent, content: agentPanel });
   if (!viewMode && api && layers && pages) workspacePanels.push({ id: 'layers', title: L.dock.layers,
-    content: <LayersPanel api={api} activePageId={activePageId} theme={theme} embedded /> });
+    content: <LayersPanel api={api} activePageId={activePageId} theme={theme} labels={labels} embedded /> });
   for (const panel of workspacePanels) panel.icon = <WorkspaceIcon name={panel.id} />;
 
   return (

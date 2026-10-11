@@ -8,6 +8,7 @@ import {
 } from '../../core/excal';
 import { commitElements, patchElement } from '../../core/mutate';
 import { PANEL_FONT, palette } from '../shared/theme';
+import { mergeLabels, type Canvas2Labels, type PartialLabels } from '../shared/labels';
 import { reorderPageMembers } from '../../core/zorder';
 import { setAsBackground, extendToPage } from '../../core/imageOps';
 import { renamePage } from '../../core/pages';
@@ -46,6 +47,8 @@ export interface LayersPanelProps {
   viewMode?: boolean;
   /** Dentro de una pestaña de la barra lateral: sin flotar, sin marco propio. */
   embedded?: boolean;
+  /** Textos, inyectados por el host (ver labels.ts). */
+  labels?: PartialLabels;
 }
 
 const TYPE_ICON: Record<string, ComponentType> = {
@@ -58,16 +61,6 @@ const TYPE_ICON: Record<string, ComponentType> = {
   arrow: ArrowIcon,
   freedraw: DrawIcon,
   frame: FrameIcon,
-};
-
-const TYPE_NAME: Record<string, string> = {
-  image: 'Imagen',
-  rectangle: 'Rectángulo',
-  ellipse: 'Elipse',
-  diamond: 'Rombo',
-  line: 'Línea',
-  arrow: 'Flecha',
-  freedraw: 'Trazo',
 };
 
 const ALIGN_ICON: Record<PageAlignment, ComponentType> = {
@@ -84,12 +77,21 @@ function typeIcon(type: string): ReactNode {
   return <Icon />;
 }
 
-function displayName(el: SceneElement): string {
+function displayName(el: SceneElement, L: Canvas2Labels['layers']): string {
   if (el.type === 'text') {
     const t = (el.text ?? '').replace(/\s+/g, ' ').trim();
-    return t ? `Texto: ${t.slice(0, 20)}` : 'Texto';
+    return t ? L.textWith(t.slice(0, 20)) : L.text;
   }
-  return TYPE_NAME[el.type] ?? el.type;
+  const typeName: Record<string, string> = {
+    image: L.image,
+    rectangle: L.rectangle,
+    ellipse: L.ellipse,
+    diamond: L.diamond,
+    line: L.line,
+    arrow: L.arrow,
+    freedraw: L.freedraw,
+  };
+  return typeName[el.type] ?? el.type;
 }
 
 /** Stable string of everything the panel renders from, to gate re-renders. */
@@ -126,7 +128,9 @@ export function LayersPanel({
   theme = 'light',
   viewMode = false,
   embedded = false,
+  labels: labelsProp,
 }: LayersPanelProps) {
+  const L = mergeLabels(labelsProp);
   const c = palette[theme];
   const [, setTick] = useState(0);
   const sigRef = useRef('');
@@ -310,7 +314,7 @@ export function LayersPanel({
         {/* Empotrado, el rótulo lo pone la pestaña del dock: repetirlo dejaba
             "Capas" dos veces, una encima de la otra. La fila se queda por los
             botones de alinear, que sí son de aquí. */}
-        <span style={{ flex: 1 }}>{embedded ? '' : 'Capas'}</span>
+        <span style={{ flex: 1 }}>{embedded ? '' : L.dock.layers}</span>
         {/* Align the current selection to the PAGE (Excalidraw's native align
             needs 2+ elements; to-artboard alignment is our overlay). */}
         {!viewMode && (
@@ -321,7 +325,7 @@ export function LayersPanel({
               <button
                 key={a.key}
                 type="button"
-                title={a.label}
+                title={L.align[a.key]}
                 onClick={() => alignToPage(api, activePageId, a.key)}
                 style={{
                   all: 'unset',
@@ -346,7 +350,7 @@ export function LayersPanel({
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 4 }}>
         {rows.length === 0 && (
           <div style={{ padding: 12, fontSize: 12, color: c.sub }}>
-            Esta página está vacía.
+            {L.layers.empty}
           </div>
         )}
 
@@ -402,27 +406,27 @@ export function LayersPanel({
                   textOverflow: 'ellipsis',
                 }}
               >
-                {displayName(el)}
+                {displayName(el, L.layers)}
               </span>
 
               {!viewMode && (
                 <>
                   {el.type === 'image' &&
-                    iconBtn('Usar como fondo', () => setAsBackground(api, el.id, activePageId), <CoverIcon />)}
+                    iconBtn(L.layers.useAsBackground, () => setAsBackground(api, el.id, activePageId), <CoverIcon />)}
                   {el.type === 'image' &&
-                    iconBtn('Extender a la página', () => extendToPage(api, el.id, activePageId), <StretchIcon />)}
+                    iconBtn(L.layers.extendToPage, () => extendToPage(api, el.id, activePageId), <StretchIcon />)}
 
                   {iconBtn(
-                    hidden ? 'Mostrar' : 'Ocultar',
+                    hidden ? L.layers.show : L.layers.hide,
                     () => toggleVisibility(el),
                     hidden ? <EyeOffIcon /> : <EyeIcon />,
                   )}
                   {iconBtn(
-                    el.locked ? 'Desbloquear' : 'Bloquear',
+                    el.locked ? L.layers.unlock : L.layers.lock,
                     () => patch(el.id, { locked: !el.locked } as Partial<SceneElement>),
                     el.locked ? <LockIcon /> : <UnlockIcon />,
                   )}
-                  {iconBtn('Eliminar', () => remove(el.id), <TrashIcon />, true)}
+                  {iconBtn(L.layers.delete, () => remove(el.id), <TrashIcon />, true)}
                 </>
               )}
             </div>
@@ -436,7 +440,7 @@ export function LayersPanel({
           if (viewMode || !frame || frame.type !== 'frame') return;
           setRenamingPage(frame.name ?? '');
         }}
-        title={viewMode ? undefined : 'Doble clic para renombrar la página'}
+        title={viewMode ? undefined : L.layers.renameHint}
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -481,7 +485,7 @@ export function LayersPanel({
           />
         ) : (
           <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {frame && frame.type === 'frame' ? frame.name ?? 'Página' : 'Página'}
+            {frame && frame.type === 'frame' ? frame.name ?? L.pages.untitled : L.pages.untitled}
           </span>
         )}
       </div>

@@ -3,7 +3,8 @@ import { excalMock, fakeApi, frame, member } from './helpers';
 
 vi.mock('../src/core/excal', () => excalMock);
 
-const { alignToPage } = await import('../src/core/align.js');
+const { alignToPage, PAGE_ALIGNMENTS } = await import('../src/core/align.js');
+const { DEFAULT_LABELS } = await import('../src/ui/shared/labels.js');
 
 function scene() {
   return fakeApi([
@@ -47,5 +48,12 @@ describe('alignToPage', () => {
     const { api } = scene();
     expect(alignToPage(api as any, 'ghost', 'left', ['m1'])).toBe(0);
     expect(alignToPage(api as any, 'p1', 'left', [])).toBe(0);
+  });
+
+  it('las etiquetas de serie dicen lo mismo que cada alineación', () => {
+    // Están escritos dos veces: aquí, que no puede importar de `ui/`, y en las
+    // etiquetas, que es lo que pinta el panel de capas.
+    expect(Object.keys(DEFAULT_LABELS.align).sort()).toEqual(PAGE_ALIGNMENTS.map((a) => a.key).sort());
+    for (const a of PAGE_ALIGNMENTS) expect(DEFAULT_LABELS.align[a.key], a.key).toBe(a.label);
   });
 });

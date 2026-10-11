@@ -424,6 +424,27 @@ describe('single-undo + ordering guarantees', () => {
   });
 });
 
+describe('addPage y el margen de Excalidraw', () => {
+  it('la página añadida y su papel caen en el mismo sitio, aunque Excalidraw mueva el marco por su margen', () => {
+    // Como Excalidraw de verdad: un marco sin hijos sale en (x − 10, y − 10).
+    const real = excalMock.convertToExcalidrawElements;
+    const spy = vi.spyOn(excalMock, 'convertToExcalidrawElements').mockImplementation((skeletons: any[], opts?: unknown) =>
+      real(skeletons, opts).map((el: any) => (el.type === 'frame' ? { ...el, x: el.x - 10, y: el.y - 10 } : el)),
+    );
+    try {
+      const { api, get } = fakeApi([frame('p1', 0, 0, 1000, 800)]);
+      const id = addPage(api as any, { width: 1080, height: 1920 });
+      const pagina = get().find((e) => e.id === id) as any;
+      const papel = get().find((e) => e.frameId === id && e.customData?.c2 === 'pageBackground') as any;
+      expect([pagina.x, pagina.y, pagina.width, pagina.height]).toEqual([1000 + GAP, 0, 1080, 1920]);
+      // El papel quedaba 10 px por debajo de su página (11/10).
+      expect([papel.x, papel.y, papel.width, papel.height]).toEqual([pagina.x, pagina.y, 1080, 1920]);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+});
+
 describe('createBlankScene', () => {
   it('la página va en (0, 0) con su papel encima, aunque Excalidraw la mueva por su margen', async () => {
     // Como Excalidraw de verdad: un marco sin hijos sale en (−10, −10) (04/10).
@@ -442,5 +463,118 @@ describe('createBlankScene', () => {
     } finally {
       spy.mockRestore();
     }
+  });
+});
+
+/**
+ * El nombre de una página se guarda con el diseño. Un host que no trabaja en
+ * español da los suyos para lo NUEVO; los que ya están guardados no se
+ * traducen, y los de serie se siguen reconociendo estén en el idioma que estén.
+ */
+describe('nombres de página', () => {
+  const EN = {
+    defaultName: (n: number) => `Page ${n}`,
+    untitled: 'Page',
+    copyName: (name: string) => `${name} (copy)`,
+  };
+  const nombres = (api: unknown) => listPages(api as any).map((p) => p.name);
+
+  it('sin nombres del host, la primera página se llama como siempre', async () => {
+    const { createBlankScene } = await import('../src/core/pages');
+    const pagina = createBlankScene().elements.find((e: any) => e.type === 'frame') as any;
+    expect(pagina.name).toBe('Página 1');
+  });
+
+  it('con los del host, lo nuevo nace con su nombre', async () => {
+    const { createBlankScene } = await import('../src/core/pages');
+    const pagina = createBlankScene(undefined, EN).elements.find((e: any) => e.type === 'frame') as any;
+    expect(pagina.name).toBe('Page 1');
+
+    const { api } = fakeApi([]);
+    addPage(api as any, { width: 100, height: 100 }, { names: EN });
+    addPage(api as any, { width: 100, height: 100 }, { names: EN });
+    expect(nombres(api)).toEqual(['Page 1', 'Page 2']);
+  });
+
+  it('unos nombres a medias caen a los de serie en lo que falte', () => {
+    const { api } = fakeApi([frame('a', 0, 0, 500, 500, { name: 'Portada' })]);
+    duplicatePage(api as any, 'a', { defaultName: EN.defaultName });
+    expect(nombres(api)).toEqual(['Portada', 'Portada (copia)']);
+  });
+
+  it('la copia lleva el nombre del host, también la de una página sin nombre', () => {
+    const { api } = fakeApi([
+      frame('a', 0, 0, 500, 500, { name: 'Cover' }),
+      frame('b', 500 + GAP, 0, 500, 500, { name: null }),
+    ]);
+    const copiaDeA = duplicatePage(api as any, 'a', EN);
+    const copiaDeB = duplicatePage(api as any, 'b', EN);
+    const porId = (id: string | null) => api.getSceneElements().find((e: any) => e.id === id);
+    expect(porId(copiaDeA).name).toBe('Cover (copy)');
+    expect(porId(copiaDeB).name).toBe('Page (copy)');
+  });
+
+  it('las guardadas como «Página N» se siguen renumerando, y conservan su palabra trabajando en inglés', () => {
+    const { api } = fakeApi([
+      frame('a', 0, 0, 500, 500, { name: 'Página 1' }),
+      frame('b', 500 + GAP, 0, 500, 500, { name: 'Página 2' }),
+      frame('c', (500 + GAP) * 2, 0, 500, 500, { name: 'Página 3' }),
+    ]);
+    deletePage(api as any, 'a');
+    expect(nombres(api)).toEqual(['Página 1', 'Página 2']);
+
+    // La nueva nace en inglés; las que ya estaban no se traducen por ello.
+    addPage(api as any, { width: 500, height: 500 }, { afterPageId: 'b', names: EN });
+    expect(nombres(api)).toEqual(['Página 1', 'Page 2', 'Página 3']);
+  });
+
+  it('las guardadas como «Page N» se renumeran también trabajando en español', () => {
+    const { api } = fakeApi([
+      frame('a', 0, 0, 500, 500, { name: 'Page 1' }),
+      frame('b', 500 + GAP, 0, 500, 500, { name: 'Page 2' }),
+      frame('c', (500 + GAP) * 2, 0, 500, 500, { name: 'Page 3' }),
+    ]);
+    movePage(api as any, 'c', -1);
+    expect(listPages(api as any).map((p) => [p.id, p.name])).toEqual([
+      ['a', 'Page 1'],
+      ['c', 'Page 2'],
+      ['b', 'Page 3'],
+    ]);
+
+    // Sin nombres del host la nueva es «Página N», y las inglesas siguen siéndolo.
+    addPage(api as any, { width: 500, height: 500 });
+    expect(nombres(api)).toEqual(['Page 1', 'Page 2', 'Page 3', 'Página 4']);
+  });
+
+  it('un nombre puesto a mano no se renumera por parecerse al de serie', () => {
+    const { api } = fakeApi([
+      frame('x', 0, 0, 500, 500, { name: 'Sobra' }),
+      frame('a', 500 + GAP, 0, 500, 500, { name: 'Página 2 (copia)' }),
+      frame('b', (500 + GAP) * 2, 0, 500, 500, { name: 'Page 3 (copy)' }),
+      frame('c', (500 + GAP) * 3, 0, 500, 500, { name: 'página 4' }),
+      frame('d', (500 + GAP) * 4, 0, 500, 500, { name: 'Page four' }),
+    ]);
+    deletePage(api as any, 'x');
+    expect(nombres(api)).toEqual(['Página 2 (copia)', 'Page 3 (copy)', 'página 4', 'Page four']);
+  });
+
+  it('el marco dibujado a mano se adopta con el nombre del host y el número de su sitio', () => {
+    const { api } = fakeApi([
+      ordered('a', 0, 0, 0, 500, 500, { name: 'Página 1' }),
+      frame('stray', 500 + GAP, 0, 300, 300, { name: 'Frame 1' }),
+    ]);
+    relayoutPages(api as any, 'never', EN);
+    expect(nombres(api)).toEqual(['Página 1', 'Page 2']);
+  });
+
+  it('una página sin nombre se enseña con el de serie de quien la lista', () => {
+    const { api } = fakeApi([
+      frame('a', 0, 0, 500, 500, { name: 'Portada' }),
+      frame('b', 500 + GAP, 0, 500, 500, { name: null }),
+    ]);
+    expect(nombres(api)).toEqual(['Portada', 'Página 2']);
+    expect(listPages(api as any, EN).map((p) => p.name)).toEqual(['Portada', 'Page 2']);
+    // Solo se enseña: listar no escribe el nombre en el marco.
+    expect(api.getSceneElements().find((e: any) => e.id === 'b').name).toBeNull();
   });
 });

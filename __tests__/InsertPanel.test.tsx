@@ -41,4 +41,15 @@ describe('inserting from the resource panel', () => {
     expect(state.api.getAppState().selectedElementIds).toEqual({ [added.id]: true });
     expect(state.commits[0].captureUpdate).toBe('IMMEDIATELY');
   });
+
+  it('con las etiquetas del host, el rótulo y lo que se escribe salen en su idioma', () => {
+    const state = fakeApi([frame('page', 0, 0, 1080, 1080)]);
+    render(<InsertPanel api={state.api as never} pageId="page" text
+      labels={{ text: { heading: 'Heading', headingText: 'Your heading' } }} />);
+    // Lo que el host no traduce sigue en español.
+    expect(screen.getByRole('button', { name: 'Subtítulo' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Cuerpo de texto' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Heading' }));
+    expect(state.get().find(el => el.type === 'text')).toMatchObject({ text: 'Your heading' });
+  });
 });

@@ -24,7 +24,9 @@ export type TextPresetKey = 'heading' | 'subheading' | 'body';
 
 export interface TextPreset {
   key: TextPresetKey;
+  /** Rótulo de serie. El editor pinta el de las etiquetas (`labels.text[key]`). */
   label: string;
+  /** Texto de serie que se inserta; el del host llega por `insertTextPreset`. */
   text: string;
   /** Font size on a 1080px-wide page; scales linearly with page width. */
   fontSize: number;
@@ -79,6 +81,11 @@ export function insertTextPreset(
      * en vez de estampar un id que no resuelve a nada.
      */
     fontFamily?: string | null;
+    /**
+     * Lo que se escribe en el elemento. Es DATO —se guarda con el diseño—, así
+     * que lo da quien tiene las etiquetas del host; sin él, el del preset.
+     */
+    text?: string;
   },
 ): string | null {
   const def = TEXT_PRESETS.find((p) => p.key === preset) ?? TEXT_PRESETS[0];
@@ -96,7 +103,7 @@ export function insertTextPreset(
   const skeleton = [
     {
       type: 'text',
-      text: def.text,
+      text: opts?.text || def.text,
       fontSize,
       // 2 = Excalidraw's built-in "normal" (non hand-drawn) family; the brand
       // font wins when the project has one with a real file.

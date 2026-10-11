@@ -8,6 +8,7 @@ import { asSceneElements, commitElements, patchElement, type CaptureMode } from 
 import { buildPageBackground, isPageBackground } from './background';
 import { cloneSceneElements } from './components';
 import { PAGE_GAP } from './layout';
+import { renumberedPageName, resolvePageNames, type PageNames } from './pageNames';
 
 /**
  * "Pages" / artboards on top of Excalidraw's infinite canvas.
@@ -64,8 +65,6 @@ export const PAGE_SIZE_PRESETS: PageSizePreset[] = [
 
 /** Default paper color for a new page. */
 const PAPER_COLOR = '#ffffff';
-
-const DEFAULT_NAME_RE = /^Página \d+$/;
 
 function createId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -219,21 +218,25 @@ export function packPagesInArray(
  * Solo actúa cuando el documento YA está marcado y aparece un marco sin marcar:
  * si no lo está NINGUNO estamos ante una escena antigua recién abierta, y
  * renombrarla en bloque borraría los nombres que haya puesto el usuario.
+ *
+ * `names` son los del host (ver `pageNames.ts`); sin ellos, los de serie.
  */
 export function adoptStrayFramesInArray(
   elements: readonly SceneElement[],
+  names?: PageNames,
 ): readonly SceneElement[] {
   const frames = elements.filter((e): e is FrameElement => e.type === 'frame');
   const strays = frames.filter((f) => pageOrderOf(f) === null);
   if (strays.length === 0 || strays.length === frames.length) return elements;
 
+  const { defaultName } = resolvePageNames(names);
   const strayIds = new Set(strays.map((f) => f.id));
   let n = 0;
   return elements.map((e) =>
     strayIds.has(e.id)
       ? // El número da igual: al llevar el patrón por defecto, `renumberPagesInArray`
         // le pone el de su posición real en el mismo commit.
-        patchElement(e, { name: `Página ${++n}` } as Partial<SceneElement>)
+        patchElement(e, { name: defaultName(++n) } as Partial<SceneElement>)
       : e,
   );
 }
@@ -241,6 +244,10 @@ export function adoptStrayFramesInArray(
 /**
  * PURE: give default-named pages ("Página N") their positional number, in
  * `orderedFrameIds` order. Custom names (incl. "(copia)") are left alone.
+ *
+ * Qué es un nombre de serie lo dice `pageNames.ts`, y NO depende del idioma en
+ * el que se esté trabajando: se reconocen los que ya hay guardados («Página N»,
+ * «Page N») y cada uno conserva su palabra, solo cambia el número.
  *
  * Returns the SAME array reference when no page needs renaming — igual que
  * `packPagesInArray`. Sin eso, `.map` devolvía siempre un array nuevo y quien
@@ -252,13 +259,15 @@ export function renumberPagesInArray(
   elements: readonly SceneElement[],
   orderedFrameIds: string[],
 ): readonly SceneElement[] {
-  const nameById = new Map(orderedFrameIds.map((id, i) => [id, `Página ${i + 1}`]));
+  const positionById = new Map(orderedFrameIds.map((id, i) => [id, i + 1]));
   let changed = false;
   const next = elements.map((e) => {
     if (e.type !== 'frame') return e;
-    const target = nameById.get(e.id);
+    const position = positionById.get(e.id);
+    if (position === undefined) return e;
     const current = (e as FrameElement).name ?? '';
-    if (!target || target === current || !DEFAULT_NAME_RE.test(current)) return e;
+    const target = renumberedPageName(current, position);
+    if (!target || target === current) return e;
     changed = true;
     return patchElement(e, { name: target } as Partial<SceneElement>);
   });
@@ -268,9 +277,13 @@ export function renumberPagesInArray(
 /**
  * Build a blank scene containing a single page frame. Feed the result to
  * `Canvas2Editor`'s `initialScene`.
+ *
+ * El nombre de esa página se guarda con el diseño: un host que no trabaje en
+ * español pasa los suyos en `names` (sus `labels.pages` valen tal cual).
  */
 export function createBlankScene(
   pageSize: PageSize = DEFAULT_PAGE_SIZE,
+  names?: PageNames,
 ): { elements: SceneElements } {
   const size = usableSize(pageSize);
   const id = createId();
@@ -278,7 +291,7 @@ export function createBlankScene(
     {
       type: 'frame',
       id,
-      name: 'Página 1',
+      name: resolvePageNames(names).defaultName(1),
       x: 0,
       y: 0,
       width: size.width,
@@ -304,11 +317,17 @@ export function createBlankScene(
   };
 }
 
-/** Snapshot of the current pages, ordered left → right. */
-export function listPages(api: ExcalidrawImperativeAPI): PageInfo[] {
+/**
+ * Snapshot of the current pages, ordered left → right.
+ *
+ * Una página sin nombre sale con el de serie de su posición; quien vaya a
+ * enseñar ese nombre pasa los del host en `names`.
+ */
+export function listPages(api: ExcalidrawImperativeAPI, names?: PageNames): PageInfo[] {
+  const { defaultName } = resolvePageNames(names);
   return getFrames(api).map((f, index) => ({
     id: f.id,
-    name: f.name ?? `Página ${index + 1}`,
+    name: f.name ?? defaultName(index + 1),
     index,
     width: Math.round(f.width),
     height: Math.round(f.height),
@@ -334,11 +353,18 @@ export function getPageSize(api: ExcalidrawImperativeAPI, pageId: string): PageS
  * ANTES de cada página —incluida la primera—. Sin él, insertar en cabeza había
  * que hacerlo en dos pasos (crear al final + mover), o sea dos entradas de
  * deshacer para un solo gesto.
+ *
+ * `names` da el nombre de la página nueva (ver `pageNames.ts`).
  */
 export function addPage(
   api: ExcalidrawImperativeAPI,
   pageSize: PageSize = DEFAULT_PAGE_SIZE,
-  opts: { afterPageId?: string; beforePageId?: string; capture?: CaptureMode } = {},
+  opts: {
+    afterPageId?: string;
+    beforePageId?: string;
+    capture?: CaptureMode;
+    names?: PageNames;
+  } = {},
 ): string {
   const size = usableSize(pageSize);
   const elements = api.getSceneElements();
@@ -371,7 +397,7 @@ export function addPage(
     {
       type: 'frame',
       id,
-      name: `Página ${insertAt + 1}`,
+      name: resolvePageNames(opts.names).defaultName(insertAt + 1),
       x,
       y,
       width: size.width,
@@ -379,7 +405,14 @@ export function addPage(
       children: [],
     },
   ];
-  const created = convertToExcalidrawElements(skeleton, { regenerateIds: false });
+  // Como en `createBlankScene`: Excalidraw coloca un marco sin hijos con su
+  // margen de 10 px, en (x − 10, y − 10). Al empaquetar la fila el marco volvía
+  // a su altura y arrastraba consigo al papel, que sí estaba en su sitio: toda
+  // página añadida quedaba con el papel 10 px por debajo (11/10). La página es
+  // la que se pide.
+  const created = convertToExcalidrawElements(skeleton, { regenerateIds: false }).map((el) =>
+    el.type === 'frame' ? { ...el, x, y, width: size.width, height: size.height } : el,
+  );
   const paper = buildPageBackground(id, { x, y, width: size.width, height: size.height }, PAPER_COLOR);
 
   let combined: readonly SceneElement[] = [
@@ -519,14 +552,15 @@ export function deletePage(api: ExcalidrawImperativeAPI, pageId: string): boolea
  * cambio de escena sin llenar el historial de entradas vacías.
  *
  * `capture` por defecto es undoable; las migraciones de carga y la normalización
- * continua pasan 'never'.
+ * continua pasan 'never'. `names` solo cuenta para los marcos que se adoptan.
  */
 export function relayoutPages(
   api: ExcalidrawImperativeAPI,
   capture: CaptureMode = 'undoable',
+  names?: PageNames,
 ): void {
   const elements = api.getSceneElements();
-  let next = adoptStrayFramesInArray(elements);
+  let next = adoptStrayFramesInArray(elements, names);
   next = packPagesInArray(next);
   next = renumberPagesInArray(next, framesInArray(next).map((f) => f.id));
   if (next === elements) return;
@@ -685,10 +719,13 @@ export function resizePage(
  * Clones the frame + its member elements with fresh ids, remapping intra-page
  * references (frameId, container/binding ids, groupIds). Cross-page bindings
  * are an accepted v1 limitation.
+ *
+ * `names` da el nombre de la copia (ver `pageNames.ts`).
  */
 export function duplicatePage(
   api: ExcalidrawImperativeAPI,
   pageId: string,
+  names?: PageNames,
 ): string | null {
   const elements = api.getSceneElements();
   const source = elements.find(
@@ -707,9 +744,10 @@ export function duplicatePage(
   // en el orden y el reempaquetado se degradaba en silencio.
   const cloneId = idMap.get(pageId);
   if (!cloneId) return null;
+  const { copyName, untitled } = resolvePageNames(names);
   for (const clone of clones) {
     if (clone.id === cloneId) {
-      (clone as Record<string, unknown>).name = `${source.name ?? 'Página'} (copia)`;
+      (clone as Record<string, unknown>).name = copyName(source.name ?? untitled);
     }
   }
   const order = framesInArray(elements).map((f) => f.id);

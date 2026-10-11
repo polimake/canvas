@@ -9,6 +9,10 @@ import { commitElements, patchElement } from './mutate';
 
 export type PageAlignment = 'left' | 'centerX' | 'right' | 'top' | 'centerY' | 'bottom';
 
+/**
+ * `label` es el rótulo de serie, en español. El panel de capas pinta el de las
+ * etiquetas del host (`labels.align[key]`), que traen estos mismos de serie.
+ */
 export const PAGE_ALIGNMENTS: Array<{ key: PageAlignment; label: string; glyph: string }> = [
   { key: 'left', label: 'Alinear a la izquierda', glyph: '⇤' },
   { key: 'centerX', label: 'Centrar horizontalmente', glyph: '⇹' },

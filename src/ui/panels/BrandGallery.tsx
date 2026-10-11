@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CaptureUpdateAction, type ExcalidrawImperativeAPI, type SceneElement } from '../../core/excal';
 import { commitElements, patchElement } from '../../core/mutate';
-import { insertImageFromUrl } from '../../core/media';
+import { insertImageFromUrl, type ImageLoadFailure } from '../../core/media';
 import { PANEL_FONT, palette } from '../shared/theme';
 import { resolveBrandKit, type BrandKitInput } from '../../core/brand';
 import { mergeLabels, type PartialLabels } from '../shared/labels';
@@ -26,6 +26,30 @@ import { mergeLabels, type PartialLabels } from '../shared/labels';
 
 /** Figuras cerradas: aquí el color de marca se entiende como relleno. */
 const RELLENABLES = new Set(['rectangle', 'ellipse', 'diamond']);
+
+/** Con qué etiqueta se dice cada motivo por el que una imagen no cargó. */
+const ETIQUETA_DEL_MOTIVO: Record<
+  ImageLoadFailure,
+  'imageTimeout' | 'imageNoSize' | 'imageUnreachable'
+> = {
+  timeout: 'imageTimeout',
+  'no-size': 'imageNoSize',
+  unreachable: 'imageUnreachable',
+};
+
+/**
+ * Por qué no cargó la imagen, si el error lo dice (un `ImageLoadError`).
+ *
+ * Se reconoce por su forma y no con `instanceof`: basta el tipo, sin traer la
+ * clase, y vale igual si el error viene de otra copia del módulo.
+ */
+function motivoDeCarga(error: unknown): ImageLoadFailure | null {
+  const fallo = error as { name?: unknown; code?: unknown } | null;
+  if (fallo?.name !== 'ImageLoadError' || typeof fallo.code !== 'string') return null;
+  return Object.prototype.hasOwnProperty.call(ETIQUETA_DEL_MOTIVO, fallo.code)
+    ? (fallo.code as ImageLoadFailure)
+    : null;
+}
 
 export interface BrandGalleryProps {
   api: ExcalidrawImperativeAPI | null;
@@ -120,7 +144,17 @@ export function BrandGallery({
         await insertImageFromUrl(api, url, { pageId: activePageId ?? undefined });
         setAviso(L.brand.logoInserted);
       } catch (e) {
-        setAviso(e instanceof Error ? e.message : 'no se pudo insertar');
+        // Un fallo de carga viene con su motivo y se dice con las etiquetas del
+        // host. Cualquier otro error se enseña tal cual: su mensaje es lo único
+        // que se sabe de él.
+        const motivo = motivoDeCarga(e);
+        setAviso(
+          motivo
+            ? L.brand[ETIQUETA_DEL_MOTIVO[motivo]]
+            : e instanceof Error
+              ? e.message
+              : L.brand.insertFailed,
+        );
       }
     },
     [api, activePageId],

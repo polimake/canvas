@@ -3,7 +3,7 @@ import { convertToExcalidrawElements, type ExcalidrawImperativeAPI } from '../..
 import { commitElements } from '../../core/mutate';
 import { listPages } from '../../core/pages';
 import { insertTextPreset, TEXT_PRESETS } from '../../core/text';
-import { mergeLabels, type PartialLabels } from '../shared/labels';
+import { mergeLabels, textPresetLabel, type PartialLabels } from '../shared/labels';
 
 export function InsertPanel({ api, pageId, text = false, labels, families }: {
   api: ExcalidrawImperativeAPI; pageId: string | null; text?: boolean; labels?: PartialLabels;
@@ -33,8 +33,9 @@ export function InsertPanel({ api, pageId, text = false, labels, families }: {
   if (text) return <div className="canvas2-text-presets">
     {TEXT_PRESETS.map(preset => <button key={preset.key} type="button" data-preset={preset.key}
       onClick={() => insertTextPreset(api, preset.key, { pageId: pageId ?? undefined,
-        fontFamily: preset.key === 'body' ? families?.body ?? families?.heading : families?.heading ?? families?.body })}>
-      {L.sizes[preset.key] ?? preset.label}
+        fontFamily: preset.key === 'body' ? families?.body ?? families?.heading : families?.heading ?? families?.body,
+        text: L.text[`${preset.key}Text` as const] })}>
+      {textPresetLabel(L, preset.key)}
     </button>)}
   </div>;
   const visible = shapes.filter(shape => shape.label.toLocaleLowerCase().includes(query.toLocaleLowerCase()));

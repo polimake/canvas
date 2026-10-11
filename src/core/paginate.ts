@@ -7,6 +7,7 @@ import { commitElements, patchElement, type CaptureMode } from './mutate';
 import { buildPageBackground } from './background';
 import { packPagesInArray, renumberPagesInArray, type PageSize } from './pages';
 import { PAGE_GAP } from './layout';
+import { resolvePageNames, type PageNames } from './pageNames';
 
 /**
  * Convertir una escena SIN estructura de páginas en un documento paginado.
@@ -273,6 +274,8 @@ export interface PaginateOptions {
   scaleUp?: boolean;
   /** Color del papel de las páginas nuevas. */
   paperColor?: string;
+  /** Cómo se llaman las páginas nuevas (ver `pageNames.ts`); sin él, las de serie. */
+  names?: PageNames;
 }
 
 const PAPER_COLOR = '#ffffff';
@@ -326,6 +329,7 @@ export function paginateSceneInArray(
   const looseIds = new Set(loose.map((e) => e.id));
   const out: SceneElement[] = elements.filter((e) => !looseIds.has(e.id));
   const newFrameIds: string[] = [];
+  const { defaultName } = resolvePageNames(opts.names);
 
   clusters.forEach((cluster, index) => {
     const box = boxes[index];
@@ -335,7 +339,7 @@ export function paginateSceneInArray(
     const skeleton = [
       {
         type: 'frame',
-        name: `Página ${existingFrames.length + index + 1}`,
+        name: defaultName(existingFrames.length + index + 1),
         x,
         y,
         width: pageSize.width,
@@ -343,9 +347,13 @@ export function paginateSceneInArray(
         children: [],
       },
     ] as Parameters<typeof convertToExcalidrawElements>[0];
-    const [frame] = convertToExcalidrawElements(skeleton, {
+    const [creado] = convertToExcalidrawElements(skeleton, {
       regenerateIds: true,
     }) as unknown as SceneElement[];
+    // Excalidraw coloca un marco sin hijos con su margen de 10 px, en
+    // (x − 10, y − 10) (ver `addPage`): lo de dentro se centra sobre la página
+    // pedida, así que el marco tiene que estar donde se pidió.
+    const frame = { ...creado, x, y, width: pageSize.width, height: pageSize.height } as SceneElement;
     newFrameIds.push(frame.id);
 
     // Uniforme en los dos ejes: escalar por separado deformaría las imágenes.

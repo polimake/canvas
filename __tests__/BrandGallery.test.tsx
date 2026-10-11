@@ -120,4 +120,57 @@ describe('BrandGallery', () => {
     expect(screen.getByText('Brand')).toBeTruthy();
     expect(screen.getByTitle('Insert Black')).toBeTruthy();
   });
+
+  describe('cuando el logo no se puede insertar', () => {
+    /** Lo que lanza `loadImageSize`: la frase de serie y, aparte, el motivo. */
+    const falloDeCarga = (code: string, message: string) =>
+      Object.assign(new Error(message), { name: 'ImageLoadError', code });
+
+    it.each([
+      ['timeout', 'La imagen tardó demasiado en cargar'],
+      ['no-size', 'La imagen no tiene dimensiones utilizables'],
+      ['unreachable', 'No se pudo cargar la imagen'],
+    ])('sin etiquetas dice el motivo «%s» como siempre', async (code, frase) => {
+      insertImageFromUrl.mockRejectedValue(falloDeCarga(code, frase));
+      const { api } = escena();
+      render(<BrandGallery api={api as never} brandKit={KIT} />);
+      fireEvent.click(screen.getByTitle('Insertar negro'));
+      expect(await screen.findByText(frase)).toBeTruthy();
+    });
+
+    it('con las etiquetas del host, el motivo sale en su idioma', async () => {
+      insertImageFromUrl.mockRejectedValue(falloDeCarga('timeout', 'La imagen tardó demasiado en cargar'));
+      const { api } = escena();
+      render(
+        <BrandGallery
+          api={api as never}
+          brandKit={KIT}
+          labels={{ brand: { imageTimeout: 'The image took too long to load' } }}
+        />,
+      );
+      fireEvent.click(screen.getByTitle('Insertar negro'));
+      expect(await screen.findByText('The image took too long to load')).toBeTruthy();
+    });
+
+    it('otro error se enseña con su propio mensaje', async () => {
+      insertImageFromUrl.mockRejectedValue(new Error('MM caído'));
+      const { api } = escena();
+      render(<BrandGallery api={api as never} brandKit={KIT} labels={{ brand: { insertFailed: "couldn't insert it" } }} />);
+      fireEvent.click(screen.getByTitle('Insertar negro'));
+      expect(await screen.findByText('MM caído')).toBeTruthy();
+    });
+
+    it('sin mensaje que enseñar, dice que no se pudo', async () => {
+      insertImageFromUrl.mockRejectedValue('roto');
+      const { api } = escena();
+      const { unmount } = render(<BrandGallery api={api as never} brandKit={KIT} />);
+      fireEvent.click(screen.getByTitle('Insertar negro'));
+      expect(await screen.findByText('no se pudo insertar')).toBeTruthy();
+      unmount();
+
+      render(<BrandGallery api={api as never} brandKit={KIT} labels={{ brand: { insertFailed: "couldn't insert it" } }} />);
+      fireEvent.click(screen.getByTitle('Insertar negro'));
+      expect(await screen.findByText("couldn't insert it")).toBeTruthy();
+    });
+  });
 });

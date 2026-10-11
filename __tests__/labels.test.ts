@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { DEFAULT_LABELS, mergeLabels, type Canvas2Labels } from '../src/ui/shared/labels';
+import {
+  DEFAULT_LABELS,
+  mergeLabels,
+  textPresetLabel,
+  type Canvas2Labels,
+} from '../src/ui/shared/labels';
+import { DEFAULT_PAGE_NAMES, isDefaultPageName } from '../src/core/pageNames';
 
 describe('mergeLabels', () => {
   it('sin etiquetas del host devuelve las de serie tal cual', () => {
@@ -58,6 +64,9 @@ describe('mergeLabels', () => {
       'video',
       'loose',
       'pages',
+      'layers',
+      'align',
+      'text',
       'dock',
       'brand',
       'sizes',
@@ -68,5 +77,28 @@ describe('mergeLabels', () => {
       expect(Object.keys(DEFAULT_LABELS[s]).length).toBeGreaterThan(0);
     }
     expect(Object.keys(DEFAULT_LABELS).sort()).toEqual([...secciones].sort());
+  });
+
+  it('los nombres de página de serie son los mismos que pone el motor sin etiquetas', () => {
+    // Están escritos dos veces —aquí, para el host, y en `core/pageNames.ts`,
+    // que no puede importar de `ui/`—. Si se separan, una página creada desde
+    // un panel se llamaría distinto que una creada por el motor.
+    expect(DEFAULT_LABELS.pages.defaultName(3)).toBe(DEFAULT_PAGE_NAMES.defaultName(3));
+    expect(DEFAULT_LABELS.pages.untitled).toBe(DEFAULT_PAGE_NAMES.untitled);
+    expect(DEFAULT_LABELS.pages.copyName('Portada')).toBe(DEFAULT_PAGE_NAMES.copyName('Portada'));
+  });
+
+  it('el nombre de serie de las etiquetas se reconoce como de serie', () => {
+    // Si no, las páginas nuevas nacerían con un nombre que ya no se renumera.
+    expect(isDefaultPageName(DEFAULT_LABELS.pages.defaultName(7))).toBe(true);
+  });
+
+  it('el rótulo de un texto sale de `text`, salvo que el host lo traduzca en `sizes`', () => {
+    expect(textPresetLabel(DEFAULT_LABELS, 'heading')).toBe('Título');
+    expect(textPresetLabel(mergeLabels({ text: { heading: 'Heading' } }), 'heading')).toBe('Heading');
+    // La vía de antes, que sigue mandando para no dejar sin traducción a nadie.
+    expect(
+      textPresetLabel(mergeLabels({ sizes: { heading: 'Big' }, text: { heading: 'Heading' } }), 'heading'),
+    ).toBe('Big');
   });
 });

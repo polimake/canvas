@@ -184,7 +184,7 @@ export function PageActions({
       {page.index < pageCount - 1 &&
         btn(L.pages.moveRight, () => movePage(api, page.id, 1), <ChevronRightIcon />)}
       {btn(L.pages.duplicate, () => {
-        const id = duplicatePage(api, page.id);
+        const id = duplicatePage(api, page.id, L.pages);
         if (id) select(id);
       }, <DuplicateIcon />)}
       {btn(

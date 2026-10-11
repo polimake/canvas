@@ -13,7 +13,9 @@ import { type ExcalidrawImperativeAPI } from './excal';
 export type TextPresetKey = 'heading' | 'subheading' | 'body';
 export interface TextPreset {
     key: TextPresetKey;
+    /** Rótulo de serie. El editor pinta el de las etiquetas (`labels.text[key]`). */
     label: string;
+    /** Texto de serie que se inserta; el del host llega por `insertTextPreset`. */
     text: string;
     /** Font size on a 1080px-wide page; scales linearly with page width. */
     fontSize: number;
@@ -37,5 +39,10 @@ export declare function insertTextPreset(api: ExcalidrawImperativeAPI, preset: T
      * en vez de estampar un id que no resuelve a nada.
      */
     fontFamily?: string | null;
+    /**
+     * Lo que se escribe en el elemento. Es DATO —se guarda con el diseño—, así
+     * que lo da quien tiene las etiquetas del host; sin él, el del preset.
+     */
+    text?: string;
 }): string | null;
 //# sourceMappingURL=text.d.ts.map

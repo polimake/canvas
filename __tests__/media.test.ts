@@ -277,6 +277,12 @@ describe('colocación', () => {
     try {
       const scene = fakeApi([frame('p1', 0, 0, 400, 400)]);
       await expect(insertImageFromUrl(scene.api, CDN)).rejects.toThrow(/dimensiones/);
+      // El motivo viaja aparte de la frase: quien la enseña la elige por él.
+      await expect(insertImageFromUrl(scene.api, CDN)).rejects.toMatchObject({
+        name: 'ImageLoadError',
+        code: 'no-size',
+        message: 'La imagen no tiene dimensiones utilizables',
+      });
       expect(scene.commits).toHaveLength(0);
     } finally {
       (globalThis as { Image?: unknown }).Image = original;

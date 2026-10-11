@@ -1,5 +1,6 @@
 import { type ExcalidrawImperativeAPI, type SceneElement, type SceneElements } from './excal';
 import { type CaptureMode } from './mutate';
+import { type PageNames } from './pageNames';
 /**
  * "Pages" / artboards on top of Excalidraw's infinite canvas.
  *
@@ -62,11 +63,17 @@ export declare function packPagesInArray(elements: readonly SceneElement[], orde
  * Solo actúa cuando el documento YA está marcado y aparece un marco sin marcar:
  * si no lo está NINGUNO estamos ante una escena antigua recién abierta, y
  * renombrarla en bloque borraría los nombres que haya puesto el usuario.
+ *
+ * `names` son los del host (ver `pageNames.ts`); sin ellos, los de serie.
  */
-export declare function adoptStrayFramesInArray(elements: readonly SceneElement[]): readonly SceneElement[];
+export declare function adoptStrayFramesInArray(elements: readonly SceneElement[], names?: PageNames): readonly SceneElement[];
 /**
  * PURE: give default-named pages ("Página N") their positional number, in
  * `orderedFrameIds` order. Custom names (incl. "(copia)") are left alone.
+ *
+ * Qué es un nombre de serie lo dice `pageNames.ts`, y NO depende del idioma en
+ * el que se esté trabajando: se reconocen los que ya hay guardados («Página N»,
+ * «Page N») y cada uno conserva su palabra, solo cambia el número.
  *
  * Returns the SAME array reference when no page needs renaming — igual que
  * `packPagesInArray`. Sin eso, `.map` devolvía siempre un array nuevo y quien
@@ -78,12 +85,20 @@ export declare function renumberPagesInArray(elements: readonly SceneElement[], 
 /**
  * Build a blank scene containing a single page frame. Feed the result to
  * `Canvas2Editor`'s `initialScene`.
+ *
+ * El nombre de esa página se guarda con el diseño: un host que no trabaje en
+ * español pasa los suyos en `names` (sus `labels.pages` valen tal cual).
  */
-export declare function createBlankScene(pageSize?: PageSize): {
+export declare function createBlankScene(pageSize?: PageSize, names?: PageNames): {
     elements: SceneElements;
 };
-/** Snapshot of the current pages, ordered left → right. */
-export declare function listPages(api: ExcalidrawImperativeAPI): PageInfo[];
+/**
+ * Snapshot of the current pages, ordered left → right.
+ *
+ * Una página sin nombre sale con el de serie de su posición; quien vaya a
+ * enseñar ese nombre pasa los del host en `names`.
+ */
+export declare function listPages(api: ExcalidrawImperativeAPI, names?: PageNames): PageInfo[];
 /** Current size of one page (frame), or null if it doesn't exist. */
 export declare function getPageSize(api: ExcalidrawImperativeAPI, pageId: string): PageSize | null;
 /**
@@ -96,11 +111,14 @@ export declare function getPageSize(api: ExcalidrawImperativeAPI, pageId: string
  * ANTES de cada página —incluida la primera—. Sin él, insertar en cabeza había
  * que hacerlo en dos pasos (crear al final + mover), o sea dos entradas de
  * deshacer para un solo gesto.
+ *
+ * `names` da el nombre de la página nueva (ver `pageNames.ts`).
  */
 export declare function addPage(api: ExcalidrawImperativeAPI, pageSize?: PageSize, opts?: {
     afterPageId?: string;
     beforePageId?: string;
     capture?: CaptureMode;
+    names?: PageNames;
 }): string;
 export declare function goToPage(api: ExcalidrawImperativeAPI, pageId: string, opts?: {
     coverage?: number;
@@ -155,9 +173,9 @@ export declare function deletePage(api: ExcalidrawImperativeAPI, pageId: string)
  * cambio de escena sin llenar el historial de entradas vacías.
  *
  * `capture` por defecto es undoable; las migraciones de carga y la normalización
- * continua pasan 'never'.
+ * continua pasan 'never'. `names` solo cuenta para los marcos que se adoptan.
  */
-export declare function relayoutPages(api: ExcalidrawImperativeAPI, capture?: CaptureMode): void;
+export declare function relayoutPages(api: ExcalidrawImperativeAPI, capture?: CaptureMode, names?: PageNames): void;
 /** Whether a page (its frame) is locked. */
 export declare function isPageLocked(api: ExcalidrawImperativeAPI, pageId: string): boolean;
 /**
@@ -199,6 +217,8 @@ export declare function resizePage(api: ExcalidrawImperativeAPI, pageId: string,
  * Clones the frame + its member elements with fresh ids, remapping intra-page
  * references (frameId, container/binding ids, groupIds). Cross-page bindings
  * are an accepted v1 limitation.
+ *
+ * `names` da el nombre de la copia (ver `pageNames.ts`).
  */
-export declare function duplicatePage(api: ExcalidrawImperativeAPI, pageId: string): string | null;
+export declare function duplicatePage(api: ExcalidrawImperativeAPI, pageId: string, names?: PageNames): string | null;
 //# sourceMappingURL=pages.d.ts.map

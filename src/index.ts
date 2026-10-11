@@ -35,6 +35,9 @@ export {
   focusLayer,
 } from './core/pages';
 export type { PageInfo, PageSize, PageSizePreset } from './core/pages';
+// Los nombres que el editor pone a las páginas, que se guardan con el diseño:
+// los aceptan `createBlankScene`, `addPage`, `duplicatePage` y compañía.
+export type { PageNames } from './core/pageNames';
 // Paginar una escena que llegó sin páginas (importada, pegada, arrastrada).
 export {
   convertToPages,
@@ -185,9 +188,11 @@ export {
   findInlineImageIds,
   isInlineDataUrl,
   dataUrlToBlob,
+  ImageLoadError,
 } from './core/media';
 export type {
   InsertImageOptions,
+  ImageLoadFailure,
   ImageHit,
   MediaUploader,
   FileEntry,

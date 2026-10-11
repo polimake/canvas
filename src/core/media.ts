@@ -149,6 +149,26 @@ function frames(api: ExcalidrawImperativeAPI): FrameElement[] {
  */
 const IMAGE_LOAD_TIMEOUT_MS = 20_000;
 
+/** Por qué no se pudo usar una imagen: no llegó a tiempo, llegó sin tamaño o no llegó. */
+export type ImageLoadFailure = 'timeout' | 'no-size' | 'unreachable';
+
+/**
+ * Una imagen que no se pudo cargar para insertarla.
+ *
+ * El `message` es la frase de serie, en español. Quien se la enseña al usuario
+ * la elige por `code` entre las etiquetas del host (ver `BrandGallery`): este
+ * módulo no tiene las etiquetas a mano, y no le toca tenerlas.
+ */
+export class ImageLoadError extends Error {
+  readonly code: ImageLoadFailure;
+
+  constructor(code: ImageLoadFailure, message: string) {
+    super(message);
+    this.name = 'ImageLoadError';
+    this.code = code;
+  }
+}
+
 function loadImageSize(src: string): Promise<{ width: number; height: number }> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -162,7 +182,7 @@ function loadImageSize(src: string): Promise<{ width: number; height: number }> 
       // Cortar la descarga en curso: si no, el navegador sigue tirando de red
       // por una imagen que ya nadie va a usar.
       img.src = '';
-      reject(new Error('La imagen tardó demasiado en cargar'));
+      reject(new ImageLoadError('timeout', 'La imagen tardó demasiado en cargar'));
     }, IMAGE_LOAD_TIMEOUT_MS);
     img.onload = () => {
       stop();
@@ -171,14 +191,14 @@ function loadImageSize(src: string): Promise<{ width: number; height: number }> 
       // elemento de tamaño cero: invisible, pero ahí, y no hay forma de
       // agarrarlo con el ratón para borrarlo.
       if (!img.naturalWidth || !img.naturalHeight) {
-        reject(new Error('La imagen no tiene dimensiones utilizables'));
+        reject(new ImageLoadError('no-size', 'La imagen no tiene dimensiones utilizables'));
         return;
       }
       resolve({ width: img.naturalWidth, height: img.naturalHeight });
     };
     img.onerror = () => {
       stop();
-      reject(new Error('No se pudo cargar la imagen'));
+      reject(new ImageLoadError('unreachable', 'No se pudo cargar la imagen'));
     };
     img.src = src;
   });

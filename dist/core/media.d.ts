@@ -80,6 +80,19 @@ export interface FileEntry {
 export declare function isInlineDataUrl(value: unknown): boolean;
 /** ¿Hay alguna imagen subiéndose ahora mismo? */
 export declare function hasUploadsInFlight(): boolean;
+/** Por qué no se pudo usar una imagen: no llegó a tiempo, llegó sin tamaño o no llegó. */
+export type ImageLoadFailure = 'timeout' | 'no-size' | 'unreachable';
+/**
+ * Una imagen que no se pudo cargar para insertarla.
+ *
+ * El `message` es la frase de serie, en español. Quien se la enseña al usuario
+ * la elige por `code` entre las etiquetas del host (ver `BrandGallery`): este
+ * módulo no tiene las etiquetas a mano, y no le toca tenerlas.
+ */
+export declare class ImageLoadError extends Error {
+    readonly code: ImageLoadFailure;
+    constructor(code: ImageLoadFailure, message: string);
+}
 /**
  * Página donde CAERÍA una inserción con estas opciones, sin insertar nada.
  *

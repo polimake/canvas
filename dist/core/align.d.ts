@@ -5,6 +5,10 @@ import { type ExcalidrawImperativeAPI } from './excal';
  * selected elements; aligning to the artboard is our overlay's job).
  */
 export type PageAlignment = 'left' | 'centerX' | 'right' | 'top' | 'centerY' | 'bottom';
+/**
+ * `label` es el rótulo de serie, en español. El panel de capas pinta el de las
+ * etiquetas del host (`labels.align[key]`), que traen estos mismos de serie.
+ */
 export declare const PAGE_ALIGNMENTS: Array<{
     key: PageAlignment;
     label: string;

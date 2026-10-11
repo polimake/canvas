@@ -73,7 +73,11 @@ export function PageNavigator({
 }: PageNavigatorProps) {
   const c = palette[theme];
   const L = mergeLabels(labelsProp);
-  const [pages, setPages] = useState<PageInfo[]>(() => listPages(api));
+  // El nombre de una página sin nombre se enseña en el chip: sale del host. Por
+  // referencia, para que la suscripción de abajo no dependa de las etiquetas.
+  const pageNames = useRef(L.pages);
+  pageNames.current = L.pages;
+  const [pages, setPages] = useState<PageInfo[]>(() => listPages(api, L.pages));
   const [localActiveId, setLocalActiveId] = useState<string | null>(
     () => listPages(api)[0]?.id ?? null,
   );
@@ -101,7 +105,7 @@ export function PageNavigator({
       if (elements === lastElementsRef.current) return;
       lastElementsRef.current = elements;
       setPages((prev) => {
-        const next = listPages(api);
+        const next = listPages(api, pageNames.current);
         return pagesSignature(prev) === pagesSignature(next) ? prev : next;
       });
     };
@@ -134,7 +138,7 @@ export function PageNavigator({
   const createPage = (size: PageSize | undefined, opts?: { beforePageId?: string }) => {
     try {
       setAddFailed(false);
-      select(addPage(api, size, opts));
+      select(addPage(api, size, { ...opts, names: L.pages }));
     } catch (err) {
       console.error('[canvas2] no se ha podido crear la página', err);
       setAddFailed(true);

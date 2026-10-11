@@ -176,6 +176,23 @@ function setPageBackgroundColor(api, pageId, color2, opts = {}) {
   commitElements(api, reordered, capture);
   return id;
 }
+const DEFAULT_PAGE_NAMES = {
+  defaultName: (n) => `Página ${n}`,
+  untitled: "Página",
+  copyName: (name) => `${name} (copia)`
+};
+function resolvePageNames(names) {
+  return {
+    defaultName: (names == null ? void 0 : names.defaultName) ?? DEFAULT_PAGE_NAMES.defaultName,
+    untitled: (names == null ? void 0 : names.untitled) || DEFAULT_PAGE_NAMES.untitled,
+    copyName: (names == null ? void 0 : names.copyName) ?? DEFAULT_PAGE_NAMES.copyName
+  };
+}
+const DEFAULT_NAME_RE = /^(Página|Page) (\d+)$/;
+function renumberedPageName(name, n) {
+  const match = DEFAULT_NAME_RE.exec(name ?? "");
+  return match ? `${match[1]} ${n}` : null;
+}
 const DEFAULT_PAGE_SIZE = { width: 1080, height: 1350 };
 const PAGE_SIZE_PRESETS = [
   { key: "ig-post", label: "Post 4:5", width: 1080, height: 1350 },
@@ -187,7 +204,6 @@ const PAGE_SIZE_PRESETS = [
   { key: "default", label: "Lienzo clásico", width: 1640, height: 924 }
 ];
 const PAPER_COLOR$1 = "#ffffff";
-const DEFAULT_NAME_RE = /^Página \d+$/;
 function createId() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();
@@ -252,41 +268,44 @@ function packPagesInArray(elements, orderedFrameIds) {
     return Object.keys(updates).length ? patchElement(e, updates) : e;
   });
 }
-function adoptStrayFramesInArray(elements) {
+function adoptStrayFramesInArray(elements, names) {
   const frames2 = elements.filter((e) => e.type === "frame");
   const strays = frames2.filter((f) => pageOrderOf(f) === null);
   if (strays.length === 0 || strays.length === frames2.length) return elements;
+  const { defaultName } = resolvePageNames(names);
   const strayIds = new Set(strays.map((f) => f.id));
   let n = 0;
   return elements.map(
     (e) => strayIds.has(e.id) ? (
       // El número da igual: al llevar el patrón por defecto, `renumberPagesInArray`
       // le pone el de su posición real en el mismo commit.
-      patchElement(e, { name: `Página ${++n}` })
+      patchElement(e, { name: defaultName(++n) })
     ) : e
   );
 }
 function renumberPagesInArray(elements, orderedFrameIds) {
-  const nameById = new Map(orderedFrameIds.map((id, i) => [id, `Página ${i + 1}`]));
+  const positionById = new Map(orderedFrameIds.map((id, i) => [id, i + 1]));
   let changed = false;
   const next = elements.map((e) => {
     if (e.type !== "frame") return e;
-    const target = nameById.get(e.id);
+    const position = positionById.get(e.id);
+    if (position === void 0) return e;
     const current = e.name ?? "";
-    if (!target || target === current || !DEFAULT_NAME_RE.test(current)) return e;
+    const target = renumberedPageName(current, position);
+    if (!target || target === current) return e;
     changed = true;
     return patchElement(e, { name: target });
   });
   return changed ? next : elements;
 }
-function createBlankScene(pageSize = DEFAULT_PAGE_SIZE) {
+function createBlankScene(pageSize = DEFAULT_PAGE_SIZE, names) {
   const size = usableSize(pageSize);
   const id = createId();
   const skeleton = [
     {
       type: "frame",
       id,
-      name: "Página 1",
+      name: resolvePageNames(names).defaultName(1),
       x: 0,
       y: 0,
       width: size.width,
@@ -307,10 +326,11 @@ function createBlankScene(pageSize = DEFAULT_PAGE_SIZE) {
     elements: asSceneElements([...frame, ...paper])
   };
 }
-function listPages(api) {
+function listPages(api, names) {
+  const { defaultName } = resolvePageNames(names);
   return getFrames(api).map((f, index) => ({
     id: f.id,
-    name: f.name ?? `Página ${index + 1}`,
+    name: f.name ?? defaultName(index + 1),
     index,
     width: Math.round(f.width),
     height: Math.round(f.height),
@@ -341,7 +361,7 @@ function addPage(api, pageSize = DEFAULT_PAGE_SIZE, opts = {}) {
     {
       type: "frame",
       id,
-      name: `Página ${insertAt + 1}`,
+      name: resolvePageNames(opts.names).defaultName(insertAt + 1),
       x,
       y,
       width: size.width,
@@ -349,7 +369,9 @@ function addPage(api, pageSize = DEFAULT_PAGE_SIZE, opts = {}) {
       children: []
     }
   ];
-  const created = convertToExcalidrawElements(skeleton, { regenerateIds: false });
+  const created = convertToExcalidrawElements(skeleton, { regenerateIds: false }).map(
+    (el) => el.type === "frame" ? { ...el, x, y, width: size.width, height: size.height } : el
+  );
   const paper = buildPageBackground(id, { x, y, width: size.width, height: size.height }, PAPER_COLOR$1);
   let combined = [
     ...elements,
@@ -413,9 +435,9 @@ function deletePage(api, pageId) {
   commitElements(api, remaining);
   return true;
 }
-function relayoutPages(api, capture = "undoable") {
+function relayoutPages(api, capture = "undoable", names) {
   const elements = api.getSceneElements();
-  let next = adoptStrayFramesInArray(elements);
+  let next = adoptStrayFramesInArray(elements, names);
   next = packPagesInArray(next);
   next = renumberPagesInArray(next, framesInArray(next).map((f) => f.id));
   if (next === elements) return;
@@ -501,7 +523,7 @@ function resizePage(api, pageId, size, opts = {}) {
   });
   commitElements(api, packPagesInArray(resized));
 }
-function duplicatePage(api, pageId) {
+function duplicatePage(api, pageId, names) {
   const elements = api.getSceneElements();
   const source = elements.find(
     (e) => e.id === pageId && e.type === "frame"
@@ -513,9 +535,10 @@ function duplicatePage(api, pageId) {
   });
   const cloneId = idMap.get(pageId);
   if (!cloneId) return null;
+  const { copyName, untitled } = resolvePageNames(names);
   for (const clone of clones) {
     if (clone.id === cloneId) {
-      clone.name = `${source.name ?? "Página"} (copia)`;
+      clone.name = copyName(source.name ?? untitled);
     }
   }
   const order = framesInArray(elements).map((f) => f.id);
@@ -1057,7 +1080,8 @@ const DEFAULT_LABELS = {
     exportPdf: "PDF · todas las páginas",
     toPages: "Convertir en páginas",
     toPagesHint: (count) => `${count} suelto${count === 1 ? "" : "s"}`,
-    toPagesDone: (count) => `${count} página${count === 1 ? "" : "s"} creada${count === 1 ? "" : "s"}`
+    toPagesDone: (count) => `${count} página${count === 1 ? "" : "s"} creada${count === 1 ? "" : "s"}`,
+    exportName: "diseño"
   },
   video: {
     pickFrame: "Elegir fotograma",
@@ -1087,7 +1111,46 @@ const DEFAULT_LABELS = {
     moveLeft: "Mover a la izquierda",
     moveRight: "Mover a la derecha",
     lastPage: "Es la única página: un diseño no puede quedarse sin ninguna",
-    fitAll: "Ver todas las páginas"
+    fitAll: "Ver todas las páginas",
+    defaultName: (n) => `Página ${n}`,
+    untitled: "Página",
+    copyName: (name) => `${name} (copia)`
+  },
+  layers: {
+    empty: "Esta página está vacía.",
+    image: "Imagen",
+    rectangle: "Rectángulo",
+    ellipse: "Elipse",
+    diamond: "Rombo",
+    line: "Línea",
+    arrow: "Flecha",
+    freedraw: "Trazo",
+    text: "Texto",
+    textWith: (excerpt) => `Texto: ${excerpt}`,
+    useAsBackground: "Usar como fondo",
+    extendToPage: "Extender a la página",
+    show: "Mostrar",
+    hide: "Ocultar",
+    lock: "Bloquear",
+    unlock: "Desbloquear",
+    delete: "Eliminar",
+    renameHint: "Doble clic para renombrar la página"
+  },
+  align: {
+    left: "Alinear a la izquierda",
+    centerX: "Centrar horizontalmente",
+    right: "Alinear a la derecha",
+    top: "Alinear arriba",
+    centerY: "Centrar verticalmente",
+    bottom: "Alinear abajo"
+  },
+  text: {
+    heading: "Título",
+    subheading: "Subtítulo",
+    body: "Cuerpo de texto",
+    headingText: "Título",
+    subheadingText: "Subtítulo",
+    bodyText: "Escribe algo…"
   },
   dock: {
     design: "Diseño",
@@ -1108,7 +1171,11 @@ const DEFAULT_LABELS = {
     logoInserted: "logo insertado",
     logo: "Logo",
     black: "Negro",
-    white: "Blanco"
+    white: "Blanco",
+    insertFailed: "no se pudo insertar",
+    imageTimeout: "La imagen tardó demasiado en cargar",
+    imageNoSize: "La imagen no tiene dimensiones utilizables",
+    imageUnreachable: "No se pudo cargar la imagen"
   },
   sizes: {
     "ig-post": "Post 4:5",
@@ -1120,6 +1187,9 @@ const DEFAULT_LABELS = {
     default: "Lienzo clásico"
   }
 };
+function textPresetLabel(labels, key) {
+  return labels.sizes[key] ?? labels.text[key];
+}
 function mergeLabels(custom) {
   if (!custom) return DEFAULT_LABELS;
   const out = {};
@@ -1210,7 +1280,9 @@ function PageNavigator({
 }) {
   const c = palette[theme];
   const L = mergeLabels(labelsProp);
-  const [pages, setPages] = useState(() => listPages(api));
+  const pageNames = useRef(L.pages);
+  pageNames.current = L.pages;
+  const [pages, setPages] = useState(() => listPages(api, L.pages));
   const [localActiveId, setLocalActiveId] = useState(
     () => {
       var _a;
@@ -1232,7 +1304,7 @@ function PageNavigator({
       if (elements === lastElementsRef.current) return;
       lastElementsRef.current = elements;
       setPages((prev) => {
-        const next = listPages(api);
+        const next = listPages(api, pageNames.current);
         return pagesSignature(prev) === pagesSignature(next) ? prev : next;
       });
     };
@@ -1254,7 +1326,7 @@ function PageNavigator({
   const createPage = (size, opts) => {
     try {
       setAddFailed(false);
-      select(addPage(api, size, opts));
+      select(addPage(api, size, { ...opts, names: L.pages }));
     } catch (err) {
       console.error("[canvas2] no se ha podido crear la página", err);
       setAddFailed(true);
@@ -1837,6 +1909,7 @@ function paginateSceneInArray(elements, opts = {}) {
   const looseIds = new Set(loose.map((e) => e.id));
   const out = elements.filter((e) => !looseIds.has(e.id));
   const newFrameIds = [];
+  const { defaultName } = resolvePageNames(opts.names);
   clusters.forEach((cluster, index) => {
     const box = boxes[index];
     const x = cursor;
@@ -1844,7 +1917,7 @@ function paginateSceneInArray(elements, opts = {}) {
     const skeleton = [
       {
         type: "frame",
-        name: `Página ${existingFrames.length + index + 1}`,
+        name: defaultName(existingFrames.length + index + 1),
         x,
         y,
         width: pageSize.width,
@@ -1852,9 +1925,10 @@ function paginateSceneInArray(elements, opts = {}) {
         children: []
       }
     ];
-    const [frame] = convertToExcalidrawElements(skeleton, {
+    const [creado] = convertToExcalidrawElements(skeleton, {
       regenerateIds: true
     });
+    const frame = { ...creado, x, y, width: pageSize.width, height: pageSize.height };
     newFrameIds.push(frame.id);
     const encaje = Math.min(pageSize.width / box.width, pageSize.height / box.height);
     const k = opts.scaleUp ? encaje : Math.min(1, encaje);
@@ -2015,6 +2089,13 @@ function frames$1(api) {
   return api.getSceneElements().filter((e) => e.type === "frame").slice().sort((a, b) => a.x - b.x);
 }
 const IMAGE_LOAD_TIMEOUT_MS = 2e4;
+class ImageLoadError extends Error {
+  constructor(code, message) {
+    super(message);
+    this.name = "ImageLoadError";
+    this.code = code;
+  }
+}
 function loadImageSize(src) {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -2026,19 +2107,19 @@ function loadImageSize(src) {
     const timer = setTimeout(() => {
       stop();
       img.src = "";
-      reject(new Error("La imagen tardó demasiado en cargar"));
+      reject(new ImageLoadError("timeout", "La imagen tardó demasiado en cargar"));
     }, IMAGE_LOAD_TIMEOUT_MS);
     img.onload = () => {
       stop();
       if (!img.naturalWidth || !img.naturalHeight) {
-        reject(new Error("La imagen no tiene dimensiones utilizables"));
+        reject(new ImageLoadError("no-size", "La imagen no tiene dimensiones utilizables"));
         return;
       }
       resolve({ width: img.naturalWidth, height: img.naturalHeight });
     };
     img.onerror = () => {
       stop();
-      reject(new Error("No se pudo cargar la imagen"));
+      reject(new ImageLoadError("unreachable", "No se pudo cargar la imagen"));
     };
     img.src = src;
   });
@@ -2637,7 +2718,7 @@ function insertTextPreset(api, preset, opts) {
   const skeleton = [
     {
       type: "text",
-      text: def.text,
+      text: (opts == null ? void 0 : opts.text) || def.text,
       fontSize,
       // 2 = Excalidraw's built-in "normal" (non hand-drawn) family; the brand
       // font wins when the project has one with a real file.
@@ -2664,8 +2745,8 @@ function insertTextPreset(api, preset, opts) {
   );
   return id;
 }
-function safeFilename(name) {
-  return (name || "diseño").replace(/[\\/:*?"<>|]+/g, "-").trim() || "diseño";
+function safeFilename(name, fallback) {
+  return (name || fallback).replace(/[\\/:*?"<>|]+/g, "-").trim() || fallback;
 }
 function CanvasMenu({
   pages: pageMode = true,
@@ -2692,7 +2773,9 @@ function CanvasMenu({
     },
     value
   )) }) : null;
-  const [pages, setPages] = useState(() => api ? listPages(api) : []);
+  const pageNames = useRef(L.pages);
+  pageNames.current = L.pages;
+  const [pages, setPages] = useState(() => api ? listPages(api, L.pages) : []);
   const [loose, setLoose] = useState(0);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState(false);
@@ -2700,7 +2783,7 @@ function CanvasMenu({
   useEffect(() => {
     if (!api) return;
     const refresh = () => {
-      setPages(listPages(api));
+      setPages(listPages(api, pageNames.current));
       setLoose(looseElements(api.getSceneElements()).length);
     };
     refresh();
@@ -2712,7 +2795,7 @@ function CanvasMenu({
     setExporting(true);
     setExportError(false);
     try {
-      const base = safeFilename((activePage == null ? void 0 : activePage.name) ?? "diseño");
+      const base = safeFilename(activePage == null ? void 0 : activePage.name, L.menu.exportName);
       const files = hydrateFiles ? await hydrateFiles(kind === "svg" ? { output: "dataurl" } : void 0) : void 0;
       if (kind === "png") {
         downloadBlob(
@@ -2723,7 +2806,7 @@ function CanvasMenu({
         for (const page of pages) {
           downloadBlob(
             await exportScenePng(api, { pageId: page.id, files }),
-            `${safeFilename(page.name)}.png`
+            `${safeFilename(page.name, L.menu.exportName)}.png`
           );
         }
       } else if (kind === "svg") {
@@ -2740,7 +2823,7 @@ function CanvasMenu({
         const blob = new Blob([new XMLSerializer().serializeToString(svg)], { type: "image/svg+xml" });
         downloadBlob(blob, `${base}.svg`);
       } else {
-        downloadBlob(await exportScenePdf(api, { files }), `${safeFilename(((_a = pages[0]) == null ? void 0 : _a.name) ?? "diseño")}.pdf`);
+        downloadBlob(await exportScenePdf(api, { files }), `${safeFilename((_a = pages[0]) == null ? void 0 : _a.name, L.menu.exportName)}.pdf`);
       }
     } catch (err) {
       console.error("[canvas2] export failed", err);
@@ -2781,7 +2864,8 @@ function CanvasMenu({
             // que el contenido se escala en los dos sentidos. Un guion de
             // carrusel dibujado en miniatura sale a tamaño real, no como
             // sellos centrados en una página gigante.
-            scaleUp: Boolean(activePage)
+            scaleUp: Boolean(activePage),
+            names: L.pages
           });
           const first = listPages(api)[total - created];
           if (first) goToPage(api, first.id);
@@ -2801,9 +2885,10 @@ function CanvasMenu({
           pageId: activePageId ?? void 0,
           // El cuerpo usa la tipografía de texto; título y subtítulo, la
           // de titulares — con respaldo cruzado si la marca solo trae una.
-          fontFamily: preset.key === "body" ? (brandFamilies == null ? void 0 : brandFamilies.body) ?? (brandFamilies == null ? void 0 : brandFamilies.heading) : (brandFamilies == null ? void 0 : brandFamilies.heading) ?? (brandFamilies == null ? void 0 : brandFamilies.body)
+          fontFamily: preset.key === "body" ? (brandFamilies == null ? void 0 : brandFamilies.body) ?? (brandFamilies == null ? void 0 : brandFamilies.heading) : (brandFamilies == null ? void 0 : brandFamilies.heading) ?? (brandFamilies == null ? void 0 : brandFamilies.body),
+          text: L.text[`${preset.key}Text`]
         }),
-        children: L.sizes[preset.key] ?? preset.label
+        children: textPresetLabel(L, preset.key)
       },
       preset.key
     )) }),
@@ -2943,7 +3028,7 @@ function PageActions({
         page.index > 0 && btn(L.pages.moveLeft, () => movePage(api, page.id, -1), /* @__PURE__ */ jsx(ChevronLeftIcon, {})),
         page.index < pageCount - 1 && btn(L.pages.moveRight, () => movePage(api, page.id, 1), /* @__PURE__ */ jsx(ChevronRightIcon, {})),
         btn(L.pages.duplicate, () => {
-          const id = duplicatePage(api, page.id);
+          const id = duplicatePage(api, page.id, L.pages);
           if (id) select(id);
         }, /* @__PURE__ */ jsx(DuplicateIcon, {})),
         btn(
@@ -3066,6 +3151,16 @@ function resolveBrandKit(raw) {
   };
 }
 const RELLENABLES = /* @__PURE__ */ new Set(["rectangle", "ellipse", "diamond"]);
+const ETIQUETA_DEL_MOTIVO = {
+  timeout: "imageTimeout",
+  "no-size": "imageNoSize",
+  unreachable: "imageUnreachable"
+};
+function motivoDeCarga(error) {
+  const fallo = error;
+  if ((fallo == null ? void 0 : fallo.name) !== "ImageLoadError" || typeof fallo.code !== "string") return null;
+  return Object.prototype.hasOwnProperty.call(ETIQUETA_DEL_MOTIVO, fallo.code) ? fallo.code : null;
+}
 function BrandGallery({
   api,
   brandKit,
@@ -3129,7 +3224,10 @@ function BrandGallery({
         await insertImageFromUrl(api, url2, { pageId: activePageId ?? void 0 });
         setAviso(L.brand.logoInserted);
       } catch (e) {
-        setAviso(e instanceof Error ? e.message : "no se pudo insertar");
+        const motivo = motivoDeCarga(e);
+        setAviso(
+          motivo ? L.brand[ETIQUETA_DEL_MOTIVO[motivo]] : e instanceof Error ? e.message : L.brand.insertFailed
+        );
       }
     },
     [api, activePageId]
@@ -3573,9 +3671,10 @@ function InsertPanel({ api, pageId, text = false, labels, families }) {
       "data-preset": preset.key,
       onClick: () => insertTextPreset(api, preset.key, {
         pageId: pageId ?? void 0,
-        fontFamily: preset.key === "body" ? (families == null ? void 0 : families.body) ?? (families == null ? void 0 : families.heading) : (families == null ? void 0 : families.heading) ?? (families == null ? void 0 : families.body)
+        fontFamily: preset.key === "body" ? (families == null ? void 0 : families.body) ?? (families == null ? void 0 : families.heading) : (families == null ? void 0 : families.heading) ?? (families == null ? void 0 : families.body),
+        text: L.text[`${preset.key}Text`]
       }),
-      children: L.sizes[preset.key] ?? preset.label
+      children: textPresetLabel(L, preset.key)
     },
     preset.key
   )) });
@@ -3720,15 +3819,6 @@ const TYPE_ICON = {
   freedraw: DrawIcon,
   frame: FrameIcon
 };
-const TYPE_NAME = {
-  image: "Imagen",
-  rectangle: "Rectángulo",
-  ellipse: "Elipse",
-  diamond: "Rombo",
-  line: "Línea",
-  arrow: "Flecha",
-  freedraw: "Trazo"
-};
 const ALIGN_ICON = {
   left: AlignLeftIcon,
   centerX: AlignCenterHIcon,
@@ -3741,12 +3831,21 @@ function typeIcon(type) {
   const Icon = TYPE_ICON[type] ?? SquareIcon;
   return /* @__PURE__ */ jsx(Icon, {});
 }
-function displayName(el) {
+function displayName(el, L) {
   if (el.type === "text") {
     const t = (el.text ?? "").replace(/\s+/g, " ").trim();
-    return t ? `Texto: ${t.slice(0, 20)}` : "Texto";
+    return t ? L.textWith(t.slice(0, 20)) : L.text;
   }
-  return TYPE_NAME[el.type] ?? el.type;
+  const typeName = {
+    image: L.image,
+    rectangle: L.rectangle,
+    ellipse: L.ellipse,
+    diamond: L.diamond,
+    line: L.line,
+    arrow: L.arrow,
+    freedraw: L.freedraw
+  };
+  return typeName[el.type] ?? el.type;
 }
 function sceneSignature(api, pageId) {
   if (!pageId) return "";
@@ -3763,8 +3862,10 @@ function LayersPanel({
   activePageId,
   theme = "light",
   viewMode = false,
-  embedded = false
+  embedded = false,
+  labels: labelsProp
 }) {
+  const L = mergeLabels(labelsProp);
   const c = palette[theme];
   const [, setTick] = useState(0);
   const sigRef = useRef("");
@@ -3913,14 +4014,14 @@ function LayersPanel({
               borderBottom: `1px solid ${c.border}`
             },
             children: [
-              /* @__PURE__ */ jsx("span", { style: { flex: 1 }, children: embedded ? "" : "Capas" }),
+              /* @__PURE__ */ jsx("span", { style: { flex: 1 }, children: embedded ? "" : L.dock.layers }),
               !viewMode && /* @__PURE__ */ jsx("span", { style: { display: "inline-flex", gap: 2 }, children: PAGE_ALIGNMENTS.map((a) => {
                 const Icon = ALIGN_ICON[a.key];
                 return /* @__PURE__ */ jsx(
                   "button",
                   {
                     type: "button",
-                    title: a.label,
+                    title: L.align[a.key],
                     onClick: () => alignToPage(api, activePageId, a.key),
                     style: {
                       all: "unset",
@@ -3941,7 +4042,7 @@ function LayersPanel({
           }
         ),
         /* @__PURE__ */ jsxs("div", { style: { flex: 1, minHeight: 0, overflowY: "auto", padding: 4 }, children: [
-          rows.length === 0 && /* @__PURE__ */ jsx("div", { style: { padding: 12, fontSize: 12, color: c.sub }, children: "Esta página está vacía." }),
+          rows.length === 0 && /* @__PURE__ */ jsx("div", { style: { padding: 12, fontSize: 12, color: c.sub }, children: L.layers.empty }),
           rows.map((el) => {
             const isSel = !!selected[el.id];
             const hidden = el.opacity === 0;
@@ -3989,23 +4090,23 @@ function LayersPanel({
                         overflow: "hidden",
                         textOverflow: "ellipsis"
                       },
-                      children: displayName(el)
+                      children: displayName(el, L.layers)
                     }
                   ),
                   !viewMode && /* @__PURE__ */ jsxs(Fragment$1, { children: [
-                    el.type === "image" && iconBtn("Usar como fondo", () => setAsBackground(api, el.id, activePageId), /* @__PURE__ */ jsx(CoverIcon, {})),
-                    el.type === "image" && iconBtn("Extender a la página", () => extendToPage(api, el.id, activePageId), /* @__PURE__ */ jsx(StretchIcon, {})),
+                    el.type === "image" && iconBtn(L.layers.useAsBackground, () => setAsBackground(api, el.id, activePageId), /* @__PURE__ */ jsx(CoverIcon, {})),
+                    el.type === "image" && iconBtn(L.layers.extendToPage, () => extendToPage(api, el.id, activePageId), /* @__PURE__ */ jsx(StretchIcon, {})),
                     iconBtn(
-                      hidden ? "Mostrar" : "Ocultar",
+                      hidden ? L.layers.show : L.layers.hide,
                       () => toggleVisibility(el),
                       hidden ? /* @__PURE__ */ jsx(EyeOffIcon, {}) : /* @__PURE__ */ jsx(EyeIcon, {})
                     ),
                     iconBtn(
-                      el.locked ? "Desbloquear" : "Bloquear",
+                      el.locked ? L.layers.unlock : L.layers.lock,
                       () => patch(el.id, { locked: !el.locked }),
                       el.locked ? /* @__PURE__ */ jsx(LockIcon, {}) : /* @__PURE__ */ jsx(UnlockIcon, {})
                     ),
-                    iconBtn("Eliminar", () => remove(el.id), /* @__PURE__ */ jsx(TrashIcon, {}), true)
+                    iconBtn(L.layers.delete, () => remove(el.id), /* @__PURE__ */ jsx(TrashIcon, {}), true)
                   ] })
                 ]
               },
@@ -4020,7 +4121,7 @@ function LayersPanel({
               if (viewMode || !frame || frame.type !== "frame") return;
               setRenamingPage(frame.name ?? "");
             },
-            title: viewMode ? void 0 : "Doble clic para renombrar la página",
+            title: viewMode ? void 0 : L.layers.renameHint,
             style: {
               display: "flex",
               alignItems: "center",
@@ -4062,7 +4163,7 @@ function LayersPanel({
                     fontFamily: PANEL_FONT
                   }
                 }
-              ) : /* @__PURE__ */ jsx("span", { style: { flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }, children: frame && frame.type === "frame" ? frame.name ?? "Página" : "Página" })
+              ) : /* @__PURE__ */ jsx("span", { style: { flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }, children: frame && frame.type === "frame" ? frame.name ?? L.pages.untitled : L.pages.untitled })
             ]
           }
         )
@@ -4301,6 +4402,9 @@ function Canvas2Editor({
     onWorkspaceChange == null ? void 0 : onWorkspaceChange(next);
   };
   const brand = useMemo(() => resolveBrandKit(brandKit), [brandKit]);
+  const L = mergeLabels(labels);
+  const pageNames = useRef(L.pages);
+  pageNames.current = L.pages;
   const allFontOverrides = useMemo(
     () => [...fontOverrides ?? [], ...brand.fontOverrides ?? []],
     [fontOverrides, brand]
@@ -4361,7 +4465,7 @@ ${css}` : css;
   });
   const lastSelectionRef = useRef(null);
   const [initialData] = useState(() => {
-    const base = initialScene ?? (pages ? createBlankScene(pageSize) : null);
+    const base = initialScene ?? (pages ? createBlankScene(pageSize, L.pages) : null);
     return {
       ...base ?? {},
       appState: {
@@ -4398,13 +4502,13 @@ ${css}` : css;
       if (timer) clearTimeout(timer);
       const existing = listPages(api);
       if (existing.length === 0) {
-        const id = addPage(api, pageSize, { capture: "never" });
+        const id = addPage(api, pageSize, { capture: "never", names: pageNames.current });
         goToPage(api, id);
         setActivePageId(id);
         return;
       }
       ensurePagePapers(api, "never");
-      relayoutPages(api, "never");
+      relayoutPages(api, "never", pageNames.current);
       setActivePageId((current) => {
         if (current) return current;
         goToPage(api, existing[0].id);
@@ -4440,7 +4544,7 @@ ${css}` : css;
     const live = apiRef.current;
     if (!live || !didInitPages.current) return;
     ensurePagePapers(live, "never");
-    relayoutPages(live, "never");
+    relayoutPages(live, "never", pageNames.current);
   }, 600);
   useEffect(() => {
     if (!pages || !api || viewMode) return;
@@ -4497,7 +4601,6 @@ ${css}` : css;
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [pages, api]);
-  const L = mergeLabels(labels);
   const workspacePanels = [];
   if (!viewMode && componentsPanel) workspacePanels.push({ id: "components", title: L.components.title, content: componentsPanel });
   if (!viewMode && api) {
@@ -4536,7 +4639,7 @@ ${css}` : css;
   if (!viewMode && api && layers && pages) workspacePanels.push({
     id: "layers",
     title: L.dock.layers,
-    content: /* @__PURE__ */ jsx(LayersPanel, { api, activePageId, theme, embedded: true })
+    content: /* @__PURE__ */ jsx(LayersPanel, { api, activePageId, theme, labels, embedded: true })
   });
   for (const panel of workspacePanels) panel.icon = /* @__PURE__ */ jsx(WorkspaceIcon, { name: panel.id });
   return /* @__PURE__ */ jsx(
@@ -4906,10 +5009,11 @@ export {
   exportScenePng as a7,
   exportSceneSvg as a8,
   exportScenePdf as a9,
-  isVideoElement as aA,
-  getVideoMeta as aB,
-  getSelectedVideo as aC,
-  VIDEO_MARKER as aD,
+  setVideoPoster as aA,
+  isVideoElement as aB,
+  getVideoMeta as aC,
+  getSelectedVideo as aD,
+  VIDEO_MARKER as aE,
   captureThumbnail as aa,
   downloadBlob as ab,
   exportStoredSceneSvg as ac,
@@ -4927,15 +5031,15 @@ export {
   findInlineImageIds as ao,
   isInlineDataUrl as ap,
   dataUrlToBlob as aq,
-  TEXT_PRESETS as ar,
-  insertTextPreset as as,
-  contrastTextColor as at,
-  getPageBackground as au,
-  setPageBackgroundColor as av,
-  ensurePagePapers as aw,
-  isPageBackground as ax,
-  insertVideo as ay,
-  setVideoPoster as az,
+  ImageLoadError as ar,
+  TEXT_PRESETS as as,
+  insertTextPreset as at,
+  contrastTextColor as au,
+  getPageBackground as av,
+  setPageBackgroundColor as aw,
+  ensurePagePapers as ax,
+  isPageBackground as ay,
+  insertVideo as az,
   CanvasMenu as b,
   LibraryPanel as c,
   PageActions as d,
@@ -4962,4 +5066,4 @@ export {
   duplicatePage as y,
   resizePage as z
 };
-//# sourceMappingURL=LibraryPanel-B3bo5izJ.js.map
+//# sourceMappingURL=LibraryPanel-BW3Dg0-B.js.map
