@@ -445,6 +445,98 @@ describe('addPage y el margen de Excalidraw', () => {
   });
 });
 
+/**
+ * El papel ocupa exactamente los límites de su marco, y lo que lo repone en un
+ * diseño guardado (`fitPagePapersInArray`) corre en cada pasada del
+ * normalizador. Para que eso no sea una pelea, ninguna operación de página
+ * puede dejar el papel en otro sitio a propósito.
+ */
+describe('el papel y su marco', () => {
+  const papelDe = (els: any[], pageId: string) =>
+    els.find((e) => e.frameId === pageId && e.customData?.c2 === 'pageBackground');
+  const caja = (e: any) => [e.x, e.y, e.width, e.height];
+
+  it('ninguna operación de página despega el papel de su marco', async () => {
+    const { fitPagePapersInArray, ensurePagePapers } = await import('../src/core/background.js');
+    // Como Excalidraw de verdad: un marco sin hijos sale en (x − 10, y − 10).
+    const real = excalMock.convertToExcalidrawElements;
+    const spy = vi.spyOn(excalMock, 'convertToExcalidrawElements').mockImplementation((skeletons: any[], opts?: unknown) =>
+      real(skeletons, opts).map((el: any) => (el.type === 'frame' ? { ...el, x: el.x - 10, y: el.y - 10 } : el)),
+    );
+    try {
+      const { api, get } = fakeApi([]);
+      const enSuSitio = (paso: string) => {
+        const els = get();
+        for (const pagina of els.filter((e) => e.type === 'frame')) {
+          expect(caja(papelDe(els, pagina.id)), paso).toEqual(caja(pagina));
+        }
+        // Y la función que lo repone no tiene nada que hacer.
+        expect(fitPagePapersInArray(els), paso).toBe(els);
+      };
+
+      const a = addPage(api as any, { width: 1080, height: 1080 });
+      enSuSitio('addPage (primera)');
+      const b = addPage(api as any, { width: 1080, height: 1350 });
+      enSuSitio('addPage (al final)');
+      addPage(api as any, { width: 500, height: 500 }, { beforePageId: a });
+      enSuSitio('addPage (delante)');
+      const copia = duplicatePage(api as any, b) as string;
+      enSuSitio('duplicatePage');
+      movePage(api as any, b, -1);
+      enSuSitio('movePage');
+      movePageTo(api as any, a, 3);
+      enSuSitio('movePageTo');
+      resizePage(api as any, b, { width: 1920, height: 1080 });
+      enSuSitio('resizePage (escalando)');
+      resizePage(api as any, a, { width: 794, height: 1123 }, { scaleContent: false });
+      enSuSitio('resizePage (sin escalar)');
+      deletePage(api as any, copia);
+      enSuSitio('deletePage');
+      setPageLocked(api as any, a, true);
+      enSuSitio('setPageLocked');
+      relayoutPages(api as any, 'never');
+      ensurePagePapers(api as any, 'never');
+      enSuSitio('normalizar');
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('abrir un diseño guardado con el papel descolgado lo devuelve, y no toca nada más', async () => {
+    const { ensurePagePapers } = await import('../src/core/background.js');
+    // El caso real: la segunda página se añadió antes del 11/10 y se guardó con
+    // el marco en (1128, 0) y su papel en (1128, 10).
+    const { api, get, commits } = fakeApi([
+      ordered('a', 0, 0, 0, 1080, 1080, { name: 'Página 1' }),
+      { ...member('papel-a', 'a', 0, 0, 1080, 1080), locked: true, customData: { c2: 'pageBackground' } },
+      member('ma', 'a', 40, 40, 200, 200),
+      ordered('b', 1, 1080 + GAP, 0, 1080, 1080, { name: 'Página 2' }),
+      { ...member('papel-b', 'b', 1080 + GAP, 10, 1080, 1080), locked: true, customData: { c2: 'pageBackground' } },
+      member('mb', 'b', 1080 + GAP + 40, 40, 200, 200),
+    ]);
+    const antes = get();
+    // Lo que hace el editor al abrir y en cada pasada del normalizador.
+    const normalizar = () => {
+      ensurePagePapers(api as any, 'never');
+      relayoutPages(api as any, 'never');
+    };
+
+    normalizar();
+    expect(commits).toHaveLength(1);
+    expect(commits[0].captureUpdate).toBe('NEVER');
+    expect(caja(papelDe(get(), 'b'))).toEqual([1080 + GAP, 0, 1080, 1080]);
+    get().forEach((e: any, i: number) => {
+      if (e.id !== 'papel-b') expect(e).toBe(antes[i]);
+    });
+
+    // Converge: la siguiente pasada no escribe, así que no se dispara a sí misma.
+    const asentada = get();
+    normalizar();
+    expect(commits).toHaveLength(1);
+    expect(get()).toBe(asentada);
+  });
+});
+
 describe('createBlankScene', () => {
   it('la página va en (0, 0) con su papel encima, aunque Excalidraw la mueva por su margen', async () => {
     // Como Excalidraw de verdad: un marco sin hijos sale en (−10, −10) (04/10).

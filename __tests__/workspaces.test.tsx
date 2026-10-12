@@ -96,6 +96,19 @@ describe('workspace switching', () => {
     expect(screen.getByRole('complementary')).toBeTruthy();
   });
 
+  // Excalidraw's Spanish has no string for its frame tool, so the menu entry read
+  // "Frame tool" in a Spanish editor. The stylesheet paints the editor's own label
+  // over it, and reads it from this custom property.
+  it('hands the frame tool label to the stylesheet in the editor language', () => {
+    const { container, rerender } = render(<Canvas2Editor />);
+    const root = () => container.querySelector('[data-canvas2]') as HTMLElement;
+    expect(root().style.getPropertyValue('--c2-frame-tool')).toBe('"Marco"');
+    expect(root().style.getPropertyValue('--c2-find-on-canvas')).toBe('"Buscar en el lienzo"');
+    rerender(<Canvas2Editor labels={{ workspace: { frameTool: 'Frame tool', findOnCanvas: 'Find on canvas' } }} />);
+    expect(root().style.getPropertyValue('--c2-frame-tool')).toBe('"Frame tool"');
+    expect(root().style.getPropertyValue('--c2-find-on-canvas')).toBe('"Find on canvas"');
+  });
+
   it('keeps workspace choices and host insertion slots out of read-only previews', () => {
     render(<Canvas2Editor viewMode library={<div>Assets</div>} componentsPanel={<div>Components</div>}
       agentPanel={<div>Agent conversation</div>} />);

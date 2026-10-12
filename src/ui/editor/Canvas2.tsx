@@ -426,6 +426,9 @@ export function Canvas2Editor({
   // agree on which artboard actions target. It FOLLOWS the user: chip clicks,
   // viewport panning, and selection all update it.
   const [activePageId, setActivePageId] = useState<string | null>(null);
+  // La misma, a mano para los manejadores de teclado, que la leen fuera del render.
+  const activePageIdRef = useRef(activePageId);
+  activePageIdRef.current = activePageId;
 
   /**
    * Imagen que un soltar con Mayúsculas SUSTITUIRÍA, mientras arrastras.
@@ -481,6 +484,18 @@ export function Canvas2Editor({
     // se dispararía sin parar.
   }, [activePageId]);
   const didInitPages = useRef(false);
+  /**
+   * Página a la que hay que llevar la vista al abrir.
+   *
+   * La inicialización de páginas la DECIDE; el salto lo da un efecto, más abajo.
+   * Antes el `goToPage` iba dentro del actualizador de `setActivePageId`, y un
+   * actualizador no es sitio para un efecto: React lo ejecuta mientras
+   * renderiza y, en desarrollo con `StrictMode`, dos veces. El segundo salto
+   * cancelaba la animación del primero, y Excalidraw responde a esa cancelación
+   * con un `setState` suyo —a mitad de un render ajeno—: «Cannot update during
+   * an existing state transition».
+   */
+  const [openingPageId, setOpeningPageId] = useState<string | null>(null);
 
   // Emission hygiene state: skip viewport-only onChange ticks (the elements
   // array reference is stable across them) and remember the last selection to
@@ -556,17 +571,17 @@ export function Canvas2Editor({
       const existing = listPages(api);
       if (existing.length === 0) {
         const id = addPage(api, pageSize, { capture: 'never', names: pageNames.current });
-        goToPage(api, id);
         setActivePageId(id);
+        setOpeningPageId(id);
         return;
       }
       ensurePagePapers(api, 'never');
       relayoutPages(api, 'never', pageNames.current);
-      setActivePageId((current) => {
-        if (current) return current;
-        goToPage(api, existing[0].id);
-        return existing[0].id;
-      });
+      // El actualizador solo decide la página activa —si algo eligió una antes
+      // de llegar aquí, manda esa—; llevar la vista es cosa del efecto de
+      // `openingPageId` (ver su comentario).
+      setActivePageId((current) => current || existing[0].id);
+      setOpeningPageId(existing[0].id);
     };
     /**
      * Reintento acotado en vez de un único plazo.
@@ -608,6 +623,27 @@ export function Canvas2Editor({
       if (timer) clearTimeout(timer);
     };
   }, [pages, api, pageSize, initialData]);
+
+  /**
+   * El salto de apertura: la vista va a la página que decidió la inicialización.
+   *
+   * Corre cuando React ya ha asentado el estado, fuera de todo render y fuera
+   * del ciclo de Excalidraw. Para entonces la página existe aunque se haya
+   * creado en esa misma inicialización (`addPage` escribe la escena en el
+   * acto), y si el editor se desmonta entre medias el efecto no llega a correr:
+   * no queda nada aplazado que cancelar a mano.
+   */
+  useEffect(() => {
+    const live = apiRef.current;
+    if (!live || !openingPageId) return;
+    // Solo si la que se abre es la activa: cuando algo eligió otra página antes
+    // de que la inicialización terminara, la vista se queda donde está.
+    if (activePageId !== openingPageId) return;
+    goToPage(live, openingPageId);
+    // Depende SOLO de la página de apertura, que se fija una vez: con
+    // `activePageId` entre las dependencias, cada vuelta a esa página repetiría
+    // el salto.
+  }, [openingPageId]);
 
   /**
    * Normalización continua de la fila de páginas.
@@ -686,13 +722,18 @@ export function Canvas2Editor({
       const list = listPages(api);
       if (list.length < 2) return;
       ev.preventDefault();
-      setActivePageId((current) => {
-        const idx = Math.max(0, list.findIndex((p) => p.id === current));
-        const step = ev.key === 'PageDown' ? 1 : -1;
-        const next = list[(idx + step + list.length) % list.length];
-        goToPage(api, next.id);
-        return next.id;
-      });
+      // La página siguiente se calcula AQUÍ, en el manejador, y no dentro del
+      // actualizador de `setActivePageId`: llevar la vista es un efecto, y un
+      // actualizador se ejecuta mientras React renderiza (dos veces en
+      // desarrollo). Es el mismo aviso que daba abrir un diseño (ver
+      // `openingPageId`). La referencia se adelanta para que dos pulsaciones
+      // seguidas, antes de que React repinte, avancen dos páginas.
+      const idx = Math.max(0, list.findIndex((p) => p.id === activePageIdRef.current));
+      const step = ev.key === 'PageDown' ? 1 : -1;
+      const next = list[(idx + step + list.length) % list.length];
+      activePageIdRef.current = next.id;
+      setActivePageId(next.id);
+      goToPage(api, next.id);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -724,7 +765,11 @@ export function Canvas2Editor({
       ref={rootRef}
       data-canvas2=""
       data-canvas2-narrow={narrow ? '' : undefined}
-      style={{ position: 'relative', width: '100%', height: '100%' }}
+      // `--c2-frame-tool` y `--c2-find-on-canvas`: los rótulos de dos entradas de
+      // los menús de Excalidraw que su español no traduce; los pinta canvas2.css.
+      style={{ position: 'relative', width: '100%', height: '100%',
+        ['--c2-frame-tool' as string]: JSON.stringify(L.workspace.frameTool),
+        ['--c2-find-on-canvas' as string]: JSON.stringify(L.workspace.findOnCanvas) }}
       // Soltar desde la biblioteca. Se escucha en el envoltorio y no dentro de
       // Excalidraw porque su lienzo ya tiene su propio manejador de drop (para
       // ficheros del sistema) y no admite tipos ajenos.

@@ -59,7 +59,78 @@ export function buildPageBackground(
 }
 
 /**
- * Garantiza el suelo de cada página: que TENGA papel y que el papel esté ABAJO.
+ * Holgura, en px de escena, dentro de la cual papel y marco «coinciden». Es la
+ * misma con la que `packPagesInArray` decide si una página se ha movido: por
+ * debajo de eso es ruido de coma flotante, no un papel descolocado.
+ */
+const PAPER_TOLERANCE = 0.01;
+
+/** ¿Ocupan los dos elementos el mismo rectángulo? */
+function sameBounds(a: SceneElement, b: SceneElement): boolean {
+  // Escrito en positivo a propósito: con un `NaN` en el papel ninguna
+  // comparación se cumple, así que cuenta como descolocado y se repone.
+  return (
+    Math.abs(a.x - b.x) <= PAPER_TOLERANCE &&
+    Math.abs(a.y - b.y) <= PAPER_TOLERANCE &&
+    Math.abs(a.width - b.width) <= PAPER_TOLERANCE &&
+    Math.abs(a.height - b.height) <= PAPER_TOLERANCE
+  );
+}
+
+/**
+ * PURA: devuelve cada papel a los límites exactos de su marco.
+ *
+ * El papel ES la página a la vista —el marco no pinta nada, ver
+ * `buildPageBackground`— y el marco es lo que recorta y lo que se exporta, así
+ * que los dos tienen que ocupar el mismo rectángulo. Todo lo que crea o cambia
+ * una página lo cumple: el papel nace con los límites del marco, `resizePage`
+ * lo estira a los nuevos y mover una página se lleva a sus miembros con ella.
+ * Pero nadie lo REPONÍA: hasta el 11/10 `addPage` y la paginación dejaban el
+ * papel 10 px por debajo de su marco (el margen que Excalidraw pone a un marco
+ * sin hijos), y un diseño guardado así se quedaba así para siempre. Lo mismo un
+ * marco estirado a mano en el lienzo, que Excalidraw redimensiona sin tocar a
+ * sus miembros.
+ *
+ * Solo toca papeles, y solo los que tienen marco: uno suelto, o de un marco que
+ * ya no existe, se queda como está, y a una página sin papel no se le inventa
+ * aquí (eso es cosa de `ensurePagePapers`).
+ *
+ * Devuelve la MISMA referencia cuando no hay nada que mover —como
+ * `packPagesInArray`—, que es lo que permite llamarla en cada pasada del
+ * normalizador sin escribir en la escena.
+ */
+export function fitPagePapersInArray(
+  elements: readonly SceneElement[],
+): readonly SceneElement[] {
+  const frames = new Map<string, SceneElement>();
+  for (const e of elements) {
+    if (e.type === 'frame' && !e.isDeleted) frames.set(e.id, e);
+  }
+  if (frames.size === 0) return elements;
+
+  let next: SceneElement[] | null = null;
+  for (let i = 0; i < elements.length; i += 1) {
+    const e = elements[i];
+    if (!e.frameId || e.isDeleted || !isPageBackground(e)) continue;
+    const frame = frames.get(e.frameId);
+    if (!frame || sameBounds(e, frame)) continue;
+    // Un marco con medidas rotas no es referencia de nada: copiarlas al papel
+    // extendería el daño en vez de arreglarlo.
+    if (![frame.x, frame.y, frame.width, frame.height].every(Number.isFinite)) continue;
+    if (!next) next = elements.slice();
+    next[i] = patchElement(e, {
+      x: frame.x,
+      y: frame.y,
+      width: frame.width,
+      height: frame.height,
+    });
+  }
+  return next ?? elements;
+}
+
+/**
+ * Garantiza el suelo de cada página: que TENGA papel, que el papel esté ABAJO y
+ * que ocupe su marco.
  *
  * Nació como migración de una sola pasada para escenas anteriores al papel, y
  * por eso volvía al primer `return` en cuanto todas las páginas tenían uno. El
@@ -68,8 +139,9 @@ export function buildPageBackground(
  * con la lista incompleta) para que la página se quedara tapada por su propio
  * fondo para siempre, porque nadie volvía a bajarlo.
  *
- * Ahora corre en cada pasada del normalizador y hace las dos mitades —crear el
- * que falte y hundir el que se haya levantado— en un SOLO commit invisible al
+ * Ahora corre en cada pasada del normalizador y hace las tres cosas —crear el
+ * que falte, hundir el que se haya levantado y devolver a su marco el que esté
+ * descolocado (ver `fitPagePapersInArray`)— en un SOLO commit invisible al
  * historial (`capture: 'never'`): es la forma canónica de la escena, no una
  * edición del usuario, y el primer Ctrl+Z tras abrir no debe borrar un papel.
  * Si no hay nada que corregir no commitea nada, que es lo que la hace apta para
@@ -95,9 +167,13 @@ export function ensurePagePapers(
     return members.length > 1 && !isPageBackground(members[0]);
   });
 
-  if (missing.length === 0 && sunk.length === 0) return;
+  // Papeles que no están donde su marco. Va antes de crear los que faltan: esos
+  // nacen ya con los límites del suyo.
+  const fitted = fitPagePapersInArray(elements);
 
-  let combined: readonly SceneElement[] = [...elements];
+  if (missing.length === 0 && sunk.length === 0 && fitted === elements) return;
+
+  let combined: readonly SceneElement[] = [...fitted];
   for (const frame of missing) {
     combined = [...combined, ...buildPageBackground(frame.id, frame, '#ffffff')];
   }

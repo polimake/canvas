@@ -1,6 +1,6 @@
 "use client";
-import { h as packPagesInArray, r as renumberPagesInArray, i as commitElements, j as goToPage, k as buildPersistableFiles } from "./chunks/LibraryPanel-BW3Dg0-B.js";
-import { B, C, a, b, f, n, D, e, a0, ar, L, c, M, U, o, g, d, P, as, aE, u, N, E, W, aa, ak, Q, au, K, q, aq, a as a2, v, ab, y, ax, a9, a7, a8, ad, ac, Y, am, ao, w, J, a3, av, t, aD, aC, an, l, al, af, ag, ah, at, az, ap, ay, H, aB, s, R, m, F, G, O, p, a5, S, a1, a2 as a22, A, x, Z, ai, z, $, aj, a6, _, a4, X, aw, I, aA, ae, T } from "./chunks/LibraryPanel-BW3Dg0-B.js";
+import { h as packPagesInArray, r as renumberPagesInArray, i as commitElements, j as goToPage, k as buildPersistableFiles } from "./chunks/LibraryPanel-CUU1H-E4.js";
+import { B, C, a, b, f, n, D, e, a0, ar, L, c, M, U, o, g, d, P, as, aF, u, N, E, W, aa, ak, Q, au, K, q, aq, a as a2, v, ab, y, ax, a9, a7, a8, ad, ac, Y, am, ao, w, ay, J, a3, av, t, aE, aD, an, l, al, af, ag, ah, at, aA, ap, az, H, aC, s, R, m, F, G, O, p, a5, S, a1, a2 as a22, A, x, Z, ai, z, $, aj, a6, _, a4, X, aw, I, aB, ae, T } from "./chunks/LibraryPanel-CUU1H-E4.js";
 import { P as P2 } from "./chunks/layout-BEpoNps2.js";
 import "@excalidraw/excalidraw/index.css";
 import { convertToExcalidrawElements } from "@excalidraw/excalidraw";
@@ -184,7 +184,7 @@ export {
   d as PageActions,
   P as PageNavigator,
   as as TEXT_PRESETS,
-  aE as VIDEO_MARKER,
+  aF as VIDEO_MARKER,
   u as addPage,
   N as adoptLooseIntoPage,
   E as adoptStrayFramesInArray,
@@ -225,14 +225,15 @@ export {
   ao as findInlineImageIds,
   w as fitAllPages,
   fitImageInBox,
+  ay as fitPagePapersInArray,
   f2 as flattenBezierPath,
   J as focusLayer,
   fontFamilyAlias,
   a3 as fontFamilyId,
   av as getPageBackground,
   t as getPageSize,
-  aD as getSelectedVideo,
-  aC as getVideoMeta,
+  aE as getSelectedVideo,
+  aD as getVideoMeta,
   goToPage,
   g2 as groupStyleRuns,
   an as hasUploadsInFlight,
@@ -243,12 +244,12 @@ export {
   ag as insertImageFromUrl,
   ah as insertImageWithPreview,
   at as insertTextPreset,
-  az as insertVideo,
+  aA as insertVideo,
   instantiateComponent,
   ap as isInlineDataUrl,
-  ay as isPageBackground,
+  az as isPageBackground,
   H as isPageLocked,
-  aB as isVideoElement,
+  aC as isVideoElement,
   h as legacyToScene,
   l2 as listImagePlaceholders,
   s as listPages,
@@ -285,7 +286,7 @@ export {
   X as setAsBackground,
   aw as setPageBackgroundColor,
   I as setPageLocked,
-  aA as setVideoPoster,
+  aB as setVideoPoster,
   s2 as splitPostScriptFont,
   ae as storedScenePageCount,
   T as usePageThumbnails

@@ -115,6 +115,33 @@ function buildPageBackground(pageId, bounds, color2) {
     customData: { c2: BG_MARKER }
   }));
 }
+const PAPER_TOLERANCE = 0.01;
+function sameBounds(a, b) {
+  return Math.abs(a.x - b.x) <= PAPER_TOLERANCE && Math.abs(a.y - b.y) <= PAPER_TOLERANCE && Math.abs(a.width - b.width) <= PAPER_TOLERANCE && Math.abs(a.height - b.height) <= PAPER_TOLERANCE;
+}
+function fitPagePapersInArray(elements) {
+  const frames2 = /* @__PURE__ */ new Map();
+  for (const e of elements) {
+    if (e.type === "frame" && !e.isDeleted) frames2.set(e.id, e);
+  }
+  if (frames2.size === 0) return elements;
+  let next = null;
+  for (let i = 0; i < elements.length; i += 1) {
+    const e = elements[i];
+    if (!e.frameId || e.isDeleted || !isPageBackground(e)) continue;
+    const frame = frames2.get(e.frameId);
+    if (!frame || sameBounds(e, frame)) continue;
+    if (![frame.x, frame.y, frame.width, frame.height].every(Number.isFinite)) continue;
+    if (!next) next = elements.slice();
+    next[i] = patchElement(e, {
+      x: frame.x,
+      y: frame.y,
+      width: frame.width,
+      height: frame.height
+    });
+  }
+  return next ?? elements;
+}
 function ensurePagePapers(api, capture = "never") {
   const elements = api.getSceneElements();
   const frames2 = elements.filter((e) => e.type === "frame");
@@ -127,8 +154,9 @@ function ensurePagePapers(api, capture = "never") {
     const members = elements.filter((e) => e.frameId === f.id);
     return members.length > 1 && !isPageBackground(members[0]);
   });
-  if (missing.length === 0 && sunk.length === 0) return;
-  let combined = [...elements];
+  const fitted = fitPagePapersInArray(elements);
+  if (missing.length === 0 && sunk.length === 0 && fitted === elements) return;
+  let combined = [...fitted];
   for (const frame of missing) {
     combined = [...combined, ...buildPageBackground(frame.id, frame, "#ffffff")];
   }
@@ -1045,7 +1073,9 @@ const DEFAULT_LABELS = {
     advanced: "Experta",
     panels: "Paneles del editor",
     showPanels: "Mostrar paneles",
-    hidePanels: "Ocultar paneles"
+    hidePanels: "Ocultar paneles",
+    frameTool: "Marco",
+    findOnCanvas: "Buscar en el lienzo"
   },
   library: {
     title: "Biblioteca",
@@ -4433,6 +4463,8 @@ ${css}` : css;
   const rootRef = useRef(null);
   const narrow = useIsNarrow(rootRef);
   const [activePageId, setActivePageId] = useState(null);
+  const activePageIdRef = useRef(activePageId);
+  activePageIdRef.current = activePageId;
   const [swapTarget, setSwapTarget] = useState(null);
   const scenePointOf = useCallback(
     (e) => {
@@ -4459,6 +4491,7 @@ ${css}` : css;
     onActivePageChange == null ? void 0 : onActivePageChange(activePageId);
   }, [activePageId]);
   const didInitPages = useRef(false);
+  const [openingPageId, setOpeningPageId] = useState(null);
   const lastEmittedRef = useRef({
     elements: null,
     bg: null
@@ -4503,17 +4536,14 @@ ${css}` : css;
       const existing = listPages(api);
       if (existing.length === 0) {
         const id = addPage(api, pageSize, { capture: "never", names: pageNames.current });
-        goToPage(api, id);
         setActivePageId(id);
+        setOpeningPageId(id);
         return;
       }
       ensurePagePapers(api, "never");
       relayoutPages(api, "never", pageNames.current);
-      setActivePageId((current) => {
-        if (current) return current;
-        goToPage(api, existing[0].id);
-        return existing[0].id;
-      });
+      setActivePageId((current) => current || existing[0].id);
+      setOpeningPageId(existing[0].id);
     };
     const RETRY_MS = 250;
     const DEADLINE_MS = 5e3;
@@ -4540,6 +4570,12 @@ ${css}` : css;
       if (timer) clearTimeout(timer);
     };
   }, [pages, api, pageSize, initialData]);
+  useEffect(() => {
+    const live = apiRef.current;
+    if (!live || !openingPageId) return;
+    if (activePageId !== openingPageId) return;
+    goToPage(live, openingPageId);
+  }, [openingPageId]);
   const normalizePages = useDebouncedCallback(() => {
     const live = apiRef.current;
     if (!live || !didInitPages.current) return;
@@ -4590,13 +4626,12 @@ ${css}` : css;
       const list = listPages(api);
       if (list.length < 2) return;
       ev.preventDefault();
-      setActivePageId((current) => {
-        const idx = Math.max(0, list.findIndex((p) => p.id === current));
-        const step = ev.key === "PageDown" ? 1 : -1;
-        const next = list[(idx + step + list.length) % list.length];
-        goToPage(api, next.id);
-        return next.id;
-      });
+      const idx = Math.max(0, list.findIndex((p) => p.id === activePageIdRef.current));
+      const step = ev.key === "PageDown" ? 1 : -1;
+      const next = list[(idx + step + list.length) % list.length];
+      activePageIdRef.current = next.id;
+      setActivePageId(next.id);
+      goToPage(api, next.id);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -4656,7 +4691,13 @@ ${css}` : css;
           ref: rootRef,
           "data-canvas2": "",
           "data-canvas2-narrow": narrow ? "" : void 0,
-          style: { position: "relative", width: "100%", height: "100%" },
+          style: {
+            position: "relative",
+            width: "100%",
+            height: "100%",
+            ["--c2-frame-tool"]: JSON.stringify(L.workspace.frameTool),
+            ["--c2-find-on-canvas"]: JSON.stringify(L.workspace.findOnCanvas)
+          },
           onDragOverCapture: (e) => {
             if (!onFilesDrop || viewMode) return;
             if (!Array.from(e.dataTransfer.types ?? []).includes("Files")) return;
@@ -5009,11 +5050,12 @@ export {
   exportScenePng as a7,
   exportSceneSvg as a8,
   exportScenePdf as a9,
-  setVideoPoster as aA,
-  isVideoElement as aB,
-  getVideoMeta as aC,
-  getSelectedVideo as aD,
-  VIDEO_MARKER as aE,
+  insertVideo as aA,
+  setVideoPoster as aB,
+  isVideoElement as aC,
+  getVideoMeta as aD,
+  getSelectedVideo as aE,
+  VIDEO_MARKER as aF,
   captureThumbnail as aa,
   downloadBlob as ab,
   exportStoredSceneSvg as ac,
@@ -5038,8 +5080,8 @@ export {
   getPageBackground as av,
   setPageBackgroundColor as aw,
   ensurePagePapers as ax,
-  isPageBackground as ay,
-  insertVideo as az,
+  fitPagePapersInArray as ay,
+  isPageBackground as az,
   CanvasMenu as b,
   LibraryPanel as c,
   PageActions as d,
@@ -5066,4 +5108,4 @@ export {
   duplicatePage as y,
   resizePage as z
 };
-//# sourceMappingURL=LibraryPanel-BW3Dg0-B.js.map
+//# sourceMappingURL=LibraryPanel-CUU1H-E4.js.map

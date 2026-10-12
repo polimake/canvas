@@ -32,6 +32,10 @@ export interface Canvas2Labels {
         panels: string;
         showPanels: string;
         hidePanels: string;
+        /** La herramienta de marcos de «Más herramientas»: Excalidraw no la trae en español. */
+        frameTool: string;
+        /** «Find on canvas» del menú principal: tampoco la trae. */
+        findOnCanvas: string;
     };
     library: {
         title: string;

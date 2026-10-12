@@ -16,7 +16,31 @@ export declare function buildPageBackground(pageId: string, bounds: {
     height: number;
 }, color: string): SceneElement[];
 /**
- * Garantiza el suelo de cada página: que TENGA papel y que el papel esté ABAJO.
+ * PURA: devuelve cada papel a los límites exactos de su marco.
+ *
+ * El papel ES la página a la vista —el marco no pinta nada, ver
+ * `buildPageBackground`— y el marco es lo que recorta y lo que se exporta, así
+ * que los dos tienen que ocupar el mismo rectángulo. Todo lo que crea o cambia
+ * una página lo cumple: el papel nace con los límites del marco, `resizePage`
+ * lo estira a los nuevos y mover una página se lleva a sus miembros con ella.
+ * Pero nadie lo REPONÍA: hasta el 11/10 `addPage` y la paginación dejaban el
+ * papel 10 px por debajo de su marco (el margen que Excalidraw pone a un marco
+ * sin hijos), y un diseño guardado así se quedaba así para siempre. Lo mismo un
+ * marco estirado a mano en el lienzo, que Excalidraw redimensiona sin tocar a
+ * sus miembros.
+ *
+ * Solo toca papeles, y solo los que tienen marco: uno suelto, o de un marco que
+ * ya no existe, se queda como está, y a una página sin papel no se le inventa
+ * aquí (eso es cosa de `ensurePagePapers`).
+ *
+ * Devuelve la MISMA referencia cuando no hay nada que mover —como
+ * `packPagesInArray`—, que es lo que permite llamarla en cada pasada del
+ * normalizador sin escribir en la escena.
+ */
+export declare function fitPagePapersInArray(elements: readonly SceneElement[]): readonly SceneElement[];
+/**
+ * Garantiza el suelo de cada página: que TENGA papel, que el papel esté ABAJO y
+ * que ocupe su marco.
  *
  * Nació como migración de una sola pasada para escenas anteriores al papel, y
  * por eso volvía al primer `return` en cuanto todas las páginas tenían uno. El
@@ -25,8 +49,9 @@ export declare function buildPageBackground(pageId: string, bounds: {
  * con la lista incompleta) para que la página se quedara tapada por su propio
  * fondo para siempre, porque nadie volvía a bajarlo.
  *
- * Ahora corre en cada pasada del normalizador y hace las dos mitades —crear el
- * que falte y hundir el que se haya levantado— en un SOLO commit invisible al
+ * Ahora corre en cada pasada del normalizador y hace las tres cosas —crear el
+ * que falte, hundir el que se haya levantado y devolver a su marco el que esté
+ * descolocado (ver `fitPagePapersInArray`)— en un SOLO commit invisible al
  * historial (`capture: 'never'`): es la forma canónica de la escena, no una
  * edición del usuario, y el primer Ctrl+Z tras abrir no debe borrar un papel.
  * Si no hay nada que corregir no commitea nada, que es lo que la hace apta para

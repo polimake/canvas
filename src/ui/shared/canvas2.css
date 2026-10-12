@@ -208,6 +208,37 @@
   display: none !important;
 }
 
+/* «Frame tool» y «Find on canvas» no están en el español de Excalidraw y
+   salían en inglés con el editor en español. No hay prop para cambiar un
+   rótulo suyo: se esconde el texto y se pinta el del editor
+   (`labels.workspace.frameTool` y `findOnCanvas`), que llega en una variable. */
+[data-canvas2] [data-testid="search-menu-button"] .dropdown-menu-item__text {
+  font-size: 0;
+  gap: 0;
+}
+[data-canvas2] [data-testid="search-menu-button"] .dropdown-menu-item__text::after {
+  content: var(--c2-find-on-canvas, "Find on canvas");
+  font-size: 0.875rem;
+}
+[data-canvas2] [data-testid="toolbar-frame"] .dropdown-menu-item__text {
+  font-size: 0;
+  /* La celda es un flex con hueco entre sus hijos: sin esto el rótulo salía
+     diez píxeles a la derecha de los demás. */
+  gap: 0;
+}
+[data-canvas2] [data-testid="toolbar-frame"] .dropdown-menu-item__text::after {
+  content: var(--c2-frame-tool, "Frame tool");
+  font-size: 0.875rem;
+}
+
+/* Los botones de la página (duplicar, bloquear, eliminar) van por encima de
+   toda la capa de Excalidraw, y con ella de sus menús: abierto «Más
+   herramientas», que cae justo sobre la esquina de la página, se pintaban
+   encima de sus entradas. Mientras haya un menú abierto, se apartan. */
+[data-canvas2]:has(.dropdown-menu) [data-testid="canvas2-page-actions"] {
+  visibility: hidden;
+}
+
 /* Advanced keeps document colors intact: in the dark theme the canvas is not
    inverted, only the editor chrome around it changes. */
 .canvas2-workspace[data-workspace="advanced"] .excalidraw canvas { filter: none !important; }

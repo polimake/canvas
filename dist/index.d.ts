@@ -60,7 +60,7 @@ export type { ComponentElement, ComponentFileEntry, ComponentFragment, Component
 export { insertComponentIntoScene, extractPageForComponent } from './core/insertComponent';
 export { TEXT_PRESETS, insertTextPreset, contrastTextColor } from './core/text';
 export type { TextPreset, TextPresetKey } from './core/text';
-export { getPageBackground, setPageBackgroundColor, ensurePagePapers, isPageBackground, } from './core/background';
+export { getPageBackground, setPageBackgroundColor, ensurePagePapers, fitPagePapersInArray, isPageBackground, } from './core/background';
 export { insertVideo, setVideoPoster, isVideoElement, getVideoMeta, getSelectedVideo, VIDEO_MARKER, } from './core/video';
 export type { VideoMeta, InsertVideoOptions } from './core/video';
 //# sourceMappingURL=index.d.ts.map

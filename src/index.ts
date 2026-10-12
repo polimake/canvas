@@ -231,6 +231,9 @@ export {
   getPageBackground,
   setPageBackgroundColor,
   ensurePagePapers,
+  // PURA: el papel de cada página, a los límites de su marco. `ensurePagePapers`
+  // ya la aplica; se exporta para quien trate una escena sin montar el editor.
+  fitPagePapersInArray,
   isPageBackground,
 } from './core/background';
 

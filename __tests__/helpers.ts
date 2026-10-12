@@ -58,6 +58,8 @@ export interface FakeApi {
   /** Every updateScene payload, in order — for single-undo-entry assertions. */
   commits: Commit[];
   setSelected: (ids: string[]) => void;
+  /** Fuerza una notificación sin cambiar nada (paneo, zoom). */
+  notify: () => void;
 }
 
 export function fakeApi(initial: any[], initialFiles: Record<string, any> = {}): FakeApi {
