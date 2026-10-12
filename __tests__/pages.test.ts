@@ -506,13 +506,18 @@ describe('el papel y su marco', () => {
     const { ensurePagePapers } = await import('../src/core/background.js');
     // El caso real: la segunda página se añadió antes del 11/10 y se guardó con
     // el marco en (1128, 0) y su papel en (1128, 10).
+    //
+    // Cada página va con la forma de una viva —miembros primero, marco al final
+    // (`pageElementsInOrder`)— para que lo ÚNICO que haya que corregir sea el
+    // papel. El diseño que además trae el marco delante de los suyos (issue
+    // #103) se prueba en background.test.ts: ahí se corrigen las dos cosas.
     const { api, get, commits } = fakeApi([
-      ordered('a', 0, 0, 0, 1080, 1080, { name: 'Página 1' }),
       { ...member('papel-a', 'a', 0, 0, 1080, 1080), locked: true, customData: { c2: 'pageBackground' } },
       member('ma', 'a', 40, 40, 200, 200),
-      ordered('b', 1, 1080 + GAP, 0, 1080, 1080, { name: 'Página 2' }),
+      ordered('a', 0, 0, 0, 1080, 1080, { name: 'Página 1' }),
       { ...member('papel-b', 'b', 1080 + GAP, 10, 1080, 1080), locked: true, customData: { c2: 'pageBackground' } },
       member('mb', 'b', 1080 + GAP + 40, 40, 200, 200),
+      ordered('b', 1, 1080 + GAP, 0, 1080, 1080, { name: 'Página 2' }),
     ]);
     const antes = get();
     // Lo que hace el editor al abrir y en cada pasada del normalizador.

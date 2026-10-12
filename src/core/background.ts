@@ -139,9 +139,10 @@ export function fitPagePapersInArray(
  * con la lista incompleta) para que la página se quedara tapada por su propio
  * fondo para siempre, porque nadie volvía a bajarlo.
  *
- * Ahora corre en cada pasada del normalizador y hace las tres cosas —crear el
- * que falte, hundir el que se haya levantado y devolver a su marco el que esté
- * descolocado (ver `fitPagePapersInArray`)— en un SOLO commit invisible al
+ * Ahora corre en cada pasada del normalizador y hace las cuatro cosas —crear el
+ * que falte, hundir el que se haya levantado, devolver a su marco el que esté
+ * descolocado (ver `fitPagePapersInArray`) y pasar detrás de sus miembros el
+ * marco guardado delante (ver `frameBeforeMembers`)— en un SOLO commit invisible al
  * historial (`capture: 'never'`): es la forma canónica de la escena, no una
  * edición del usuario, y el primer Ctrl+Z tras abrir no debe borrar un papel.
  * Si no hay nada que corregir no commitea nada, que es lo que la hace apta para
@@ -171,11 +172,48 @@ export function ensurePagePapers(
   // nacen ya con los límites del suyo.
   const fitted = fitPagePapersInArray(elements);
 
-  if (missing.length === 0 && sunk.length === 0 && fitted === elements) return;
+  /**
+   * Páginas guardadas con la convención VIEJA: el marco delante de sus
+   * miembros. Excalidraw inserta lo que lleva `frameId` en el hueco del marco
+   * (`Scene.insertElement`), así que en esas escenas un texto pegado —o creado
+   * con la T— caía DELANTE del papel opaco y nacía invisible (issue #103).
+   *
+   * Los 1.271 diseños ya guardados tienen esa forma, y el arreglo de
+   * `pageElementsInOrder` solo cubre las páginas nuevas. Aquí se migran al
+   * abrirlas: mover el marco detrás de los suyos no cambia nada de lo que se
+   * ve —el marco no pinta— pero devuelve su sentido al hueco de inserción.
+   */
+  const frameBeforeMembers = frames.filter((f) => {
+    const frameAt = elements.indexOf(f);
+    if (frameAt < 0) return false;
+    return elements.some((e, i) => e.frameId === f.id && i > frameAt);
+  });
+
+  if (
+    missing.length === 0 &&
+    sunk.length === 0 &&
+    frameBeforeMembers.length === 0 &&
+    fitted === elements
+  ) {
+    return;
+  }
 
   let combined: readonly SceneElement[] = [...fitted];
   for (const frame of missing) {
     combined = [...combined, ...buildPageBackground(frame.id, frame, '#ffffff')];
+  }
+  // Recolocar cada marco tras sus miembros, sin tocar el orden relativo de
+  // nadie más: se saca el marco de su hueco y se reinserta justo después del
+  // último de los suyos.
+  for (const frame of frameBeforeMembers) {
+    const rest = combined.filter((e) => e.id !== frame.id);
+    let lastMember = -1;
+    rest.forEach((e, i) => {
+      if (e.frameId === frame.id) lastMember = i;
+    });
+    const self = combined.find((e) => e.id === frame.id);
+    if (!self || lastMember < 0) continue;
+    combined = [...rest.slice(0, lastMember + 1), self, ...rest.slice(lastMember + 1)];
   }
   // Una sola pasada por página: `reorderMembersInArray` hunde el papel de
   // oficio (ver `floorFirst` en zorder.ts), así que basta con nombrarla.

@@ -48,8 +48,11 @@ export interface CanvasMenuProps {
      */
     fontFaces?: readonly SvgFontFace[];
     /**
-     * Familias de marca por rol, para que "Insertar texto" nazca ya en la
-     * tipografía del cliente. Las resuelve `Canvas2Editor` desde el brand kit.
+     * Familias de marca por rol. Las usaba el grupo «Insertar texto» de este menú,
+     * que se ha ido a la pestaña Texto del panel (ver más abajo).
+     *
+     * @deprecated Se acepta y no hace nada: la prop se conserva para que quien ya
+     * la pasa siga compilando. Las familias de marca van por `InsertPanel`.
      */
     brandFamilies?: {
         heading: string | null;
@@ -60,5 +63,5 @@ export interface CanvasMenuProps {
     /** Textos, inyectados por el host (ver labels.ts). */
     labels?: PartialLabels;
 }
-export declare function CanvasMenu({ pages: pageMode, workspace, onWorkspaceChange, api, activePageId, viewMode, hydrateFiles, fontFaces, brandFamilies, onSaveComponent, labels: labelsProp, }: CanvasMenuProps): import("react").JSX.Element;
+export declare function CanvasMenu({ pages: pageMode, workspace, onWorkspaceChange, api, activePageId, viewMode, hydrateFiles, fontFaces, onSaveComponent, labels: labelsProp, }: CanvasMenuProps): import("react").JSX.Element;
 //# sourceMappingURL=CanvasMenu.d.ts.map

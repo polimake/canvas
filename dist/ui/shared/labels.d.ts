@@ -131,6 +131,8 @@ export interface Canvas2Labels {
     layers: {
         /** La página activa no tiene ningún elemento. */
         empty: string;
+        /** Rótulo de la fila de alinear cuando el panel va empotrado en una pestaña. */
+        align: string;
         image: string;
         rectangle: string;
         ellipse: string;
@@ -210,6 +212,14 @@ export interface Canvas2Labels {
     };
     /** Nombres de los tamaños de página, por clave de preset. */
     sizes: Record<string, string>;
+    /** Selector de modo (Ver · Comentar · Editar) del host. */
+    mode: {
+        group: string;
+        view: string;
+        comment: string;
+        edit: string;
+        done: string;
+    };
 }
 export declare const DEFAULT_LABELS: Canvas2Labels;
 /**

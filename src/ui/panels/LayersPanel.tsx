@@ -246,14 +246,18 @@ export function LayersPanel({
       style={{
         all: 'unset',
         cursor: 'pointer',
-        display: 'inline-flex',
-        alignItems: 'center',
+        display: 'inline-grid',
+        placeItems: 'center',
         lineHeight: 1,
-        padding: '3px 3px',
-        borderRadius: 4,
-        color: danger ? c.danger : 'inherit',
-        opacity: 0.8,
+        width: 26,
+        height: 26,
+        borderRadius: 999,
+        // Gris como las demás; el rojo solo al apuntar (ver workspaces.css).
+        color: c.sub,
+        ['--layer-danger' as string]: c.danger,
       }}
+      data-danger={danger ? '' : undefined}
+      className="canvas2-layer-btn"
     >
       {node}
     </button>
@@ -304,21 +308,22 @@ export function LayersPanel({
         style={{
           display: 'flex',
           alignItems: 'center',
-          padding: '8px 12px',
-          fontSize: 12,
+          gap: 8,
+          padding: embedded ? '0 0 12px' : '8px 12px',
+          fontSize: 11,
           fontWeight: 600,
           color: c.sub,
-          borderBottom: `1px solid ${c.border}`,
         }}
       >
         {/* Empotrado, el rótulo lo pone la pestaña del dock: repetirlo dejaba
             "Capas" dos veces, una encima de la otra. La fila se queda por los
             botones de alinear, que sí son de aquí. */}
-        <span style={{ flex: 1 }}>{embedded ? '' : L.dock.layers}</span>
+        <span style={{ flex: 1 }}>{embedded ? L.layers.align : L.dock.layers}</span>
         {/* Align the current selection to the PAGE (Excalidraw's native align
             needs 2+ elements; to-artboard alignment is our overlay). */}
         {!viewMode && (
-        <span style={{ display: 'inline-flex', gap: 2 }}>
+        // Una píldora de seis botones, como un control segmentado.
+        <span style={{ display: 'inline-flex', gap: 0, padding: 2, borderRadius: 999, background: c.hover }}>
           {PAGE_ALIGNMENTS.map((a) => {
             const Icon = ALIGN_ICON[a.key];
             return (
@@ -330,13 +335,15 @@ export function LayersPanel({
                 style={{
                   all: 'unset',
                   cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
+                  display: 'inline-grid',
+                  placeItems: 'center',
                   lineHeight: 1,
-                  padding: '2px 3px',
-                  borderRadius: 4,
-                  opacity: 0.8,
+                  width: 28,
+                  height: 26,
+                  borderRadius: 999,
+                  color: c.fg,
                 }}
+                className="canvas2-layer-btn"
               >
                 <Icon />
               </button>
@@ -347,9 +354,9 @@ export function LayersPanel({
       </div>
       )}
 
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 4 }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: embedded ? 0 : 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
         {rows.length === 0 && (
-          <div style={{ padding: 12, fontSize: 12, color: c.sub }}>
+          <div style={{ padding: '28px 12px', fontSize: 12, color: c.sub, textAlign: 'center', borderRadius: 14, background: c.hover }}>
             {L.layers.empty}
           </div>
         )}
@@ -369,19 +376,23 @@ export function LayersPanel({
                 if (!viewMode) handleDrop(el.id);
               }}
               onClick={() => selectOnCanvas(el.id)}
+              className="canvas2-layer-row"
+              data-selected={isSel ? '' : undefined}
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 6,
+                gap: 10,
                 padding: '5px 6px',
-                borderRadius: 8,
+                borderRadius: 12,
                 cursor: 'pointer',
-                background: isSel ? c.active : 'transparent',
-                color: isSel ? c.activeFg : c.fg,
-                opacity: hidden ? 0.5 : 1,
+                // Seleccionada = relleno cálido y peso, no una losa de tinta:
+                // la lista se lee de un vistazo sin que una fila grite.
+                background: isSel ? c.hover : 'transparent',
+                color: c.fg,
+                opacity: hidden ? 0.45 : 1,
               }}
             >
-              <span style={{ width: 16, height: 16, display: 'inline-flex', justifyContent: 'center', alignItems: 'center' }}>
+              <span style={{ width: 32, height: 32, flexShrink: 0, display: 'inline-grid', placeItems: 'center', borderRadius: 8, overflow: 'hidden', background: c.hover, color: c.sub }}>
                 {/* La miniatura de la propia imagen en vez del icono genérico:
                     en una escena con decenas de capas es lo único que permite
                     saber CUÁL es cuál sin ir pinchando una por una. */}
@@ -390,7 +401,7 @@ export function LayersPanel({
                     src={thumb(el)}
                     alt=""
                     draggable={false}
-                    style={{ width: 16, height: 16, objectFit: 'cover', borderRadius: 3, display: 'block' }}
+                    style={{ width: 32, height: 32, objectFit: 'cover', display: 'block' }}
                   />
                 ) : (
                   typeIcon(el.type)
@@ -400,7 +411,8 @@ export function LayersPanel({
                 style={{
                   flex: 1,
                   minWidth: 0,
-                  fontSize: 12,
+                  fontSize: 13,
+                  fontWeight: isSel ? 600 : 400,
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
@@ -410,7 +422,9 @@ export function LayersPanel({
               </span>
 
               {!viewMode && (
-                <>
+                // Las acciones salen al pasar por la fila (o si está elegida):
+                // cinco iconos en cada fila, siempre, eran el ruido del panel.
+                <span className="canvas2-layer-actions" style={{ display: 'inline-flex', flexShrink: 0 }}>
                   {el.type === 'image' &&
                     iconBtn(L.layers.useAsBackground, () => setAsBackground(api, el.id, activePageId), <CoverIcon />)}
                   {el.type === 'image' &&
@@ -427,7 +441,7 @@ export function LayersPanel({
                     el.locked ? <LockIcon /> : <UnlockIcon />,
                   )}
                   {iconBtn(L.layers.delete, () => remove(el.id), <TrashIcon />, true)}
-                </>
+                </span>
               )}
             </div>
           );
@@ -444,9 +458,11 @@ export function LayersPanel({
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 6,
-          padding: '8px 10px',
-          borderTop: `1px solid ${c.border}`,
+          gap: 10,
+          marginTop: 10,
+          padding: '8px 12px',
+          borderRadius: 999,
+          background: c.hover,
           fontSize: 12,
           color: c.sub,
           cursor: 'default',
@@ -474,10 +490,10 @@ export function LayersPanel({
             style={{
               flex: 1,
               minWidth: 0,
-              padding: '2px 6px',
-              borderRadius: 6,
-              border: `1px solid ${c.border}`,
-              background: 'transparent',
+              padding: '2px 8px',
+              borderRadius: 999,
+              border: 'none',
+              background: c.bg,
               color: c.fg,
               fontSize: 12,
               fontFamily: PANEL_FONT,
@@ -492,5 +508,3 @@ export function LayersPanel({
     </div>
   );
 }
-
-export default LayersPanel;

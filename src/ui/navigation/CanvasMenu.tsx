@@ -4,11 +4,10 @@ import { useEffect, useRef, useState } from 'react';
 import { MainMenu, type ExcalidrawImperativeAPI } from '../../core/excal';
 import { listPages, goToPage, type PageInfo } from '../../core/pages';
 import { convertToPages, looseElements } from '../../core/paginate';
-import { TEXT_PRESETS, insertTextPreset } from '../../core/text';
 import { exportScenePng, exportSceneSvg, exportScenePdf, downloadBlob } from '../../core/export';
 import type { FilesMap } from '../hooks/pageThumbnails';
 import type { SvgFontFace } from '../../core/svgFonts';
-import { mergeLabels, textPresetLabel, type PartialLabels } from '../shared/labels';
+import { mergeLabels, type PartialLabels } from '../shared/labels';
 import type { CanvasWorkspace } from '../workspaces/types';
 
 /**
@@ -55,8 +54,11 @@ export interface CanvasMenuProps {
    */
   fontFaces?: readonly SvgFontFace[];
   /**
-   * Familias de marca por rol, para que "Insertar texto" nazca ya en la
-   * tipografía del cliente. Las resuelve `Canvas2Editor` desde el brand kit.
+   * Familias de marca por rol. Las usaba el grupo «Insertar texto» de este menú,
+   * que se ha ido a la pestaña Texto del panel (ver más abajo).
+   *
+   * @deprecated Se acepta y no hace nada: la prop se conserva para que quien ya
+   * la pasa siga compilando. Las familias de marca van por `InsertPanel`.
    */
   brandFamilies?: { heading: string | null; body: string | null };
   /** "Guardar página como componente" — la subida la hace el host. */
@@ -79,7 +81,6 @@ export function CanvasMenu({
   viewMode = false,
   hydrateFiles,
   fontFaces,
-  brandFamilies,
   onSaveComponent,
   labels: labelsProp,
 }: CanvasMenuProps) {
@@ -232,34 +233,8 @@ export function CanvasMenu({
         </MainMenu.Item>
       )}
 
-      {!viewMode && (
-        <MainMenu.Group title={L.menu.insertText}>
-          {TEXT_PRESETS.map((preset) => (
-            <MainMenu.Item
-              key={preset.key}
-              shortcut={`${preset.fontSize}px`}
-              textStyle={{
-                fontSize: preset.key === 'heading' ? 15 : preset.key === 'subheading' ? 13 : 12,
-                fontWeight: preset.key === 'body' ? 400 : 700,
-              }}
-              onSelect={() =>
-                insertTextPreset(api, preset.key, {
-                  pageId: activePageId ?? undefined,
-                  // El cuerpo usa la tipografía de texto; título y subtítulo, la
-                  // de titulares — con respaldo cruzado si la marca solo trae una.
-                  fontFamily:
-                    preset.key === 'body'
-                      ? brandFamilies?.body ?? brandFamilies?.heading
-                      : brandFamilies?.heading ?? brandFamilies?.body,
-                  text: L.text[`${preset.key}Text` as const],
-                })
-              }
-            >
-              {textPresetLabel(L, preset.key)}
-            </MainMenu.Item>
-          ))}
-        </MainMenu.Group>
-      )}
+      {/* «Insertar texto» (título, subtítulo, cuerpo) vivía también aquí, repetido
+          con la pestaña Texto del panel de la derecha. Se queda solo allí. */}
 
       {/* La página activa pasa a la biblioteca de componentes del proyecto.
           Solo si el host lo cablea: sin API donde guardar, sin entrada. */}

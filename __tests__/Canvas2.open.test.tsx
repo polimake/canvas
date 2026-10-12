@@ -62,14 +62,21 @@ const papel = (id: string, frameId: string, x: number, y: number, width: number,
 const pagina = (id: string, index: number, x: number) =>
   frame(id, x, 0, 1080, 1080, { name: `Página ${index + 1}`, customData: { c2page: { index } } });
 
-/** Dos páginas en su sitio, cada una con su papel y una capa encima. */
+/**
+ * Dos páginas en su sitio, cada una con su papel y una capa encima.
+ *
+ * Con la forma de una página viva: miembros primero y el marco al final (ver
+ * `pageElementsInOrder`). Con el marco delante, abrir tendría algo que
+ * escribir —lo pasa detrás de los suyos (issue #103)— y las pruebas de «abrir
+ * no escribe nada» dejarían de medir lo que dicen.
+ */
 const dosPaginas = () => [
-  pagina('a', 0, 0),
   papel('papel-a', 'a', 0, 0, 1080, 1080),
   member('capa-a', 'a', 40, 40, 200, 200),
-  pagina('b', 1, 1128),
+  pagina('a', 0, 0),
   papel('papel-b', 'b', 1128, 0, 1080, 1080),
   member('capa-b', 'b', 1168, 40, 200, 200),
+  pagina('b', 1, 1128),
 ];
 
 /** Lo que React ha dicho por consola, en una línea por aviso. */
@@ -114,6 +121,33 @@ describe('abrir un diseño', () => {
     expect(saltos).toEqual(['a']);
   });
 
+  it('con `initialPageIndex` la vista va a ESA página, también una sola vez y fuera del render', () => {
+    // La página en la que se abre la elige el host, pero el salto sigue saliendo
+    // del efecto y no del actualizador de estado: ni se repite ni avisa React.
+    const escena = dosPaginas();
+    engine = fakeApi(escena);
+    render(
+      <StrictMode>
+        <Canvas2Editor pages initialPageIndex={1} initialScene={{ elements: escena } as never} />
+      </StrictMode>,
+    );
+    act(() => hidratar());
+    expect(saltos).toEqual(['b']);
+    expect(avisos(errores).filter((linea: string) => linea.includes(AVISO))).toEqual([]);
+    // Fuera de rango se acota a la última, como siempre.
+    cleanup();
+    saltos = [];
+    engine = fakeApi(escena);
+    render(
+      <StrictMode>
+        <Canvas2Editor pages initialPageIndex={8} initialScene={{ elements: escena } as never} />
+      </StrictMode>,
+    );
+    act(() => hidratar());
+    expect(saltos).toEqual(['b']);
+    expect(engine.commits).toEqual([]);
+  });
+
   it('no pierde el salto cuando la página se crea en ese mismo arranque', () => {
     // Una escena con contenido pero sin ninguna página: la inicialización crea
     // la primera, y el salto —que ya no es inmediato— tiene que encontrarla.
@@ -156,6 +190,37 @@ describe('abrir un diseño', () => {
     engine.get().forEach((e, i) => {
       if (e.id !== 'papel-b') expect(e).toBe(escena[i]);
     });
+  });
+
+  it('un diseño de antes —marco delante de los suyos y papel descolgado— se arregla en UN commit, sin entrada de deshacer', () => {
+    vi.useFakeTimers();
+    // Las dos formas viejas a la vez: `[marco, papel, capa]` (issue #103) y, en
+    // la segunda página, el papel 10 px por debajo de su marco (antes del 11/10).
+    const escena = [
+      pagina('a', 0, 0),
+      papel('papel-a', 'a', 0, 0, 1080, 1080),
+      member('capa-a', 'a', 40, 40, 200, 200),
+      pagina('b', 1, 1128),
+      papel('papel-b', 'b', 1128, 10, 1080, 1080),
+      member('capa-b', 'b', 1168, 40, 200, 200),
+    ];
+    abrir(escena);
+    const por = (id: string) => engine.get().find((e) => e.id === id);
+    expect(engine.commits.map((c) => c.captureUpdate)).toEqual(['NEVER']);
+    // Cada página queda como una viva: papel, contenido y, al final, su marco.
+    expect(engine.get().map((e) => e.id)).toEqual(['papel-a', 'capa-a', 'a', 'papel-b', 'capa-b', 'b']);
+    expect([por('papel-b').x, por('papel-b').y, por('papel-b').width, por('papel-b').height])
+      .toEqual([por('b').x, por('b').y, por('b').width, por('b').height]);
+    // Solo cambia el papel descolgado: lo demás son los mismos objetos de antes.
+    for (const e of engine.get()) {
+      if (e.id !== 'papel-b') expect(e).toBe(escena.find((o) => o.id === e.id));
+    }
+    // Y ahí se queda: el normalizador, que corre tras ese cambio, no escribe más.
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+    expect(engine.commits).toHaveLength(1);
+    expect(saltos).toEqual(['a']);
   });
 
   it('con cada papel en su marco, abrir no escribe nada en la escena', () => {

@@ -55,6 +55,24 @@ describe('usePageThumbnails', () => {
     expect(exportScenePng).toHaveBeenCalledTimes(1);
   });
 
+  it('sin cambios en la escena, el latido no vuelve a renderizar al consumidor', async () => {
+    const { api } = fakeApi([frame('a', 0, 0, 500, 500)]);
+    let renders = 0;
+    const { result } = renderHook(() => {
+      renders += 1;
+      return usePageThumbnails(api as never, { enabled: true });
+    });
+    await waitFor(() => expect(Object.keys(result.current)).toHaveLength(1));
+    const thumbs = result.current;
+    const before = renders;
+    // Cinco latidos sin tocar nada: antes cada uno guardaba un objeto nuevo.
+    await act(async () => {
+      vi.advanceTimersByTime(3_000);
+    });
+    expect(result.current).toBe(thumbs);
+    expect(renders).toBe(before);
+  });
+
   /**
    * EL FALLO QUE ESTE FICHERO EXISTE PARA IMPEDIR.
    *

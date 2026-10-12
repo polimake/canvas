@@ -49,9 +49,10 @@ export declare function fitPagePapersInArray(elements: readonly SceneElement[]):
  * con la lista incompleta) para que la página se quedara tapada por su propio
  * fondo para siempre, porque nadie volvía a bajarlo.
  *
- * Ahora corre en cada pasada del normalizador y hace las tres cosas —crear el
- * que falte, hundir el que se haya levantado y devolver a su marco el que esté
- * descolocado (ver `fitPagePapersInArray`)— en un SOLO commit invisible al
+ * Ahora corre en cada pasada del normalizador y hace las cuatro cosas —crear el
+ * que falte, hundir el que se haya levantado, devolver a su marco el que esté
+ * descolocado (ver `fitPagePapersInArray`) y pasar detrás de sus miembros el
+ * marco guardado delante (ver `frameBeforeMembers`)— en un SOLO commit invisible al
  * historial (`capture: 'never'`): es la forma canónica de la escena, no una
  * edición del usuario, y el primer Ctrl+Z tras abrir no debe borrar un papel.
  * Si no hay nada que corregir no commitea nada, que es lo que la hace apta para

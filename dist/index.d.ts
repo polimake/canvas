@@ -1,6 +1,7 @@
 export { Canvas2Editor, Canvas2, default } from './ui/editor/Canvas2';
 export type { Canvas2EditorProps, Canvas2Scene, Canvas2Api } from './ui/editor/Canvas2';
 export type { CanvasWorkspace } from './ui/workspaces/types';
+export type { Canvas2Mode, Canvas2ModeControl } from './ui/navigation/ModeSwitch';
 export { MEDIA_DROP_TYPE } from './ui/editor/Canvas2';
 export { PageNavigator } from './ui/navigation/PageNavigator';
 export type { PageNavigatorProps } from './ui/navigation/PageNavigator';
@@ -52,7 +53,7 @@ export type { LibraryPanelProps } from './ui/panels/LibraryPanel';
 export { serializeScene, parseScene, restoreScene } from './core/serialize';
 export type { StoredScene } from './core/serialize';
 export { exportScenePng, exportSceneSvg, exportScenePdf, captureThumbnail, downloadBlob, exportStoredSceneSvg, exportStoredScenePng, storedScenePageCount, } from './core/export';
-export type { ExportOptions } from './core/export';
+export type { ExportOptions, ImageExportOptions } from './core/export';
 export { insertImageFromBlob, insertImageFromUrl, insertImageWithPreview, replaceImageFromUrl, resolveInsertPageId, cascadePoints, imageAtScenePoint, externalizeInlineImages, hasUploadsInFlight, buildPersistableFiles, findInlineImageIds, isInlineDataUrl, dataUrlToBlob, ImageLoadError, } from './core/media';
 export type { InsertImageOptions, ImageLoadFailure, ImageHit, MediaUploader, FileEntry, ExternalizeResult, PersistableFiles, } from './core/media';
 export { cloneSceneElements, listSlots, deriveComponentMeta, extractComponentFragment, instantiateComponent, appendComponentToEditorConfig, measureWrappedText, fitImageInBox, } from './core/components';

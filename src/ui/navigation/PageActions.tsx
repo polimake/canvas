@@ -171,9 +171,8 @@ export function PageActions({
         padding: 1,
         borderRadius: 6,
         // Discreta a propósito: acompaña al nombre de la página, no compite con
-        // él. Sin sombra y con el mismo gris del rótulo del marco.
-        background: c.bg,
-        border: `1px solid ${c.border}`,
+        // él. Sin caja: iconos sueltos con el gris del rótulo del marco.
+        background: 'transparent',
         color: c.sub,
         fontFamily: PANEL_FONT,
         opacity: 0.9,

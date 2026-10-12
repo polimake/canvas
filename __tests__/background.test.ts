@@ -105,6 +105,33 @@ describe('page background', () => {
     expect(api.getSceneElements().filter(isBg)).toHaveLength(2);
   });
 
+  it('migra una escena vieja: el marco pasa DETRAS de sus miembros', () => {
+    // Issue #103. Los disenos ya guardados traen `[marco, papel, contenido…]`,
+    // y Excalidraw inserta lo que lleva `frameId` en el hueco del MARCO, asi
+    // que en esa forma un texto pegado caia DELANTE del papel opaco: invisible.
+    // Al abrirlos, el normalizador los pasa a la forma nueva.
+    const { api, get, commits } = fakeApi([
+      frame('p1', 0, 0, 500, 500),
+      member('papel', 'p1', 0, 0, 500, 500, { customData: { c2: 'pageBackground' }, locked: true }),
+      member('foto', 'p1', 10, 10, 100, 100, { type: 'image' }),
+    ]);
+
+    const before = commits.length;
+    ensurePagePapers(api as any);
+    expect(commits.length).toBe(before + 1);
+    expect(commits[commits.length - 1].captureUpdate).toBe('NEVER');
+
+    const ids = get().map((e: any) => e.id);
+    // El marco, al final de los suyos; el papel sigue siendo el suelo.
+    expect(ids.indexOf('p1')).toBeGreaterThan(ids.indexOf('foto'));
+    expect(ids.indexOf('papel')).toBeLessThan(ids.indexOf('foto'));
+
+    // Idempotente: una vez migrada no vuelve a commitear (apto para onChange).
+    const settled = commits.length;
+    ensurePagePapers(api as any);
+    expect(commits.length).toBe(settled);
+  });
+
   it('vuelve a hundir un papel que se ha levantado', () => {
     // El fallo que dejaba una página tapada por su propio fondo PARA SIEMPRE:
     // la función solo miraba si el papel EXISTÍA, así que bastaba con que algo
@@ -269,13 +296,15 @@ describe('el papel, en su marco', () => {
   });
 
   it('ensurePagePapers lo aplica en UN commit invisible al historial, y luego se calla', () => {
+    // Con la forma de una página viva —miembros primero, marco al final (ver
+    // `pageElementsInOrder`)—: así lo único que hay que corregir es el papel.
     const { api, get, commits } = fakeApi([
-      frame('p1', 0, 0, 1080, 1080),
       paper('papel1', 'p1', 0, 0, 1080, 1080),
       member('m1', 'p1', 40, 40, 100, 100),
-      frame('p2', 1128, 0, 1080, 1080),
+      frame('p1', 0, 0, 1080, 1080),
       paper('papel2', 'p2', 1128, 10, 1080, 1080),
       member('m2', 'p2', 1168, 40, 100, 100),
+      frame('p2', 1128, 0, 1080, 1080),
     ]);
     const antes = get();
     ensurePagePapers(api as any);
@@ -292,15 +321,48 @@ describe('el papel, en su marco', () => {
   });
 
   it('ensurePagePapers no escribe nada cuando cada papel ya ocupa su marco', () => {
+    // Y con el marco detrás de los suyos: delante, la migración del issue #103
+    // sí tendría algo que escribir (ver «migra una escena vieja», arriba).
     const { api, get, commits } = fakeApi([
-      frame('p1', 0, 0, 1080, 1080),
       paper('papel1', 'p1', 0, 0, 1080, 1080),
       member('m1', 'p1', 40, 40, 100, 100),
+      frame('p1', 0, 0, 1080, 1080),
     ]);
     const antes = get();
     ensurePagePapers(api as any);
     expect(commits).toHaveLength(0);
     expect(get()).toBe(antes);
+  });
+
+  it('en un diseño de antes, coloca el papel Y pasa el marco detrás de los suyos, en UN commit', () => {
+    // Las dos migraciones a la vez, que es como llega un diseño guardado antes
+    // del 11/10: el marco delante de sus miembros (issue #103) y, en la página
+    // añadida, el papel 10 px por debajo del suyo.
+    const escena = [
+      frame('p1', 0, 0, 1080, 1080),
+      paper('papel1', 'p1', 0, 0, 1080, 1080),
+      member('m1', 'p1', 40, 40, 100, 100),
+      frame('p2', 1128, 0, 1080, 1080),
+      paper('papel2', 'p2', 1128, 10, 1080, 1080),
+      member('m2', 'p2', 1168, 40, 100, 100),
+    ];
+    const { api, get, commits } = fakeApi(escena);
+    ensurePagePapers(api as any);
+    expect(commits).toHaveLength(1);
+    expect(commits[0].captureUpdate).toBe('NEVER');
+    // Cada página, con la forma de una viva: papel, contenido y, al final, el marco.
+    expect(get().map((e: any) => e.id)).toEqual(['papel1', 'm1', 'p1', 'papel2', 'm2', 'p2']);
+    expect(box(get().find((e: any) => e.id === 'papel2'))).toEqual([1128, 0, 1080, 1080]);
+    // Solo cambia el papel descolocado: lo demás son los mismos objetos, movidos de sitio.
+    for (const e of get()) {
+      if (e.id !== 'papel2') expect(e).toBe(escena.find((o) => o.id === e.id));
+    }
+    // Y converge: la siguiente pasada no encuentra nada que hacer.
+    const asentada = get();
+    ensurePagePapers(api as any);
+    expect(commits).toHaveLength(1);
+    expect(get()).toBe(asentada);
+    expect(fitPagePapersInArray(asentada)).toBe(asentada);
   });
 
   it('ensurePagePapers coloca, hunde y crea en el mismo commit', () => {

@@ -71,6 +71,18 @@ describe('LayersPanel', () => {
     expect(screen.queryByText('Capas')).toBeNull();
   });
 
+  it('empotrado, la fila de alinear lleva su rótulo, y sale de las etiquetas', () => {
+    const { api } = unaDeCada();
+    const { unmount } = render(<LayersPanel api={api as never} activePageId="p1" embedded />);
+    expect(screen.getByText('Alinear')).toBeTruthy();
+    unmount();
+    render(
+      <LayersPanel api={api as never} activePageId="p1" embedded labels={{ layers: { align: 'Align' } }} />,
+    );
+    expect(screen.getByText('Align')).toBeTruthy();
+    expect(screen.queryByText('Alinear')).toBeNull();
+  });
+
   it('usa las etiquetas del host, y lo que no trae sigue en español', () => {
     const { api } = unaDeCada();
     render(

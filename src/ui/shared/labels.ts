@@ -132,6 +132,8 @@ export interface Canvas2Labels {
   layers: {
     /** La página activa no tiene ningún elemento. */
     empty: string;
+    /** Rótulo de la fila de alinear cuando el panel va empotrado en una pestaña. */
+    align: string;
     // Nombre de cada capa en la lista, por tipo de elemento.
     image: string;
     rectangle: string;
@@ -217,6 +219,14 @@ export interface Canvas2Labels {
   };
   /** Nombres de los tamaños de página, por clave de preset. */
   sizes: Record<string, string>;
+  /** Selector de modo (Ver · Comentar · Editar) del host. */
+  mode: {
+    group: string;
+    view: string;
+    comment: string;
+    edit: string;
+    done: string;
+  };
 }
 
 export const DEFAULT_LABELS: Canvas2Labels = {
@@ -317,6 +327,7 @@ export const DEFAULT_LABELS: Canvas2Labels = {
   },
   layers: {
     empty: 'Esta página está vacía.',
+    align: 'Alinear',
     image: 'Imagen',
     rectangle: 'Rectángulo',
     ellipse: 'Elipse',
@@ -384,6 +395,13 @@ export const DEFAULT_LABELS: Canvas2Labels = {
     'yt-thumb': 'Miniatura YouTube',
     a4: 'A4',
     default: 'Lienzo clásico',
+  },
+  mode: {
+    group: 'Modo del lienzo',
+    view: 'Ver',
+    comment: 'Comentar',
+    edit: 'Editar',
+    done: 'Listo',
   },
 };
 
