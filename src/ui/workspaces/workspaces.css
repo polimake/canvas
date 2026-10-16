@@ -184,6 +184,17 @@
    montaba encima. Pasa al borde izquierdo, que en móvil está libre, en una
    tarjeta como la de Excalidraw pero reflejada, y el panel abre a la derecha.
    Arriba libra la barra de herramientas; abajo, la fila del menú y las páginas. */
+/* Móvil: con la paleta de propiedades o el menú ☰ de Excalidraw abiertos, lo
+   nuestro que flota sobre el lienzo se aparta. Esos paneles viven DENTRO de la
+   superficie (aislada a z-index 0), así que nada de lo de fuera puede quedar
+   debajo: la columna de iconos tapaba el borde izquierdo de ambos («Fondo»,
+   «Espacio de trabajo»), la tira de páginas sus últimas filas, los botones de
+   la página se veían a través y el selector de modo se montaba en su esquina
+   (prod, 04-10). Solo mientras están abiertos: al cerrarlos vuelve todo. */
+.canvas2-workspace[data-narrow]:has(.App-mobile-menu .panelColumn, .dropdown-menu--mobile)
+  :is(.canvas2-workspace-sidebar, [data-canvas2-pages], [data-testid="canvas2-page-actions"], .canvas2-mode-tools) {
+  visibility: hidden;
+}
 .canvas2-workspace[data-workspace="excalidraw"][data-narrow] .canvas2-workspace-sidebar {
   left: 0; right: auto; top: 68px; bottom: 96px; z-index: 3;
   flex-direction: row; box-shadow: none;

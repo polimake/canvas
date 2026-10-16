@@ -382,6 +382,12 @@
 }
 /* Móvil: arriba a la derecha (abajo está la barra de Excalidraw). */
 [data-canvas2] .canvas2-mode-tools[data-narrow] { top: 8px; bottom: auto; }
+/* Editando, ese rincón es de Excalidraw: el final de su barra («Más
+   herramientas», hasta ~58 px) y, debajo, su columna de candado y mano (hasta
+   ~146 px). Montados encima, el ojo tapaba «Más herramientas» y Comentar y
+   Editar se pisaban con el candado y la mano (móvil en prod, 04-10). La columna
+   baja por debajo de las dos; en Ver y Comentar no hay barra y sigue arriba. */
+[data-canvas2]:not([data-canvas2-readonly]) .canvas2-mode-tools[data-narrow] { top: 152px; }
 [data-canvas2] .canvas2-mode-tools button {
   width: 32px; height: 32px; display: grid; place-items: center; padding: 0;
   border: 0; border-radius: 999px; cursor: pointer; background: transparent; color: #6e6962;
