@@ -47,6 +47,9 @@ export {
   // secuestra para la marca pero no puede resolver su id sin importar
   // Excalidraw, así que la traducción ocurre aquí y en un solo sitio.
   FONT_FAMILY,
+  // Textos de Excalidraw en su idioma: los botones de deshacer que el lienzo
+  // repone (ui/editor/canvaGestures.tsx) usan sus mismas etiquetas.
+  useI18n,
 } from '@excalidraw/excalidraw';
 
 // ─── Types (public entry) ─────────────────────────────────────────────────────

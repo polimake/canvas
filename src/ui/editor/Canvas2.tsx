@@ -38,6 +38,7 @@ import { mergeLabels, type PartialLabels } from '../shared/labels';
 import { copyDropEffect } from '../shared/dropEffect';
 import { imageAtScenePoint, type ImageHit } from '../../core/media';
 import { palette } from '../shared/theme';
+import { installCanvaGestures } from './canvaGestures';
 
 /**
  * A serializable snapshot of the canvas. Same shape Excalidraw accepts as
@@ -730,6 +731,12 @@ export function Canvas2Editor({
     // `activePageId` entre las dependencias, cada vuelta a esa página repetiría
     // el salto.
   }, [openingPageId]);
+
+  // Deshacer sin pasos de selección y Mayúsculas+flecha a 10 px, como Canva.
+  // En un efecto y no en `excalidrawAPI`: ver installCanvaGestures.
+  useEffect(() => {
+    if (api) installCanvaGestures(api);
+  }, [api]);
 
   /**
    * Normalización continua de la fila de páginas.

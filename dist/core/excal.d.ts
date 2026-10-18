@@ -12,7 +12,7 @@
  * tests mock the entire Excalidraw surface by mocking this one module.
  */
 import '@excalidraw/excalidraw/index.css';
-export { Excalidraw, MainMenu, CaptureUpdateAction, convertToExcalidrawElements, exportToBlob, exportToCanvas, exportToSvg, serializeAsJSON, restore, newElementWith, getNonDeletedElements, getVisibleSceneBounds, viewportCoordsToSceneCoords, FONT_FAMILY, } from '@excalidraw/excalidraw';
+export { Excalidraw, MainMenu, CaptureUpdateAction, convertToExcalidrawElements, exportToBlob, exportToCanvas, exportToSvg, serializeAsJSON, restore, newElementWith, getNonDeletedElements, getVisibleSceneBounds, viewportCoordsToSceneCoords, FONT_FAMILY, useI18n, } from '@excalidraw/excalidraw';
 export type { ExcalidrawImperativeAPI, ExcalidrawInitialDataState, } from '@excalidraw/excalidraw/types';
 import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
 /** One element as returned by the live scene. */

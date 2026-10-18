@@ -1,7 +1,7 @@
 import { jsxs, jsx, Fragment as Fragment$1 } from "react/jsx-runtime";
-import { useState, useRef, useEffect, Fragment, useMemo, useCallback, useId } from "react";
+import { useState, useRef, useEffect, Fragment, useMemo, useCallback, useId, useReducer } from "react";
 import "@excalidraw/excalidraw/index.css";
-import { newElementWith, CaptureUpdateAction, convertToExcalidrawElements, serializeAsJSON, restore, exportToBlob, exportToCanvas, exportToSvg, MainMenu, FONT_FAMILY, viewportCoordsToSceneCoords, getVisibleSceneBounds, Excalidraw, getNonDeletedElements } from "@excalidraw/excalidraw";
+import { newElementWith, CaptureUpdateAction, convertToExcalidrawElements, serializeAsJSON, restore, exportToBlob, exportToCanvas, exportToSvg, MainMenu, FONT_FAMILY, useI18n, viewportCoordsToSceneCoords, getVisibleSceneBounds, Excalidraw, getNonDeletedElements } from "@excalidraw/excalidraw";
 import { cloneSceneElements } from "../components.js";
 import { P as PAGE_GAP } from "./layout-BEpoNps2.js";
 import { fontFormatHint, buildFontFaceCss, fontFamilyAlias, normalizeFontSrc, customFontFamilyId, dedupeFontFaces } from "../fonts.js";
@@ -4477,6 +4477,165 @@ function ToolbarSlot({ root, children }) {
 function copyDropEffect(effectAllowed) {
   return effectAllowed === "move" || effectAllowed === "linkMove" ? "move" : "copy";
 }
+const SELECTION_KEYS = /* @__PURE__ */ new Set([
+  "selectedElementIds",
+  "selectedGroupIds",
+  "editingGroupId",
+  "selectedLinearElementId",
+  "editingLinearElementId",
+  "croppingElementId"
+]);
+function isSelectionOnlyEntry(entry) {
+  var _a, _b, _c;
+  if (!((_b = (_a = entry.elementsChange) == null ? void 0 : _a.isEmpty) == null ? void 0 : _b.call(_a))) return false;
+  const delta = (_c = entry.appStateChange) == null ? void 0 : _c.delta;
+  if (!delta) return false;
+  const keys = [...Object.keys(delta.deleted ?? {}), ...Object.keys(delta.inserted ?? {})];
+  return keys.every((key) => SELECTION_KEYS.has(key));
+}
+function dropSelectionOnlyTail(stack) {
+  let dropped = 0;
+  while (stack.length && isSelectionOnlyEntry(stack[stack.length - 1])) {
+    stack.pop();
+    dropped++;
+  }
+  return dropped;
+}
+function hasRealEntry(stack) {
+  return !!(stack == null ? void 0 : stack.some((entry) => !isSelectionOnlyEntry(entry)));
+}
+function historyIsBusy(appState, app) {
+  var _a;
+  return !!(appState.multiElement || appState.resizingElement || appState.editingTextElement || appState.newElement || appState.selectedElementsAreBeingDragged || appState.selectionElement || ((_a = app == null ? void 0 : app.flowChartCreator) == null ? void 0 : _a.isCreatingChart));
+}
+function performHistory(direction, elements, appState, app) {
+  const history = app == null ? void 0 : app.history;
+  const store = app == null ? void 0 : app.store;
+  if (!history || !store || historyIsBusy(appState, app)) return null;
+  dropSelectionOnlyTail(direction === "undo" ? history.undoStack : history.redoStack);
+  const map = new Map(elements.map((el) => [el.id, el]));
+  const result = history[direction](map, appState, store.snapshot);
+  if (!result) return null;
+  const [nextElements, nextAppState] = result;
+  return { elements: Array.from(nextElements.values()), appState: nextAppState };
+}
+const SHIFT_NUDGE_PX = 10;
+const ARROW_OFFSETS = {
+  ArrowLeft: [-1, 0],
+  ArrowRight: [1, 0],
+  ArrowUp: [0, -1],
+  ArrowDown: [0, 1]
+};
+function nudgeSelection(elements, selectedElementIds, dx, dy) {
+  const selected = new Set(
+    elements.filter((el) => !el.isDeleted && selectedElementIds[el.id]).map((el) => el.id)
+  );
+  if (!selected.size) return null;
+  const frames2 = new Set(
+    elements.filter((el) => selected.has(el.id) && (el.type === "frame" || el.type === "magicframe")).map((el) => el.id)
+  );
+  const moves = (el) => {
+    if (el.isDeleted) return false;
+    if (selected.has(el.id)) return true;
+    const containerId = el.containerId;
+    if (containerId && selected.has(containerId)) return true;
+    return !!el.frameId && frames2.has(el.frameId);
+  };
+  return elements.map((el) => moves(el) ? newElementWith(el, { x: el.x + dx, y: el.y + dy }) : el);
+}
+const isMac = typeof navigator !== "undefined" && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+const ctrlOrCmd = (e) => isMac ? e.metaKey : e.ctrlKey;
+const matchLetter = (e, letter) => e.key.toLowerCase() === letter || !/^[a-z]$/i.test(e.key) && e.code === `Key${letter.toUpperCase()}`;
+const isUndoKey = (e) => ctrlOrCmd(e) && !e.shiftKey && !e.altKey && matchLetter(e, "z");
+const isRedoKey = (e) => ctrlOrCmd(e) && e.shiftKey && !e.altKey && matchLetter(e, "z") || !isMac && e.ctrlKey && !e.shiftKey && !e.altKey && matchLetter(e, "y");
+const ICON_PATH = {
+  undo: "M7.5 10.833 4.167 7.5 7.5 4.167M4.167 7.5h9.166a3.333 3.333 0 0 1 0 6.667H12.5",
+  redo: "M12.5 10.833 15.833 7.5 12.5 4.167M15.833 7.5H6.667a3.333 3.333 0 1 0 0 6.667H7.5"
+};
+function HistoryButton({ direction, app, updateData, size }) {
+  var _a, _b;
+  const [, rerender] = useReducer((n) => n + 1, 0);
+  const { t } = useI18n();
+  useEffect(() => {
+    var _a2, _b2;
+    return (_b2 = (_a2 = app == null ? void 0 : app.history) == null ? void 0 : _a2.onHistoryChangedEmitter) == null ? void 0 : _b2.on(rerender);
+  }, [app]);
+  const stack = direction === "undo" ? (_a = app == null ? void 0 : app.history) == null ? void 0 : _a.undoStack : (_b = app == null ? void 0 : app.history) == null ? void 0 : _b.redoStack;
+  const disabled = !hasRealEntry(stack);
+  const label = t(direction === "undo" ? "buttons.undo" : "buttons.redo");
+  return /* @__PURE__ */ jsx(
+    "button",
+    {
+      type: "button",
+      className: `ToolIcon_type_button ToolIcon_size_${size ?? "medium"} ToolIcon_type_button--show ToolIcon`,
+      "aria-label": label,
+      title: label,
+      "data-testid": `button-${direction}`,
+      disabled,
+      onClick: () => updateData(),
+      children: /* @__PURE__ */ jsx("div", { className: "ToolIcon__icon", "aria-hidden": "true", "aria-disabled": disabled, children: /* @__PURE__ */ jsx(
+        "svg",
+        {
+          "aria-hidden": "true",
+          focusable: "false",
+          role: "img",
+          viewBox: "0 0 20 20",
+          width: "20",
+          height: "20",
+          fill: "none",
+          stroke: "currentColor",
+          strokeLinecap: "round",
+          strokeLinejoin: "round",
+          children: /* @__PURE__ */ jsx("path", { d: ICON_PATH[direction], strokeWidth: "1.25" })
+        }
+      ) })
+    }
+  );
+}
+function historyAction(direction) {
+  return {
+    name: direction,
+    label: direction === "undo" ? "buttons.undo" : "buttons.redo",
+    viewMode: false,
+    trackEvent: false,
+    keyTest: (event) => direction === "undo" ? isUndoKey(event) : isRedoKey(event),
+    perform: (elements, appState, _value, app) => {
+      const result = performHistory(direction, elements, appState, app);
+      if (!result) return { captureUpdate: CaptureUpdateAction.EVENTUALLY };
+      return { ...result, captureUpdate: CaptureUpdateAction.NEVER };
+    },
+    PanelComponent: ({ updateData, data, app }) => /* @__PURE__ */ jsx(HistoryButton, { direction, app, updateData, size: data == null ? void 0 : data.size })
+  };
+}
+function shiftNudgeAction(key) {
+  const [ux, uy] = ARROW_OFFSETS[key];
+  return {
+    name: `canvas2:shiftNudge${key}`,
+    label: "Mover 10 px",
+    viewMode: false,
+    trackEvent: false,
+    keyTest: (event, appState, _elements, app) => {
+      var _a;
+      return event.key === key && event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey && // Con la cuadrícula puesta manda su paso: eso lo sigue haciendo Excalidraw.
+      !((_a = app == null ? void 0 : app.getEffectiveGridSize) == null ? void 0 : _a.call(app)) && !appState.editingLinearElement && !appState.editingTextElement && Object.values(appState.selectedElementIds ?? {}).some(Boolean);
+    },
+    perform: (elements, appState) => {
+      const next = nudgeSelection(elements, appState.selectedElementIds ?? {}, ux * SHIFT_NUDGE_PX, uy * SHIFT_NUDGE_PX);
+      if (!next) return { captureUpdate: CaptureUpdateAction.EVENTUALLY };
+      return { elements: next, captureUpdate: CaptureUpdateAction.IMMEDIATELY };
+    }
+  };
+}
+function canvaGestureActions() {
+  return [
+    historyAction("undo"),
+    historyAction("redo"),
+    ...Object.keys(ARROW_OFFSETS).map(shiftNudgeAction)
+  ];
+}
+function installCanvaGestures(api) {
+  for (const action of canvaGestureActions()) api.registerAction(action);
+}
 const MEDIA_DROP_TYPE = "application/x-canvas2-media";
 function isOverCanvas(target) {
   return target instanceof Element && Boolean(target.closest(".excalidraw"));
@@ -4731,6 +4890,9 @@ ${css}` : css;
     if (activePageId !== openingPageId) return;
     goToPage(live, openingPageId);
   }, [openingPageId]);
+  useEffect(() => {
+    if (api) installCanvaGestures(api);
+  }, [api]);
   const normalizePages = useDebouncedCallback(() => {
     const live = apiRef.current;
     if (!live || !didInitPages.current) return;
@@ -5323,4 +5485,4 @@ export {
   fitAllPages as y,
   renamePage as z
 };
-//# sourceMappingURL=LibraryPanel-DJyb7kLw.js.map
+//# sourceMappingURL=LibraryPanel-BRnFNiSa.js.map

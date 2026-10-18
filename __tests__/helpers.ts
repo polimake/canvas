@@ -95,6 +95,11 @@ export function fakeApi(initial: any[], initialFiles: Record<string, any> = {}):
     },
     onScrollChange: () => () => {},
     scrollToContent: () => {},
+    // El lienzo registra sus gestos de teclado (canvaGestures.tsx) al montar.
+    registeredActions: [] as { name: string }[],
+    registerAction(action: { name: string }) {
+      this.registeredActions.push(action);
+    },
   };
   return {
     api,
