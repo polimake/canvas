@@ -7,6 +7,7 @@ import {
   viewportCoordsToSceneCoords,
   getNonDeletedElements,
   getVisibleSceneBounds,
+  CaptureUpdateAction,
   type ExcalidrawImperativeAPI,
   type SceneElement,
 } from '../../core/excal';
@@ -15,6 +16,7 @@ import { LooseWarning } from '../overlays/LooseWarning';
 import { VideoFramePicker } from '../overlays/VideoFramePicker';
 import { CanvasMenu } from '../navigation/CanvasMenu';
 import { PageActions } from '../navigation/PageActions';
+import { ModeSwitch, type Canvas2ModeControl } from '../navigation/ModeSwitch';
 import { DesignPanel } from '../panels/DesignPanel';
 import { InsertPanel } from '../panels/InsertPanel';
 import { BrandGallery } from '../panels/BrandGallery';
@@ -24,6 +26,7 @@ import { WorkspaceLayout } from '../workspaces/WorkspaceLayout';
 import type { CanvasWorkspace, WorkspacePanel } from '../workspaces/types';
 import { readWorkspace, saveWorkspace } from '../workspaces/preference';
 import { useIsNarrow } from '../hooks/narrow';
+import { ToolbarSlot } from './ToolbarSlot';
 import type { FilesMap } from '../hooks/pageThumbnails';
 import { addPage, createBlankScene, goToPage, listPages, relayoutPages, type PageSize } from '../../core/pages';
 import { commitElements } from '../../core/mutate';
@@ -124,6 +127,8 @@ export interface Canvas2EditorProps {
   pages?: boolean;
   /** Page/artboard size when `pages` is enabled. Defaults to IG 4:5 1080×1350. */
   pageSize?: PageSize;
+  /** Zero-based page to show once the initial scene has hydrated. */
+  initialPageIndex?: number;
   /** Show the right-side layers panel (the active page's elements). Requires
    *  `pages` (it's scoped to the active artboard). */
   layers?: boolean;
@@ -258,6 +263,33 @@ export interface Canvas2EditorProps {
     video: HTMLVideoElement,
     timeSec: number,
   ) => Promise<{ url: string; mimeType?: string } | null>;
+  /**
+   * Controles del host pegados al borde derecho, a media altura y sin fondo
+   * (p. ej. plegar la columna de al lado). Abajo a la derecha va el modo. No
+   * sale en pantalla estrecha.
+   */
+  rightEdge?: ReactNode;
+  /**
+   * Selector de modo del host (Ver · Comentar · Editar), en una píldora abajo
+   * a la derecha con solo los modos permitidos. canvas2 solo lo pinta; el host
+   * decide qué significa cada modo (y pasa `viewMode`).
+   */
+  modeControl?: Canvas2ModeControl;
+  /**
+   * Botones del host en texto al final de la píldora de herramientas (p. ej.
+   * «Recursos», que abre la mediateca en la columna de al lado). Solo en la
+   * vista Excalidraw y en pantalla ancha.
+   */
+  toolbarActions?: Canvas2ToolbarAction[];
+}
+
+export interface Canvas2ToolbarAction {
+  id: string;
+  label: string;
+  pressed?: boolean;
+  onSelect: () => void;
+  /** Icono en móvil, donde la acción va en la tira de iconos y no en texto. Sin él, una carpeta. */
+  icon?: ReactNode;
 }
 
 /**
@@ -372,6 +404,7 @@ export function Canvas2Editor({
   changeDebounceMs = 400,
   pages = false,
   pageSize,
+  initialPageIndex = 0,
   layers = false,
   pageThumbnails = false,
   pageThumbnailFiles,
@@ -390,8 +423,13 @@ export function Canvas2Editor({
   resolveVideoSrc,
   releaseVideoSrc,
   onPickVideoFrame,
+  rightEdge,
+  modeControl,
+  toolbarActions,
 }: Canvas2EditorProps) {
   const [localWorkspace, setLocalWorkspace] = useState(() => readWorkspace(defaultWorkspace));
+  /** Panel abierto en la vista Excalidraw (tira de iconos o píldora). */
+  const [openPanel, setOpenPanel] = useState<string | null>(null);
   const workspace = workspaceProp ?? localWorkspace;
   // El tema lo elige quien monta el editor (Ajustes > Canvas en el desktop);
   // el espacio avanzado ya no se lo cambia por su cuenta.
@@ -558,10 +596,13 @@ export function Canvas2Editor({
         // radius knob). Pages must read as straight-edged sheets, so the
         // native outline is off and each page's locked "paper" rect (sharp
         // corners, hairline border) is the page's visual instead.
-        frameRendering: { enabled: true, clip: true, name: true, outline: false },
+        // Al mirar (`viewMode`) sin el «Página N»: se fija ya aquí porque
+        // Excalidraw aplica `initialData` después del primer efecto y lo pisaría.
+        frameRendering: { enabled: true, clip: true, name: !viewMode, outline: false },
         ...brandDefaults(brand),
         ...(base?.appState ?? {}),
-        ...(pages ? { viewBackgroundColor: '#f2f3f5' } : {}),
+        // La mesa: papel cálido (el escenario del Studio), no el gris acero de antes.
+        ...(pages ? { viewBackgroundColor: '#efece6' } : {}),
       },
     } as Canvas2Scene;
   });
@@ -619,11 +660,14 @@ export function Canvas2Editor({
       }
       ensurePagePapers(api, 'never');
       relayoutPages(api, 'never', pageNames.current);
-      // El actualizador solo decide la página activa —si algo eligió una antes
-      // de llegar aquí, manda esa—; llevar la vista es cosa del efecto de
-      // `openingPageId` (ver su comentario).
-      setActivePageId((current) => current || existing[0].id);
-      setOpeningPageId(existing[0].id);
+      // La página de apertura la pide el host (`initialPageIndex`, acotado a las
+      // que hay). El actualizador solo decide la página activa —si algo eligió
+      // una antes de llegar aquí, manda esa—; llevar la vista es cosa del efecto
+      // de `openingPageId` (ver su comentario).
+      const index = Number.isFinite(initialPageIndex) ? Math.trunc(initialPageIndex) : 0;
+      const opening = existing[Math.max(0, Math.min(index, existing.length - 1))];
+      setActivePageId((current) => current || opening.id);
+      setOpeningPageId(opening.id);
     };
     /**
      * Reintento acotado en vez de un único plazo.
@@ -664,7 +708,7 @@ export function Canvas2Editor({
       unsub?.();
       if (timer) clearTimeout(timer);
     };
-  }, [pages, api, pageSize, initialData]);
+  }, [pages, api, initialPageIndex, pageSize, initialData]);
 
   /**
    * El salto de apertura: la vista va a la página que decidió la inicialización.
@@ -714,6 +758,19 @@ export function Canvas2Editor({
     if (!pages || !api || viewMode) return;
     return api.onChange(normalizePages);
   }, [pages, api, viewMode, normalizePages]);
+
+  // Al mirar, la pieza se lee como pieza: fuera el «Página N» encima de cada
+  // hoja. Es estado de vista (no se guarda: `onSceneChange` solo lleva el fondo)
+  // y no entra en el historial.
+  useEffect(() => {
+    if (!pages || !api) return;
+    const current = api.getAppState()?.frameRendering;
+    if (!current || current.name === !viewMode) return;
+    api.updateScene({
+      appState: { frameRendering: { ...current, name: !viewMode } },
+      captureUpdate: CaptureUpdateAction.NEVER,
+    });
+  }, [pages, api, viewMode]);
 
   // Viewport-following: after a pan/zoom settles, the page occupying the most
   // visible area becomes the active page — so Exportar/Texto/Fondo/Tamaño act
@@ -782,13 +839,19 @@ export function Canvas2Editor({
   }, [pages, api]);
 
   const workspacePanels: WorkspacePanel[] = [];
-  if (!viewMode && componentsPanel) workspacePanels.push({ id: 'components', title: L.components.title, content: componentsPanel });
+  // Componentes va en la píldora de herramientas, como en el diseño.
+  if (!viewMode && componentsPanel) workspacePanels.push({ id: 'components', title: L.components.title, content: componentsPanel, inToolbar: true });
   if (!viewMode && api) {
-    workspacePanels.push({ id: 'elements', title: L.workspace.elements,
-      content: <InsertPanel api={api} pageId={activePageId} labels={labels} /> });
-    workspacePanels.push({ id: 'text', title: L.workspace.text,
-      content: <InsertPanel api={api} pageId={activePageId} text labels={labels}
-        families={{ heading: brand.headingFamily, body: brand.bodyFamily }} /> });
+    // «Elementos» y «Texto» repetían la barra de herramientas de arriba: en la
+    // vista Excalidraw sobran. Las otras vistas los conservan porque su barra
+    // se esconde o cambia de sitio.
+    if (workspace !== 'excalidraw') {
+      workspacePanels.push({ id: 'elements', title: L.workspace.elements,
+        content: <InsertPanel api={api} pageId={activePageId} labels={labels} /> });
+      workspacePanels.push({ id: 'text', title: L.workspace.text,
+        content: <InsertPanel api={api} pageId={activePageId} text labels={labels}
+          families={{ heading: brand.headingFamily, body: brand.bodyFamily }} /> });
+    }
   }
   if (!viewMode && library) workspacePanels.push({ id: 'library', title: L.workspace.files, content: library });
   if (!viewMode && api && brandKit) workspacePanels.push({ id: 'brand', title: L.workspace.brand,
@@ -800,13 +863,34 @@ export function Canvas2Editor({
     content: <LayersPanel api={api} activePageId={activePageId} theme={theme} labels={labels} embedded /> });
   for (const panel of workspacePanels) panel.icon = <WorkspaceIcon name={panel.id} />;
 
+  // Tras un separador, en texto: los paneles que van en la píldora y los
+  // botones del host. Fuera de la vista Excalidraw esos paneles siguen en su
+  // lista de siempre.
+  const pillPanels = workspace === 'excalidraw' ? workspacePanels.filter(panel => panel.inToolbar) : [];
+  const pillActions: Canvas2ToolbarAction[] = [
+    ...pillPanels.map(panel => ({
+      id: panel.id,
+      label: panel.title,
+      pressed: openPanel === panel.id,
+      onSelect: () => setOpenPanel(current => (current === panel.id ? null : panel.id)),
+    })),
+    ...(workspace === 'excalidraw' && !viewMode ? toolbarActions ?? [] : []),
+  ];
+
   return (
     <WorkspaceLayout className={className} workspace={workspace}
-      panels={workspacePanels} theme={theme} labels={labels}>
+      panels={workspacePanels} narrow={narrow}
+      // En móvil la píldora no se pinta: los botones del host van a la tira.
+      actions={narrow && workspace === 'excalidraw' && !viewMode
+        ? (toolbarActions ?? []).map(action => ({ ...action, icon: action.icon ?? <WorkspaceIcon name="library" /> }))
+        : undefined}
+      theme={theme} labels={labels} openPanel={openPanel} onOpenPanelChange={setOpenPanel}>
     <div
       ref={rootRef}
       data-canvas2=""
       data-canvas2-narrow={narrow ? '' : undefined}
+      // Al mirar o comentar no hay menú arriba a la izquierda: solo al editar.
+      data-canvas2-readonly={viewMode ? '' : undefined}
       // `--c2-frame-tool` y `--c2-find-on-canvas`: los rótulos de dos entradas de
       // los menús de Excalidraw que su español no traduce; los pinta canvas2.css.
       style={{ position: 'relative', width: '100%', height: '100%',
@@ -978,7 +1062,6 @@ export function Canvas2Editor({
             // Las mismas familias (ya con su alias) que se declaran en
             // pantalla, embebidas también en el SVG exportado.
             fontFaces={fuentes.faces}
-            brandFamilies={{ heading: brand.headingFamily, body: brand.bodyFamily }}
             onSaveComponent={onSaveComponent}
             labels={labels}
           />
@@ -1031,6 +1114,7 @@ export function Canvas2Editor({
           activePageId={activePageId}
           theme={theme}
           viewMode={viewMode}
+          narrow={narrow}
           labels={labels}
         />
       )}
@@ -1048,6 +1132,36 @@ export function Canvas2Editor({
           labels={labels}
         />
       )}
+      {pillActions.length > 0 && !narrow ? (
+        <ToolbarSlot root={rootRef}>
+          <span className="canvas2-toolbar-divider" aria-hidden="true" />
+          {pillActions.map(action => (
+            <button key={action.id} type="button" className="canvas2-toolbar-text"
+              aria-pressed={action.pressed ?? undefined} onClick={action.onSelect}>
+              {action.label}
+            </button>
+          ))}
+        </ToolbarSlot>
+      ) : null}
+      {rightEdge && !narrow ? (
+        <div
+          data-canvas2-right-edge=""
+          style={{
+            position: 'absolute',
+            right: 0,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            zIndex: 100,
+            display: 'flex',
+            alignItems: 'center',
+          }}
+        >
+          {rightEdge}
+        </div>
+      ) : null}
+      {modeControl ? (
+        <ModeSwitch {...modeControl} theme={theme} narrow={narrow} labels={L.mode} />
+      ) : null}
       {pages && api && !viewMode && (
         <PageActions
           api={api}

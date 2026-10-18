@@ -507,12 +507,13 @@ describe('el papel y su marco', () => {
     // El caso real: la segunda página se añadió antes del 11/10 y se guardó con
     // el marco en (1128, 0) y su papel en (1128, 10).
     const { api, get, commits } = fakeApi([
-      ordered('a', 0, 0, 0, 1080, 1080, { name: 'Página 1' }),
+      // Miembros primero y el marco al final, como `pageElementsInOrder`.
       { ...member('papel-a', 'a', 0, 0, 1080, 1080), locked: true, customData: { c2: 'pageBackground' } },
       member('ma', 'a', 40, 40, 200, 200),
-      ordered('b', 1, 1080 + GAP, 0, 1080, 1080, { name: 'Página 2' }),
+      ordered('a', 0, 0, 0, 1080, 1080, { name: 'Página 1' }),
       { ...member('papel-b', 'b', 1080 + GAP, 10, 1080, 1080), locked: true, customData: { c2: 'pageBackground' } },
       member('mb', 'b', 1080 + GAP + 40, 40, 200, 200),
+      ordered('b', 1, 1080 + GAP, 0, 1080, 1080, { name: 'Página 2' }),
     ]);
     const antes = get();
     // Lo que hace el editor al abrir y en cada pasada del normalizador.

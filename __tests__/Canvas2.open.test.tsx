@@ -64,12 +64,14 @@ const pagina = (id: string, index: number, x: number) =>
 
 /** Dos páginas en su sitio, cada una con su papel y una capa encima. */
 const dosPaginas = () => [
-  pagina('a', 0, 0),
+  // Forma canónica de una página (ver `pageElementsInOrder`): los miembros
+  // primero y el marco al final, o `ensurePagePapers` migraría el orden.
   papel('papel-a', 'a', 0, 0, 1080, 1080),
   member('capa-a', 'a', 40, 40, 200, 200),
-  pagina('b', 1, 1128),
+  pagina('a', 0, 0),
   papel('papel-b', 'b', 1128, 0, 1080, 1080),
   member('capa-b', 'b', 1168, 40, 200, 200),
+  pagina('b', 1, 1128),
 ];
 
 /** Lo que React ha dicho por consola, en una línea por aviso. */

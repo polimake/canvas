@@ -25,10 +25,12 @@ export interface LooseWarningProps {
   activePageId: string | null;
   theme?: 'light' | 'dark';
   viewMode?: boolean;
+  /** Excalidraw está en su distribución de móvil: ver `narrow.ts`. */
+  narrow?: boolean;
   labels?: PartialLabels;
 }
 
-export function LooseWarning({ api, activePageId, theme, viewMode, labels }: LooseWarningProps) {
+export function LooseWarning({ api, activePageId, theme, viewMode, narrow, labels }: LooseWarningProps) {
   const L = mergeLabels(labels);
   const c = palette[theme ?? 'light'];
   const [loose, setLoose] = useState(0);
@@ -49,9 +51,14 @@ export function LooseWarning({ api, activePageId, theme, viewMode, labels }: Loo
       data-testid="canvas2-loose-warning"
       style={{
         position: 'absolute',
-        top: 12,
-        left: '50%',
-        transform: 'translateX(-50%)',
+        // Con `left: 50%` el aviso solo disponía de medio contenedor: en un
+        // teléfono se quedaba en ~195px, una palabra por línea, tapando la
+        // barra de herramientas. `max-content` le deja el ancho de su texto; en
+        // móvil va justo debajo de la barra de arriba, entre la tira de iconos
+        // de la izquierda y las utilidades de Excalidraw de la derecha.
+        ...(narrow
+          ? { top: 64, left: 52, right: 48 }
+          : { top: 12, left: '50%', transform: 'translateX(-50%)', width: 'max-content' }),
         zIndex: 6,
         display: 'flex',
         alignItems: 'center',
@@ -63,7 +70,7 @@ export function LooseWarning({ api, activePageId, theme, viewMode, labels }: Loo
         color: c.warnText,
         fontSize: 12,
         boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-        maxWidth: 'min(560px, 90vw)',
+        maxWidth: narrow ? undefined : 'min(560px, 90%)',
       }}
     >
       <span style={{ lineHeight: 1.35 }}>{L.loose.warning(loose)}</span>

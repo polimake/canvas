@@ -47,18 +47,10 @@ export interface CanvasMenuProps {
      * un SVG abierto en otro equipo sale con la fuente de serie (ver svgFonts.ts).
      */
     fontFaces?: readonly SvgFontFace[];
-    /**
-     * Familias de marca por rol, para que "Insertar texto" nazca ya en la
-     * tipografía del cliente. Las resuelve `Canvas2Editor` desde el brand kit.
-     */
-    brandFamilies?: {
-        heading: string | null;
-        body: string | null;
-    };
     /** "Guardar página como componente" — la subida la hace el host. */
     onSaveComponent?: () => void;
     /** Textos, inyectados por el host (ver labels.ts). */
     labels?: PartialLabels;
 }
-export declare function CanvasMenu({ pages: pageMode, workspace, onWorkspaceChange, api, activePageId, viewMode, hydrateFiles, fontFaces, brandFamilies, onSaveComponent, labels: labelsProp, }: CanvasMenuProps): import("react").JSX.Element;
+export declare function CanvasMenu({ pages: pageMode, workspace, onWorkspaceChange, api, activePageId, viewMode, hydrateFiles, fontFaces, onSaveComponent, labels: labelsProp, }: CanvasMenuProps): import("react").JSX.Element;
 //# sourceMappingURL=CanvasMenu.d.ts.map

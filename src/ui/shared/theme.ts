@@ -43,30 +43,32 @@ export interface Palette {
 }
 
 export const palette: Record<Canvas2Theme, Palette> = {
+  // Monocromo cálido, como el resto del Studio desde el rediseño «Cosmos»: lo
+  // activo va en TINTA, no en azul (el azul es solo para «Subir», en la app), y
+  // los grises tiran a papel en vez de a acero.
   light: {
     bg: '#ffffff',
-    fg: '#1a1a1a',
-    sub: '#4a4a4f',
-    border: '#d7d7da',
-    active: '#3a39f5',
+    fg: '#111111',
+    sub: '#6e6962',
+    border: '#e7e2d9',
+    active: '#111111',
     activeFg: '#ffffff',
-    hover: '#e2e1e2',
+    hover: '#f3f0ea',
     danger: 'var(--color-destructive, #e7000b)',
     dangerFg: 'var(--color-state-ink, #ffffff)',
     warnBg: 'rgba(138,90,0,0.10)',
     warnBorder: 'rgba(138,90,0,0.35)',
     warnText: '#8a5a00',
   },
-  // El azul de marca es ilegal sobre negro: #3a39f5 sobre #1a1a1a saca 2,56.
-  // En oscuro el acento sube a #6e6ef8.
+  // En oscuro la tinta se invierte: lo activo es el papel sobre negro.
   dark: {
-    bg: '#1b1b1f',
-    fg: '#ffffff',
-    sub: '#9a9aa2',
-    border: '#2c2c32',
-    active: '#6e6ef8',
-    activeFg: '#0d0d18',
-    hover: '#26262b',
+    bg: '#1c1b19',
+    fg: '#f7f4ed',
+    sub: '#a39e96',
+    border: '#2e2c29',
+    active: '#f7f4ed',
+    activeFg: '#111111',
+    hover: '#282622',
     danger: 'var(--color-destructive, #ff6467)',
     dangerFg: 'var(--color-state-ink, #1a1a1a)',
     warnBg: 'rgba(227,163,58,0.12)',

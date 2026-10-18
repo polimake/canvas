@@ -155,6 +155,8 @@ export interface Canvas2Labels {
     delete: string;
     /** Ayuda de la fila de la página, al pie del panel. */
     renameHint: string;
+    /** Rótulo de la fila de alinear cuando el panel va empotrado en el dock. */
+    alignHeading: string;
   };
   /** Alinear la selección con la página, por clave de alineación. */
   align: {
@@ -217,6 +219,14 @@ export interface Canvas2Labels {
   };
   /** Nombres de los tamaños de página, por clave de preset. */
   sizes: Record<string, string>;
+  /** Selector de modo (Ver · Comentar · Editar) del host. */
+  mode: {
+    group: string;
+    view: string;
+    comment: string;
+    edit: string;
+    done: string;
+  };
 }
 
 export const DEFAULT_LABELS: Canvas2Labels = {
@@ -334,6 +344,7 @@ export const DEFAULT_LABELS: Canvas2Labels = {
     unlock: 'Desbloquear',
     delete: 'Eliminar',
     renameHint: 'Doble clic para renombrar la página',
+    alignHeading: 'Alinear',
   },
   align: {
     left: 'Alinear a la izquierda',
@@ -384,6 +395,13 @@ export const DEFAULT_LABELS: Canvas2Labels = {
     'yt-thumb': 'Miniatura YouTube',
     a4: 'A4',
     default: 'Lienzo clásico',
+  },
+  mode: {
+    group: 'Modo del lienzo',
+    view: 'Ver',
+    comment: 'Comentar',
+    edit: 'Editar',
+    done: 'Listo',
   },
 };
 

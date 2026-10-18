@@ -1,6 +1,6 @@
 'use client';
 export { Canvas2, Canvas2Editor, default } from './editor/Canvas2';
-export type { Canvas2EditorProps, Canvas2Api, Canvas2Scene } from './editor/Canvas2';
+export type { Canvas2EditorProps, Canvas2Api, Canvas2Scene, Canvas2ToolbarAction } from './editor/Canvas2';
 export type { CanvasWorkspace } from './workspaces/types';
 export { CanvasMenu } from './navigation/CanvasMenu';
 export type { CanvasMenuProps } from './navigation/CanvasMenu';
@@ -15,6 +15,8 @@ export type { BrandGalleryProps } from './panels/BrandGallery';
 export { LibraryPanel } from './panels/LibraryPanel';
 export type { LibraryPanelProps } from './panels/LibraryPanel';
 export { PageActions } from './navigation/PageActions';
+export { ModeSwitch } from './navigation/ModeSwitch';
+export type { Canvas2Mode, Canvas2ModeControl } from './navigation/ModeSwitch';
 export type { PageActionsProps } from './navigation/PageActions';
 export { VideoFramePicker } from './overlays/VideoFramePicker';
 export type { VideoFramePickerProps } from './overlays/VideoFramePicker';
