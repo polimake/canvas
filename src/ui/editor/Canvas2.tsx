@@ -47,6 +47,12 @@ export type { Canvas2Scene } from '../../core/scene';
 /** The Excalidraw imperative API handed to `onReady` (updateScene, export, …). */
 export type Canvas2Api = ExcalidrawImperativeAPI;
 
+/** Lo que canvas2 añade al api de Excalidraw en `onReady`. */
+export interface Canvas2Controls {
+  /** Suelta ya el `onSceneChange` pendiente, si lo hay. */
+  flushSceneChange: () => void;
+}
+
 export interface Canvas2EditorProps {
   /** Controlled workspace. Switching changes only the surrounding UI. */
   workspace?: CanvasWorkspace;
@@ -77,8 +83,12 @@ export interface Canvas2EditorProps {
   /** UI language. Defaults to Spanish to match studio. */
   langCode?: string;
   /** Receives the imperative API once mounted (updateScene, exportToBlob, …).
-   *  This is canvas2's analogue of `onRegisterEditorApi`. */
-  onReady?: (api: ExcalidrawImperativeAPI) => void;
+   *  This is canvas2's analogue of `onRegisterEditorApi`.
+   *
+   *  `flushSceneChange` suelta ya el `onSceneChange` que espera su
+   *  `changeDebounceMs`: el host lo llama antes de guardar cuando no puede
+   *  esperar (al salir de la app). Al desmontar se suelta solo. */
+  onReady?: (api: ExcalidrawImperativeAPI, controls: Canvas2Controls) => void;
   /**
    * Excalidraw's own "save as image" dialog. Defaults to `true`.
    *
@@ -290,26 +300,52 @@ function brandDefaults(brand?: Canvas2Brand) {
   return defaults;
 }
 
-/** Debounce a callback; always invokes the latest closure, clears on unmount. */
+/**
+ * Debounce a callback; always invokes the latest closure, clears on unmount.
+ *
+ * Con `flushOnUnmount`, lo pendiente se SUELTA al desmontar en vez de
+ * cancelarse: si lo que espera es el último cambio de la escena, cancelarlo
+ * era perderlo al salir del lienzo antes de que venciera. `.flush()` lo suelta
+ * ya, para quien no puede esperar (guardar al salir de la app).
+ */
 function useDebouncedCallback<A extends unknown[]>(
   fn: (...args: A) => void,
   delay: number,
+  { flushOnUnmount = false }: { flushOnUnmount?: boolean } = {},
 ) {
   const fnRef = useRef(fn);
   fnRef.current = fn;
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pending = useRef<A | null>(null);
+  const flush = useCallback(() => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+    const args = pending.current;
+    pending.current = null;
+    if (args) fnRef.current(...args);
+  }, []);
   useEffect(
     () => () => {
+      if (flushOnUnmount) {
+        flush();
+        return;
+      }
       if (timer.current) clearTimeout(timer.current);
+      pending.current = null;
     },
-    [],
+    [flush, flushOnUnmount],
   );
-  return useCallback(
-    (...args: A) => {
-      if (timer.current) clearTimeout(timer.current);
-      timer.current = setTimeout(() => fnRef.current(...args), delay);
-    },
-    [delay],
+  return useMemo(
+    () =>
+      Object.assign(
+        (...args: A) => {
+          if (timer.current) clearTimeout(timer.current);
+          pending.current = args;
+          timer.current = setTimeout(flush, delay);
+        },
+        { flush },
+      ),
+    [delay, flush],
   );
 }
 
@@ -540,9 +576,15 @@ export function Canvas2Editor({
    */
   const pendingHydration = useRef(((initialData?.elements as unknown[] | undefined)?.length ?? 0) > 0);
 
-  const emitScene = useDebouncedCallback((scene: Canvas2Scene) => {
-    onSceneChange?.(scene);
-  }, changeDebounceMs);
+  // Al desmontar se suelta lo pendiente: es el último cambio, y el host lo
+  // guarda al salir.
+  const emitScene = useDebouncedCallback(
+    (scene: Canvas2Scene) => {
+      onSceneChange?.(scene);
+    },
+    changeDebounceMs,
+    { flushOnUnmount: true },
+  );
 
   // Pages init — driven by Excalidraw's FIRST onChange (which only fires once
   // hydration has committed; the old 100ms settle-poll guessed at timing), with
@@ -864,7 +906,7 @@ export function Canvas2Editor({
         excalidrawAPI={(instance) => {
           apiRef.current = instance;
           setApi(instance);
-          onReady?.(instance);
+          onReady?.(instance, { flushSceneChange: emitScene.flush });
         }}
         onChange={(elements, appState, files) => {
           // Selection-following (pages mode): selecting an element activates

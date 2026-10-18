@@ -4366,22 +4366,39 @@ function brandDefaults(brand) {
   if (id !== null) defaults.currentItemFontFamily = id;
   return defaults;
 }
-function useDebouncedCallback(fn, delay) {
+function useDebouncedCallback(fn, delay, { flushOnUnmount = false } = {}) {
   const fnRef = useRef(fn);
   fnRef.current = fn;
   const timer = useRef(null);
+  const pending = useRef(null);
+  const flush = useCallback(() => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+    const args = pending.current;
+    pending.current = null;
+    if (args) fnRef.current(...args);
+  }, []);
   useEffect(
     () => () => {
+      if (flushOnUnmount) {
+        flush();
+        return;
+      }
       if (timer.current) clearTimeout(timer.current);
+      pending.current = null;
     },
-    []
+    [flush, flushOnUnmount]
   );
-  return useCallback(
-    (...args) => {
-      if (timer.current) clearTimeout(timer.current);
-      timer.current = setTimeout(() => fnRef.current(...args), delay);
-    },
-    [delay]
+  return useMemo(
+    () => Object.assign(
+      (...args) => {
+        if (timer.current) clearTimeout(timer.current);
+        pending.current = args;
+        timer.current = setTimeout(flush, delay);
+      },
+      { flush }
+    ),
+    [delay, flush]
   );
 }
 function Canvas2Editor({
@@ -4517,9 +4534,13 @@ ${css}` : css;
     };
   });
   const pendingHydration = useRef((((_a = initialData == null ? void 0 : initialData.elements) == null ? void 0 : _a.length) ?? 0) > 0);
-  const emitScene = useDebouncedCallback((scene) => {
-    onSceneChange == null ? void 0 : onSceneChange(scene);
-  }, changeDebounceMs);
+  const emitScene = useDebouncedCallback(
+    (scene) => {
+      onSceneChange == null ? void 0 : onSceneChange(scene);
+    },
+    changeDebounceMs,
+    { flushOnUnmount: true }
+  );
   useEffect(() => {
     if (!pages || !api || didInitPages.current) return;
     let unsub = null;
@@ -4764,7 +4785,7 @@ ${css}` : css;
                 excalidrawAPI: (instance) => {
                   apiRef.current = instance;
                   setApi(instance);
-                  onReady == null ? void 0 : onReady(instance);
+                  onReady == null ? void 0 : onReady(instance, { flushSceneChange: emitScene.flush });
                 },
                 onChange: (elements, appState, files) => {
                   if (pages && appState.selectedElementIds !== lastSelectionRef.current) {
@@ -5108,4 +5129,4 @@ export {
   duplicatePage as y,
   resizePage as z
 };
-//# sourceMappingURL=LibraryPanel-CUU1H-E4.js.map
+//# sourceMappingURL=LibraryPanel-DbzCoxzU.js.map

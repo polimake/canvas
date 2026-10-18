@@ -17,6 +17,11 @@ import type { Canvas2Scene } from '../../core/scene';
 export type { Canvas2Scene } from '../../core/scene';
 /** The Excalidraw imperative API handed to `onReady` (updateScene, export, …). */
 export type Canvas2Api = ExcalidrawImperativeAPI;
+/** Lo que canvas2 añade al api de Excalidraw en `onReady`. */
+export interface Canvas2Controls {
+    /** Suelta ya el `onSceneChange` pendiente, si lo hay. */
+    flushSceneChange: () => void;
+}
 export interface Canvas2EditorProps {
     /** Controlled workspace. Switching changes only the surrounding UI. */
     workspace?: CanvasWorkspace;
@@ -47,8 +52,12 @@ export interface Canvas2EditorProps {
     /** UI language. Defaults to Spanish to match studio. */
     langCode?: string;
     /** Receives the imperative API once mounted (updateScene, exportToBlob, …).
-     *  This is canvas2's analogue of `onRegisterEditorApi`. */
-    onReady?: (api: ExcalidrawImperativeAPI) => void;
+     *  This is canvas2's analogue of `onRegisterEditorApi`.
+     *
+     *  `flushSceneChange` suelta ya el `onSceneChange` que espera su
+     *  `changeDebounceMs`: el host lo llama antes de guardar cuando no puede
+     *  esperar (al salir de la app). Al desmontar se suelta solo. */
+    onReady?: (api: ExcalidrawImperativeAPI, controls: Canvas2Controls) => void;
     /**
      * Excalidraw's own "save as image" dialog. Defaults to `true`.
      *
