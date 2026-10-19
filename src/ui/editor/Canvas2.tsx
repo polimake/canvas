@@ -39,6 +39,7 @@ import { copyDropEffect } from '../shared/dropEffect';
 import { imageAtScenePoint, type ImageHit } from '../../core/media';
 import { palette } from '../shared/theme';
 import { installCanvaGestures } from './canvaGestures';
+import { emptySceneGate, sceneChange, type SceneGateState } from './sceneGate';
 
 /**
  * A serializable snapshot of the canvas. Same shape Excalidraw accepts as
@@ -575,10 +576,7 @@ export function Canvas2Editor({
   // Emission hygiene state: skip viewport-only onChange ticks (the elements
   // array reference is stable across them) and remember the last selection to
   // drive selection-following without extra scans.
-  const lastEmittedRef = useRef<{ elements: unknown; bg: unknown }>({
-    elements: null,
-    bg: null,
-  });
+  const lastEmittedRef = useRef<SceneGateState>(emptySceneGate());
   const lastSelectionRef = useRef<unknown>(null);
 
   // In pages mode with NO host scene, the first artboard ships INSIDE
@@ -1017,17 +1015,14 @@ export function Canvas2Editor({
           }
 
           if (!onSceneChange) return;
-          // Content gate: the elements array reference is stable across
-          // viewport-only ticks (pan/zoom/selection), so identity + background
-          // equality means "nothing to persist".
+          // Content gate: viewport-only ticks (pan/zoom/selection) keep the
+          // elements array AND every version, so nothing to persist. The array
+          // alone is not enough: an arrow-key nudge mutates in place—same
+          // array, new versions—and was never emitted (`sceneGate.ts`).
           const bg = appState.viewBackgroundColor;
-          if (
-            elements === lastEmittedRef.current.elements &&
-            bg === lastEmittedRef.current.bg
-          ) {
-            return;
-          }
-          lastEmittedRef.current = { elements, bg };
+          const gate = sceneChange(lastEmittedRef.current, elements, bg);
+          if (!gate) return;
+          lastEmittedRef.current = gate;
 
           // Persistence-ready snapshot: no deleted-element tombstones, and the
           // files map pruned to images that still exist (dead dataURLs

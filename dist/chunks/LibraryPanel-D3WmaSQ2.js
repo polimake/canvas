@@ -4636,6 +4636,22 @@ function canvaGestureActions() {
 function installCanvaGestures(api) {
   for (const action of canvaGestureActions()) api.registerAction(action);
 }
+const emptySceneGate = () => ({ elements: null, versions: null, bg: null });
+function hashVersions(elements) {
+  let hash = 5381;
+  for (const e of elements) {
+    hash = (hash << 5) + hash + (e.version ?? 0) | 0;
+    hash = (hash << 5) + hash + (e.versionNonce ?? 0) | 0;
+  }
+  return hash >>> 0;
+}
+function sceneChange(previous, elements, bg) {
+  const versions = hashVersions(elements);
+  if (elements === previous.elements && versions === previous.versions && bg === previous.bg) {
+    return null;
+  }
+  return { elements, versions, bg };
+}
 const MEDIA_DROP_TYPE = "application/x-canvas2-media";
 function isOverCanvas(target) {
   return target instanceof Element && Boolean(target.closest(".excalidraw"));
@@ -4797,10 +4813,7 @@ ${css}` : css;
   }, [activePageId]);
   const didInitPages = useRef(false);
   const [openingPageId, setOpeningPageId] = useState(null);
-  const lastEmittedRef = useRef({
-    elements: null,
-    bg: null
-  });
+  const lastEmittedRef = useRef(emptySceneGate());
   const lastSelectionRef = useRef(null);
   const [initialData] = useState(() => {
     const base = initialScene ?? (pages ? createBlankScene(pageSize, L.pages) : null);
@@ -5126,10 +5139,9 @@ ${css}` : css;
                   }
                   if (!onSceneChange) return;
                   const bg = appState.viewBackgroundColor;
-                  if (elements === lastEmittedRef.current.elements && bg === lastEmittedRef.current.bg) {
-                    return;
-                  }
-                  lastEmittedRef.current = { elements, bg };
+                  const gate = sceneChange(lastEmittedRef.current, elements, bg);
+                  if (!gate) return;
+                  lastEmittedRef.current = gate;
                   const live = getNonDeletedElements(elements);
                   const referenced = new Set(
                     live.filter(
@@ -5485,4 +5497,4 @@ export {
   fitAllPages as y,
   renamePage as z
 };
-//# sourceMappingURL=LibraryPanel-BRnFNiSa.js.map
+//# sourceMappingURL=LibraryPanel-D3WmaSQ2.js.map
