@@ -87,6 +87,42 @@ describe('deshacer como en Canva: seleccionar no es un paso', () => {
     expect(applied).toEqual([]);
   });
 
+  it('un texto nuevo partido en dos entradas se deshace y se rehace de una vez', () => {
+    // Lo que graba Excalidraw al crear un texto con algo seleccionado: el
+    // `pointerup` de la T captura el texto vacío, y el editor, lo escrito.
+    const vacio = { id: 'n', type: 'text', text: '', width: 8, isDeleted: false };
+    const escrito = { ...vacio, text: 'Ñandú', width: 56 };
+    const borrado = { ...vacio, isDeleted: true };
+    type Paso = { elementsChange: { isEmpty: () => boolean }; appStateChange: { delta: object }; antes: any; despues: any };
+    const paso = (antes: any, despues: any): Paso => ({
+      elementsChange: { isEmpty: () => false }, appStateChange: { delta: { deleted: {}, inserted: {} } }, antes, despues,
+    });
+    const history: any = { undoStack: [paso(borrado, vacio), paso(vacio, escrito)], redoStack: [] };
+    const aplicar = (de: Paso[], a: Paso[], lado: 'antes' | 'despues') => (map: Map<string, any>, appState: any) => {
+      const e = de.pop();
+      if (!e) return undefined;
+      a.push(e);
+      return [new Map(map).set('n', e[lado]), appState] as [Map<string, any>, any];
+    };
+    history.undo = aplicar(history.undoStack, history.redoStack, 'antes');
+    history.redo = aplicar(history.redoStack, history.undoStack, 'despues');
+    const app = { history, store: { snapshot: {} } };
+
+    const z = performHistory('undo', [escrito as any], {}, app)!;
+    expect(z.elements).toEqual([borrado]);
+    expect(history.undoStack).toHaveLength(0);
+    const y = performHistory('redo', z.elements, {}, app)!;
+    expect(y.elements).toEqual([escrito]);
+    expect(history.redoStack).toHaveLength(0);
+  });
+
+  it('un texto vacío que ya estaba no arrastra más pasos', () => {
+    const vacio = { id: 'v', type: 'text', text: '', isDeleted: false };
+    const { app, applied } = fakeHistory([move(), move()]);
+    performHistory('undo', [vacio as any], {}, app);
+    expect(applied).toHaveLength(1);
+  });
+
   it('la acción sustituye por nombre a undo y redo y no deja la historia como cambio nuevo', () => {
     const { app } = fakeHistory([move(), selection('a')]);
     const [undo, redo] = canvaGestureActions() as any[];

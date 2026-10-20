@@ -114,12 +114,42 @@ export function performHistory(
   const history = app?.history;
   const store = app?.store;
   if (!history || !store || historyIsBusy(appState, app)) return null;
-  dropSelectionOnlyTail(direction === 'undo' ? history.undoStack : history.redoStack);
-  const map = new Map(elements.map((el) => [el.id, el] as const));
-  const result = history[direction](map, appState, store.snapshot);
-  if (!result) return null;
-  const [nextElements, nextAppState] = result;
-  return { elements: Array.from(nextElements.values()), appState: nextAppState };
+  const stack = direction === 'undo' ? history.undoStack : history.redoStack;
+  let map = new Map(elements.map((el) => [el.id, el] as const));
+  let state = appState;
+  let applied = false;
+  // Un texto nuevo puede ocupar DOS entradas: si había algo seleccionado, el
+  // `pointerup` del clic con la T captura la escena con el texto ya puesto y
+  // aún vacío, y al cerrar el editor llega la segunda con lo escrito. Un
+  // Ctrl+Z dejaba entonces un texto "" (8 px de ancho) en la página, y la
+  // cadena de deshacer iba un paso por detrás desde ahí. Excalidraw nunca deja
+  // vivo un texto vacío —lo borra al cerrar el editor—, así que un paso que
+  // termina con uno que antes no estaba es medio paso: se aplica el siguiente.
+  for (let guard = 0; guard < 4; guard++) {
+    dropSelectionOnlyTail(stack);
+    const result = history[direction](map, state, store.snapshot);
+    if (!result) break;
+    applied = true;
+    const before = map;
+    [map, state] = result;
+    if (!leavesNewEmptyText(before, map) || !hasRealEntry(stack)) break;
+  }
+  if (!applied) return null;
+  return { elements: Array.from(map.values()), appState: state };
+}
+
+const isEmptyLiveText = (el: SceneElement | undefined): boolean =>
+  !!el && el.type === 'text' && !el.isDeleted && (el as { text?: string }).text === '';
+
+/** ¿Hay en `after` un texto vacío y vivo que en `before` no lo era? */
+export function leavesNewEmptyText(
+  before: ReadonlyMap<string, SceneElement>,
+  after: ReadonlyMap<string, SceneElement>,
+): boolean {
+  for (const [id, el] of after) {
+    if (isEmptyLiveText(el) && !isEmptyLiveText(before.get(id))) return true;
+  }
+  return false;
 }
 
 /** Mayúsculas+flecha, como en Canva. */
