@@ -47,6 +47,13 @@ export declare function fitPagePapersInArray(elements: readonly SceneElement[]):
  */
 export declare function hasRaisedPaper(elements: readonly SceneElement[]): boolean;
 /**
+ * Baja el papel de `frameId` hasta justo antes del primero de sus miembros, sin
+ * mover a nadie más: el orden de lo demás —y por tanto el índice de lo que se
+ * acaba de soltar en la página— queda tal cual. Si hay más de un papel, baja
+ * el primero.
+ */
+export declare function lowerPaperInArray(elements: readonly SceneElement[], frameId: string): readonly SceneElement[];
+/**
  * Garantiza el suelo de cada página: que TENGA papel, que el papel esté ABAJO y
  * que ocupe su marco.
  *

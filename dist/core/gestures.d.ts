@@ -74,6 +74,8 @@ export declare function performHistory(direction: HistoryDirection, elements: re
     elements: SceneElement[];
     appState: any;
 } | null;
+/** ¿Hay en `after` un texto vacío y vivo que en `before` no lo era? */
+export declare function leavesNewEmptyText(before: ReadonlyMap<string, SceneElement>, after: ReadonlyMap<string, SceneElement>): boolean;
 /** Mayúsculas+flecha, como en Canva. */
 export declare const SHIFT_NUDGE_PX = 10;
 export declare const ARROW_OFFSETS: {

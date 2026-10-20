@@ -1,11 +1,11 @@
 import { jsxs, jsx, Fragment as Fragment$1 } from "react/jsx-runtime";
 import { useState, useRef, useEffect, Fragment, useMemo, useCallback, useId, useReducer } from "react";
+import { createPortal, flushSync } from "react-dom";
 import "@excalidraw/excalidraw/index.css";
 import { newElementWith, CaptureUpdateAction, convertToExcalidrawElements, serializeAsJSON, restore, exportToBlob, exportToCanvas, exportToSvg, MainMenu, FONT_FAMILY, useI18n, viewportCoordsToSceneCoords, getVisibleSceneBounds, Excalidraw, getNonDeletedElements } from "@excalidraw/excalidraw";
 import { cloneSceneElements } from "../components.js";
 import { P as PAGE_GAP } from "./layout-BEpoNps2.js";
 import { fontFormatHint, buildFontFaceCss, fontFamilyAlias, normalizeFontSrc, customFontFamilyId, dedupeFontFaces } from "../fonts.js";
-import { createPortal } from "react-dom";
 const CAPTURE = {
   // One undo entry, immediately.
   undoable: CaptureUpdateAction.IMMEDIATELY,
@@ -21,9 +21,31 @@ function patchElement(element, updates) {
 function asSceneElements(elements) {
   return elements;
 }
+function detachMoved(current, next) {
+  const inNext = new Set(next.map((el) => el.id));
+  const inCurrent = new Set(current.map((el) => el.id));
+  const before = current.filter((el) => inNext.has(el.id)).map((el) => el.id);
+  const after = next.filter((el) => inCurrent.has(el.id)).map((el) => el.id);
+  let lo = 0;
+  while (lo < after.length && after[lo] === before[lo]) lo++;
+  let hi = after.length - 1;
+  while (hi > lo && after[hi] === before[hi]) hi--;
+  const moved = new Set(lo < after.length ? after.slice(lo, hi + 1) : []);
+  const live = new Set(current);
+  let out = null;
+  for (let i = 0; i < next.length; i++) {
+    const el = next[i];
+    if (!live.has(el)) continue;
+    if (!moved.has(el.id)) continue;
+    out ?? (out = next.slice());
+    out[i] = { ...el };
+  }
+  return out ?? next;
+}
 function commitElements(api, elements, capture = "undoable", appState) {
+  var _a;
   api.updateScene({
-    elements: asSceneElements(elements),
+    elements: asSceneElements(detachMoved(((_a = api.getSceneElementsIncludingDeleted) == null ? void 0 : _a.call(api)) ?? api.getSceneElements(), elements)),
     ...appState ? { appState } : {},
     captureUpdate: CAPTURE[capture]
   });
@@ -154,6 +176,14 @@ function hasRaisedPaper(elements) {
   }
   return false;
 }
+function lowerPaperInArray(elements, frameId) {
+  const first = elements.findIndex((e) => !e.isDeleted && e.frameId === frameId);
+  const at = elements.findIndex((e) => !e.isDeleted && e.frameId === frameId && isPageBackground(e));
+  if (first < 0 || at <= first) return elements;
+  const paper = elements[at];
+  const rest = elements.filter((_, i) => i !== at);
+  return [...rest.slice(0, first), paper, ...rest.slice(first)];
+}
 function ensurePagePapers(api, capture = "never") {
   const elements = api.getSceneElements();
   const frames2 = elements.filter((e) => e.type === "frame");
@@ -189,7 +219,8 @@ function ensurePagePapers(api, capture = "never") {
     if (!self || lastMember < 0) continue;
     combined = [...rest.slice(0, lastMember + 1), self, ...rest.slice(lastMember + 1)];
   }
-  for (const frame of [...missing, ...sunk]) {
+  for (const frame of sunk) combined = lowerPaperInArray(combined, frame.id);
+  for (const frame of missing) {
     combined = reorderMembersInArray(
       combined,
       frame.id,
@@ -1853,7 +1884,7 @@ function PageNavigator({
     }
   );
 }
-function boxOf(el) {
+function boxOf$1(el) {
   const width = Math.abs(el.width);
   const height = Math.abs(el.height);
   return {
@@ -1950,7 +1981,7 @@ function clusterLooseElements(loose) {
   for (const bucket of byGroup.values()) {
     for (let k = 1; k < bucket.length; k += 1) union(bucket[0], bucket[k]);
   }
-  const boxes = loose.map(boxOf);
+  const boxes = loose.map(boxOf$1);
   for (let i = 0; i < loose.length; i += 1) {
     for (let j = i + 1; j < loose.length; j += 1) {
       if (find(i) !== find(j) && overlaps(boxes[i], boxes[j])) union(i, j);
@@ -1995,7 +2026,7 @@ function paginateSceneInArray(elements, opts = {}) {
     next2 = renumberPagesInArray(next2, order2);
     return { elements: next2, created: 0, total: existingFrames.length };
   }
-  const boxes = clusters.map((c) => unionBox(c.map(boxOf)));
+  const boxes = clusters.map((c) => unionBox(c.map(boxOf$1)));
   const pageSize = opts.pageSize ?? {
     width: Math.round(Math.max(...boxes.map((b) => b.width))),
     height: Math.round(Math.max(...boxes.map((b) => b.height)))
@@ -2031,7 +2062,7 @@ function paginateSceneInArray(elements, opts = {}) {
     const offsetX = x + (pageSize.width - box.width * k) / 2;
     const offsetY = y + (pageSize.height - box.height * k) / 2;
     const members = cluster.map((el) => {
-      const elBox = boxOf(el);
+      const elBox = boxOf$1(el);
       const updates = {
         frameId: frame.id,
         x: offsetX + (elBox.x - box.x) * k,
@@ -4524,12 +4555,28 @@ function performHistory(direction, elements, appState, app) {
   const history = app == null ? void 0 : app.history;
   const store = app == null ? void 0 : app.store;
   if (!history || !store || historyIsBusy(appState, app)) return null;
-  dropSelectionOnlyTail(direction === "undo" ? history.undoStack : history.redoStack);
-  const map = new Map(elements.map((el) => [el.id, el]));
-  const result = history[direction](map, appState, store.snapshot);
-  if (!result) return null;
-  const [nextElements, nextAppState] = result;
-  return { elements: Array.from(nextElements.values()), appState: nextAppState };
+  const stack = direction === "undo" ? history.undoStack : history.redoStack;
+  let map = new Map(elements.map((el) => [el.id, el]));
+  let state = appState;
+  let applied = false;
+  for (let guard = 0; guard < 4; guard++) {
+    dropSelectionOnlyTail(stack);
+    const result = history[direction](map, state, store.snapshot);
+    if (!result) break;
+    applied = true;
+    const before = map;
+    [map, state] = result;
+    if (!leavesNewEmptyText(before, map) || !hasRealEntry(stack)) break;
+  }
+  if (!applied) return null;
+  return { elements: Array.from(map.values()), appState: state };
+}
+const isEmptyLiveText = (el) => !!el && el.type === "text" && !el.isDeleted && el.text === "";
+function leavesNewEmptyText(before, after) {
+  for (const [id, el] of after) {
+    if (isEmptyLiveText(el) && !isEmptyLiveText(before.get(id))) return true;
+  }
+  return false;
 }
 const SHIFT_NUDGE_PX = 10;
 const ARROW_OFFSETS = {
@@ -4647,6 +4694,140 @@ function canvaGestureActions() {
 }
 function installCanvaGestures(api) {
   for (const action of canvaGestureActions()) api.registerAction(action);
+}
+const CONTROL_KEYS = /* @__PURE__ */ new Set([
+  "Enter",
+  " ",
+  "Spacebar",
+  "Escape",
+  "Tab",
+  "ArrowLeft",
+  "ArrowRight",
+  "ArrowUp",
+  "ArrowDown",
+  "Delete",
+  "Backspace",
+  "Home",
+  "End",
+  "PageUp",
+  "PageDown"
+]);
+const MODIFIERS = /* @__PURE__ */ new Set(["Shift", "Control", "Alt", "Meta", "AltGraph", "CapsLock"]);
+function isTypingTarget(target) {
+  if (!(target instanceof Element)) return false;
+  const tag = target.tagName;
+  if (tag === "TEXTAREA" || tag === "SELECT") return true;
+  if (tag === "INPUT") {
+    const type = target.type;
+    return !["button", "checkbox", "radio", "range", "color", "submit", "reset", "file", "image"].includes(type);
+  }
+  return target.isContentEditable === true;
+}
+function shouldForwardKey(event, canvas, scope) {
+  if (!canvas || event.defaultPrevented || event.isComposing) return false;
+  if (MODIFIERS.has(event.key)) return false;
+  if (event.key === "PageUp" || event.key === "PageDown") return false;
+  const target = event.target;
+  const doc = canvas.ownerDocument;
+  const nowhere = target === doc.body || target === doc.documentElement || target === doc || target === doc.defaultView;
+  if (!nowhere) {
+    if (!(target instanceof Node)) return false;
+    if (canvas.contains(target)) return false;
+    if (!scope || !scope.contains(target)) return false;
+  }
+  if (isTypingTarget(target)) return false;
+  if (event.key === "Tab") return false;
+  if (!nowhere && CONTROL_KEYS.has(event.key) && !event.ctrlKey && !event.metaKey) return false;
+  return true;
+}
+function forwardKey(event, canvas) {
+  var _a;
+  const doc = canvas.ownerDocument;
+  const View = ((_a = doc.defaultView) == null ? void 0 : _a.KeyboardEvent) ?? KeyboardEvent;
+  const copy = new View("keydown", {
+    key: event.key,
+    code: event.code,
+    location: event.location,
+    repeat: event.repeat,
+    ctrlKey: event.ctrlKey,
+    shiftKey: event.shiftKey,
+    altKey: event.altKey,
+    metaKey: event.metaKey,
+    bubbles: true,
+    cancelable: true
+  });
+  canvas.focus({ preventScroll: true });
+  const body = doc.body;
+  const stop = (e) => {
+    if (e === copy) e.stopImmediatePropagation();
+  };
+  body == null ? void 0 : body.addEventListener("keydown", stop);
+  try {
+    canvas.dispatchEvent(copy);
+  } finally {
+    body == null ? void 0 : body.removeEventListener("keydown", stop);
+  }
+  if (copy.defaultPrevented) event.preventDefault();
+}
+function installKeyRouting(win, getCanvas, getScope) {
+  const onKey = (event) => {
+    const canvas = getCanvas();
+    if (!canvas || !shouldForwardKey(event, canvas, getScope())) return;
+    forwardKey(event, canvas);
+  };
+  win.addEventListener("keydown", onKey);
+  return () => win.removeEventListener("keydown", onKey);
+}
+const HANDLE_ZONE_PX = 16;
+function boxOf(el) {
+  const { x, y, width, height } = el;
+  const angle = el.angle ?? 0;
+  if (!angle) return [Math.min(x, x + width), Math.min(y, y + height), Math.max(x, x + width), Math.max(y, y + height)];
+  const cx = x + width / 2;
+  const cy = y + height / 2;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const pts = [[x, y], [x + width, y], [x, y + height], [x + width, y + height]].map(([px, py]) => [
+    cx + (px - cx) * cos - (py - cy) * sin,
+    cy + (px - cx) * sin + (py - cy) * cos
+  ]);
+  return [
+    Math.min(...pts.map((p) => p[0])),
+    Math.min(...pts.map((p) => p[1])),
+    Math.max(...pts.map((p) => p[0])),
+    Math.max(...pts.map((p) => p[1]))
+  ];
+}
+const inside = ([x1, y1, x2, y2], x, y) => x >= x1 && x <= x2 && y >= y1 && y <= y2;
+const grabbable = (el) => !el.isDeleted && el.type !== "frame" && el.type !== "magicframe" && !el.locked && !isPageBackground(el) && !el.containerId;
+function pickOverSelection(elements, selectedElementIds, point, zoom) {
+  const selected = elements.filter((el) => !el.isDeleted && selectedElementIds[el.id]);
+  if (!selected.length) return null;
+  if (selected.some((el) => el.type === "frame" || el.type === "magicframe")) return null;
+  const boxes = selected.map(boxOf);
+  const common = [
+    Math.min(...boxes.map((b) => b[0])),
+    Math.min(...boxes.map((b) => b[1])),
+    Math.max(...boxes.map((b) => b[2])),
+    Math.max(...boxes.map((b) => b[3]))
+  ];
+  if (!inside(common, point.x, point.y)) return null;
+  const zone = HANDLE_ZONE_PX / (zoom || 1);
+  for (const [cx, cy] of [[common[0], common[1]], [common[2], common[1]], [common[0], common[3]], [common[2], common[3]]]) {
+    if (Math.abs(point.x - cx) <= zone && Math.abs(point.y - cy) <= zone) return null;
+  }
+  const frames2 = new Map(elements.filter((el) => el.type === "frame" && !el.isDeleted).map((el) => [el.id, boxOf(el)]));
+  let top = null;
+  for (const el of elements) {
+    if (!grabbable(el) || !inside(boxOf(el), point.x, point.y)) continue;
+    const frame = el.frameId ? frames2.get(el.frameId) : null;
+    if (frame && !inside(frame, point.x, point.y)) continue;
+    top = el;
+  }
+  if (!top || selectedElementIds[top.id]) return null;
+  const groups = new Set(selected.flatMap((el) => el.groupIds ?? []));
+  if ((top.groupIds ?? []).some((g) => groups.has(g))) return null;
+  return top.id;
 }
 const emptySceneGate = () => ({ elements: null, versions: null, bg: null });
 function hashVersions(elements) {
@@ -4918,6 +5099,42 @@ ${css}` : css;
   useEffect(() => {
     if (api) installCanvaGestures(api);
   }, [api]);
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!api || viewMode || !root) return;
+    const onDown = (ev) => {
+      if (ev.button !== 0 || ev.shiftKey || ev.ctrlKey || ev.metaKey || ev.altKey) return;
+      const target = ev.target;
+      if (!(target instanceof HTMLCanvasElement) || !target.classList.contains("interactive")) return;
+      const s = api.getAppState();
+      if (s.activeTool.type !== "selection" || s.editingTextElement || s.croppingElementId) return;
+      const z = s.zoom.value;
+      const point = { x: (ev.clientX - s.offsetLeft) / z - s.scrollX, y: (ev.clientY - s.offsetTop) / z - s.scrollY };
+      if (!pickOverSelection(api.getSceneElements(), s.selectedElementIds, point, z)) return;
+      flushSync(() => {
+        api.updateScene({
+          appState: { selectedElementIds: {}, selectedGroupIds: {} },
+          captureUpdate: CaptureUpdateAction.EVENTUALLY
+        });
+      });
+    };
+    root.addEventListener("pointerdown", onDown, true);
+    return () => root.removeEventListener("pointerdown", onDown, true);
+  }, [api, viewMode]);
+  useEffect(() => {
+    if (!api || viewMode) return;
+    return installKeyRouting(
+      window,
+      () => {
+        var _a2;
+        return ((_a2 = rootRef.current) == null ? void 0 : _a2.querySelector(".excalidraw")) ?? null;
+      },
+      () => {
+        var _a2;
+        return ((_a2 = rootRef.current) == null ? void 0 : _a2.closest(".canvas2-workspace")) ?? rootRef.current;
+      }
+    );
+  }, [api, viewMode]);
   const normalizePages = useDebouncedCallback(() => {
     const live = apiRef.current;
     if (!live || !didInitPages.current) return;
@@ -5127,6 +5344,7 @@ ${css}` : css;
               {
                 initialData,
                 viewModeEnabled: viewMode,
+                autoFocus: !viewMode,
                 gridModeEnabled: workspace === "advanced" ? false : void 0,
                 langCode,
                 aiEnabled: false,
@@ -5514,4 +5732,4 @@ export {
   fitAllPages as y,
   renamePage as z
 };
-//# sourceMappingURL=LibraryPanel-C_TXzflC.js.map
+//# sourceMappingURL=LibraryPanel-DHmBBq9g.js.map
