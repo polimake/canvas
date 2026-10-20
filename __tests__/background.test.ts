@@ -395,6 +395,28 @@ describe('hasRaisedPaper', () => {
     expect(suyos.map((e: any) => e.id)).toEqual(['bg2', 'm1']);
   });
 
+  it('hundir el papel no mueve lo que se soltó: el Ctrl+Z lo devuelve a su sitio', () => {
+    // Hundir el papel es un commit fuera del historial. Si lo que se cambia de
+    // sitio es lo soltado, deshacer el gesto lo devuelve a la página 1 pero en
+    // el hueco que era del papel: encima de todo lo de la página. Lo que baja es
+    // el papel, y lo soltado se queda entre los mismos de antes.
+    const els = [
+      paper('bg1', 'p1', 0, 0, 500, 500),
+      member('a', 'p1', 20, 20, 40, 40),
+      member('m1', 'p2', 620, 60, 40, 40),
+      member('b', 'p1', 40, 40, 40, 40),
+      frame('p1', 0, 0, 500, 500),
+      paper('bg2', 'p2', 600, 0, 500, 500),
+      member('c', 'p2', 640, 40, 40, 40),
+      frame('p2', 600, 0, 500, 500),
+    ];
+    const { api, get, commits } = fakeApi(els);
+    ensurePagePapers(api as any);
+    expect(commits.map((c: any) => c.captureUpdate)).toEqual(['NEVER']);
+    expect(get().map((e: any) => e.id)).toEqual(['bg1', 'a', 'bg2', 'm1', 'b', 'p1', 'c', 'p2']);
+    expect(hasRaisedPaper(get() as any)).toBe(false);
+  });
+
   it('no salta con los papeles abajo, ni en páginas sin papel', () => {
     expect(
       hasRaisedPaper([

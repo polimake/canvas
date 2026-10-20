@@ -149,6 +149,24 @@ export function hasRaisedPaper(elements: readonly SceneElement[]): boolean {
 }
 
 /**
+ * Baja el papel de `frameId` hasta justo antes del primero de sus miembros, sin
+ * mover a nadie más: el orden de lo demás —y por tanto el índice de lo que se
+ * acaba de soltar en la página— queda tal cual. Si hay más de un papel, baja
+ * el primero.
+ */
+export function lowerPaperInArray(
+  elements: readonly SceneElement[],
+  frameId: string,
+): readonly SceneElement[] {
+  const first = elements.findIndex((e) => !e.isDeleted && e.frameId === frameId);
+  const at = elements.findIndex((e) => !e.isDeleted && e.frameId === frameId && isPageBackground(e));
+  if (first < 0 || at <= first) return elements;
+  const paper = elements[at];
+  const rest = elements.filter((_, i) => i !== at);
+  return [...rest.slice(0, first), paper, ...rest.slice(first)];
+}
+
+/**
  * Garantiza el suelo de cada página: que TENGA papel, que el papel esté ABAJO y
  * que ocupe su marco.
  *
@@ -234,9 +252,16 @@ export function ensurePagePapers(
     if (!self || lastMember < 0) continue;
     combined = [...rest.slice(0, lastMember + 1), self, ...rest.slice(lastMember + 1)];
   }
+  // Un papel levantado BAJA hasta justo antes del primero de los suyos, y nadie
+  // más se mueve. Antes se reordenaba la página entera (`reorderMembersInArray`
+  // mete el papel en el hueco más bajo y corre a los demás), y lo que se acababa
+  // de soltar en la página saltaba al hueco del papel: ese cambio de orden no
+  // entra en el historial (`capture: 'never'`), así que un Ctrl+Z del gesto lo
+  // devolvía a su página pero encima de todo lo de ella, y no donde estaba.
+  for (const frame of sunk) combined = lowerPaperInArray(combined, frame.id);
   // Una sola pasada por página: `reorderMembersInArray` hunde el papel de
   // oficio (ver `floorFirst` en zorder.ts), así que basta con nombrarla.
-  for (const frame of [...missing, ...sunk]) {
+  for (const frame of missing) {
     combined = reorderMembersInArray(
       combined,
       frame.id,
