@@ -53,6 +53,53 @@ export function asSceneElements(elements: readonly SceneElement[]): SceneElement
   return elements as SceneElements;
 }
 
+/**
+ * Lo que cambia de sitio en el array, como copia y no como el objeto de la
+ * escena.
+ *
+ * `updateScene` reparte índices fraccionarios nuevos a lo que ha cambiado de
+ * sitio (`syncInvalidIndices`) MUTANDO el objeto: versión +1 en el sitio. Si
+ * ese objeto es el mismo que tiene la escena, la escena "sube" de versión sin
+ * pasar por el `store`, y el `store` de Excalidraw entiende que es un cambio
+ * del usuario a medias (`filterUncomittedElements`): no lo graba en este
+ * commit. El nuevo orden se colaba entonces en la SIGUIENTE entrada del
+ * historial —la de un clic cualquiera— como un paso que solo cambia índices:
+ * un Ctrl+Z que no hacía nada a la vista (banco del lienzo: «Ctrl+Z necesita 2
+ * pulsaciones») y, en un commit que sí se graba (traer al frente), un deshacer
+ * que no devolvía el orden.
+ *
+ * Con una copia, la mutación cae en la copia: la escena conserva su versión y
+ * el `store` ve el cambio entero, y lo graba —o lo da por bueno, con
+ * `'never'`— en el commit que toca.
+ */
+export function detachMoved(
+  current: readonly SceneElement[],
+  next: readonly SceneElement[],
+): readonly SceneElement[] {
+  // El tramo que cambia de orden: lo que está en las dos listas, comparado en
+  // el orden de cada una. Fuera del tramo el orden (y por tanto el índice) es
+  // el de antes y Excalidraw no lo toca; dentro, puede tocar cualquiera.
+  const inNext = new Set(next.map((el) => el.id));
+  const inCurrent = new Set(current.map((el) => el.id));
+  const before = current.filter((el) => inNext.has(el.id)).map((el) => el.id);
+  const after = next.filter((el) => inCurrent.has(el.id)).map((el) => el.id);
+  let lo = 0;
+  while (lo < after.length && after[lo] === before[lo]) lo++;
+  let hi = after.length - 1;
+  while (hi > lo && after[hi] === before[hi]) hi--;
+  const moved = new Set(lo < after.length ? after.slice(lo, hi + 1) : []);
+  const live = new Set(current);
+  let out: SceneElement[] | null = null;
+  for (let i = 0; i < next.length; i++) {
+    const el = next[i];
+    if (!live.has(el)) continue;
+    if (!moved.has(el.id)) continue;
+    out ??= next.slice();
+    out[i] = { ...el } as SceneElement;
+  }
+  return out ?? next;
+}
+
 /** Commit an elements array (optionally with appState) to the scene. */
 export function commitElements(
   api: ExcalidrawImperativeAPI,
@@ -61,7 +108,7 @@ export function commitElements(
   appState?: Record<string, unknown>,
 ): void {
   api.updateScene({
-    elements: asSceneElements(elements),
+    elements: asSceneElements(detachMoved(api.getSceneElementsIncludingDeleted?.() ?? api.getSceneElements(), elements)),
     ...(appState ? { appState: appState as UpdateScenePayload['appState'] } : {}),
     captureUpdate: CAPTURE[capture],
   });
