@@ -39,6 +39,7 @@ import { copyDropEffect } from '../shared/dropEffect';
 import { imageAtScenePoint, type ImageHit } from '../../core/media';
 import { palette } from '../shared/theme';
 import { installCanvaGestures } from './canvaGestures';
+import { installKeyRouting } from './keyRouting';
 import { emptySceneGate, sceneChange, type SceneGateState } from './sceneGate';
 
 /**
@@ -736,6 +737,17 @@ export function Canvas2Editor({
     if (api) installCanvaGestures(api);
   }, [api]);
 
+  // El teclado del lienzo también con el foco en la tira o en un panel (ver
+  // keyRouting.ts): Ctrl+Z tras tocar una página, la T tras «+ página».
+  useEffect(() => {
+    if (!api || viewMode) return;
+    return installKeyRouting(
+      window,
+      () => rootRef.current?.querySelector<HTMLElement>('.excalidraw') ?? null,
+      () => rootRef.current?.closest('.canvas2-workspace') ?? rootRef.current,
+    );
+  }, [api, viewMode]);
+
   /**
    * Normalización continua de la fila de páginas.
    *
@@ -993,6 +1005,9 @@ export function Canvas2Editor({
       <Excalidraw
         initialData={initialData}
         viewModeEnabled={viewMode}
+        // Al abrir para editar, el teclado ya es del lienzo: la T, Ctrl+Z o Supr
+        // sin un clic antes en él, como en Canva.
+        autoFocus={!viewMode}
         gridModeEnabled={workspace === 'advanced' ? false : undefined}
         langCode={langCode}
         aiEnabled={false}
