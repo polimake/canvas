@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { flushSync } from 'react-dom';
 import '../shared/canvas2.css';
 import {
   Excalidraw,
@@ -40,6 +41,7 @@ import { imageAtScenePoint, type ImageHit } from '../../core/media';
 import { palette } from '../shared/theme';
 import { installCanvaGestures } from './canvaGestures';
 import { installKeyRouting } from './keyRouting';
+import { pickOverSelection } from '../../core/pick';
 import { emptySceneGate, sceneChange, type SceneGateState } from './sceneGate';
 
 /**
@@ -736,6 +738,33 @@ export function Canvas2Editor({
   useEffect(() => {
     if (api) installCanvaGestures(api);
   }, [api]);
+
+  // Pulsar sobre lo que está encima lo coge aunque haya otra cosa seleccionada
+  // debajo (ver core/pick.ts). En captura, antes que Excalidraw: se le quita la
+  // selección y él hace lo de siempre sin ella. Con `flushSync`, porque lee su
+  // estado en ese mismo evento.
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!api || viewMode || !root) return;
+    const onDown = (ev: PointerEvent) => {
+      if (ev.button !== 0 || ev.shiftKey || ev.ctrlKey || ev.metaKey || ev.altKey) return;
+      const target = ev.target;
+      if (!(target instanceof HTMLCanvasElement) || !target.classList.contains('interactive')) return;
+      const s = api.getAppState();
+      if (s.activeTool.type !== 'selection' || s.editingTextElement || s.croppingElementId) return;
+      const z = s.zoom.value;
+      const point = { x: (ev.clientX - s.offsetLeft) / z - s.scrollX, y: (ev.clientY - s.offsetTop) / z - s.scrollY };
+      if (!pickOverSelection(api.getSceneElements(), s.selectedElementIds, point, z)) return;
+      flushSync(() => {
+        api.updateScene({
+          appState: { selectedElementIds: {}, selectedGroupIds: {} },
+          captureUpdate: CaptureUpdateAction.EVENTUALLY,
+        });
+      });
+    };
+    root.addEventListener('pointerdown', onDown, true);
+    return () => root.removeEventListener('pointerdown', onDown, true);
+  }, [api, viewMode]);
 
   // El teclado del lienzo también con el foco en la tira o en un panel (ver
   // keyRouting.ts): Ctrl+Z tras tocar una página, la T tras «+ página».
