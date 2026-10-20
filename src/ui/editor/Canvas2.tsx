@@ -30,7 +30,7 @@ import { ToolbarSlot } from './ToolbarSlot';
 import type { FilesMap } from '../hooks/pageThumbnails';
 import { addPage, createBlankScene, goToPage, listPages, relayoutPages, type PageSize } from '../../core/pages';
 import { commitElements } from '../../core/mutate';
-import { ensurePagePapers } from '../../core/background';
+import { ensurePagePapers, hasRaisedPaper } from '../../core/background';
 import { resolveBrandKit, type BrandKitInput, type Canvas2Brand } from '../../core/brand';
 import { buildFontFaceCss, dedupeFontFaces, type CustomFontFace } from '../../core/fonts';
 import { fontFamilyId, registerCustomFonts } from '../../core/fontRegistry';
@@ -761,7 +761,16 @@ export function Canvas2Editor({
     // de una escena antigua ya la hace la inicialización de arriba: normalizar
     // aquí solo emitiría cambios de escena en una sesión que no edita.
     if (!pages || !api || viewMode) return;
-    return api.onChange(normalizePages);
+    return api.onChange((_elements, appState) => {
+      // El papel no espera al normalizador: lo que se suelta en otra página
+      // queda debajo del papel nuevo y desaparecía 600 ms (o más, si el ratón
+      // seguía moviéndose). Se hunde en cuanto se suelta; mientras se arrastra
+      // no, que un commit a medio gesto le cambia la escena a Excalidraw.
+      if (didInitPages.current && appState?.cursorButton !== 'down' && hasRaisedPaper(api.getSceneElements())) {
+        ensurePagePapers(api, 'never');
+      }
+      normalizePages();
+    });
   }, [pages, api, viewMode, normalizePages]);
 
   // Al mirar, la pieza se lee como pieza: fuera el «Página N» encima de cada

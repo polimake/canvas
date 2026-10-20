@@ -129,6 +129,26 @@ export function fitPagePapersInArray(
 }
 
 /**
+ * ¿Hay alguna página cuyo papel no es su miembro más bajo? Es la comprobación
+ * barata que el lienzo hace en cada `onChange` para no esperar al normalizador
+ * con retardo: al soltar un elemento en otra página, Excalidraw le cambia el
+ * `frameId` pero no su sitio en el orden, y si estaba por debajo del papel de
+ * la nueva página se queda tapado por él hasta que alguien lo hunde.
+ */
+export function hasRaisedPaper(elements: readonly SceneElement[]): boolean {
+  const firstOf = new Map<string, SceneElement>();
+  for (const e of elements) {
+    if (e.isDeleted || !e.frameId || firstOf.has(e.frameId)) continue;
+    firstOf.set(e.frameId, e);
+  }
+  for (const [frameId, first] of firstOf) {
+    if (isPageBackground(first)) continue;
+    if (elements.some((e) => !e.isDeleted && e.frameId === frameId && isPageBackground(e))) return true;
+  }
+  return false;
+}
+
+/**
  * Garantiza el suelo de cada página: que TENGA papel, que el papel esté ABAJO y
  * que ocupe su marco.
  *

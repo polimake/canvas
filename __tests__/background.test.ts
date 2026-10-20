@@ -3,7 +3,7 @@ import { excalMock, fakeApi, frame, member } from './helpers';
 
 vi.mock('../src/core/excal', () => excalMock);
 
-const { setPageBackgroundColor, getPageBackground, ensurePagePapers, fitPagePapersInArray } =
+const { setPageBackgroundColor, getPageBackground, ensurePagePapers, fitPagePapersInArray, hasRaisedPaper } =
   await import('../src/core/background.js');
 
 const isBg = (e: any) => e.customData?.c2 === 'pageBackground';
@@ -373,5 +373,37 @@ describe('el papel, en su marco', () => {
     expect(box(p1[0])).toEqual([0, 0, 1080, 1080]);
     const nuevo = get().find((e: any) => e.frameId === 'p2' && isBg(e));
     expect(box(nuevo)).toEqual([1128, 0, 1080, 1080]);
+  });
+});
+
+describe('hasRaisedPaper', () => {
+  it('ve lo que se suelta en otra página por debajo de su papel', () => {
+    // Como lo deja Excalidraw al soltar la caja de la página 1 en la 2: con el
+    // `frameId` nuevo pero en su sitio del orden, antes del papel de la 2.
+    const els = [
+      paper('bg1', 'p1', 0, 0, 500, 500),
+      member('m1', 'p2', 620, 60, 40, 40),
+      frame('p1', 0, 0, 500, 500),
+      paper('bg2', 'p2', 600, 0, 500, 500),
+      frame('p2', 600, 0, 500, 500),
+    ];
+    expect(hasRaisedPaper(els as any)).toBe(true);
+    const { api } = fakeApi(els);
+    ensurePagePapers(api as any);
+    expect(hasRaisedPaper(api.getSceneElements() as any)).toBe(false);
+    const suyos = api.getSceneElements().filter((e: any) => e.frameId === 'p2');
+    expect(suyos.map((e: any) => e.id)).toEqual(['bg2', 'm1']);
+  });
+
+  it('no salta con los papeles abajo, ni en páginas sin papel', () => {
+    expect(
+      hasRaisedPaper([
+        paper('bg1', 'p1', 0, 0, 500, 500),
+        member('m1', 'p1', 20, 60, 40, 40),
+        frame('p1', 0, 0, 500, 500),
+        member('m2', 'p2', 620, 60, 40, 40),
+        frame('p2', 600, 0, 500, 500),
+      ] as any),
+    ).toBe(false);
   });
 });

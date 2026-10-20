@@ -39,6 +39,14 @@ export declare function buildPageBackground(pageId: string, bounds: {
  */
 export declare function fitPagePapersInArray(elements: readonly SceneElement[]): readonly SceneElement[];
 /**
+ * ¿Hay alguna página cuyo papel no es su miembro más bajo? Es la comprobación
+ * barata que el lienzo hace en cada `onChange` para no esperar al normalizador
+ * con retardo: al soltar un elemento en otra página, Excalidraw le cambia el
+ * `frameId` pero no su sitio en el orden, y si estaba por debajo del papel de
+ * la nueva página se queda tapado por él hasta que alguien lo hunde.
+ */
+export declare function hasRaisedPaper(elements: readonly SceneElement[]): boolean;
+/**
  * Garantiza el suelo de cada página: que TENGA papel, que el papel esté ABAJO y
  * que ocupe su marco.
  *

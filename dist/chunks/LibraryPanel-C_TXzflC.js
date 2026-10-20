@@ -142,6 +142,18 @@ function fitPagePapersInArray(elements) {
   }
   return next ?? elements;
 }
+function hasRaisedPaper(elements) {
+  const firstOf = /* @__PURE__ */ new Map();
+  for (const e of elements) {
+    if (e.isDeleted || !e.frameId || firstOf.has(e.frameId)) continue;
+    firstOf.set(e.frameId, e);
+  }
+  for (const [frameId, first] of firstOf) {
+    if (isPageBackground(first)) continue;
+    if (elements.some((e) => !e.isDeleted && e.frameId === frameId && isPageBackground(e))) return true;
+  }
+  return false;
+}
 function ensurePagePapers(api, capture = "never") {
   const elements = api.getSceneElements();
   const frames2 = elements.filter((e) => e.type === "frame");
@@ -4914,7 +4926,12 @@ ${css}` : css;
   }, 600);
   useEffect(() => {
     if (!pages || !api || viewMode) return;
-    return api.onChange(normalizePages);
+    return api.onChange((_elements, appState) => {
+      if (didInitPages.current && (appState == null ? void 0 : appState.cursorButton) !== "down" && hasRaisedPaper(api.getSceneElements())) {
+        ensurePagePapers(api, "never");
+      }
+      normalizePages();
+    });
   }, [pages, api, viewMode, normalizePages]);
   useEffect(() => {
     var _a2;
@@ -5497,4 +5514,4 @@ export {
   fitAllPages as y,
   renamePage as z
 };
-//# sourceMappingURL=LibraryPanel-D3WmaSQ2.js.map
+//# sourceMappingURL=LibraryPanel-C_TXzflC.js.map
