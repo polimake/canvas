@@ -75,7 +75,10 @@ export interface Canvas2EditorProps {
   /** Read-only mode (preview / comment). Maps to `viewModeEnabled` and hides
    *  every mutating control in the canvas2 chrome (page actions, inserts). */
   viewMode?: boolean;
-  /** 'light' | 'dark'. Omit to use Excalidraw's default. */
+  /**
+   * 'light' | 'dark'. Omit to use Excalidraw's default. Con `pages`, el oscuro
+   * es solo del cromo: el diseño se pinta con sus colores (ver `sceneTheme`).
+   */
   theme?: 'light' | 'dark';
   /** UI language. Defaults to Spanish to match studio. */
   langCode?: string;
@@ -398,6 +401,17 @@ export function Canvas2Editor({
   // El tema lo elige quien monta el editor (Ajustes > Canvas en el desktop);
   // el espacio avanzado ya no se lo cambia por su cuenta.
   const theme = themeProp;
+  /**
+   * El tema con el que Excalidraw PINTA la escena. Su oscuro invierte el lienzo
+   * entero con un filtro CSS (`invert(93%) hue-rotate(180deg)`) y contrainvierte
+   * las imágenes al dibujarlas: en una pizarra es su modo noche, pero en un
+   * diseño de páginas falsea los colores (un rojo y crema salía rosa y negro).
+   * Con páginas la escena va siempre en claro y el cromo oscuro lo pone
+   * canvas2.css desde `data-canvas2-theme`: islas, menús y paneles siguen el
+   * tema y el diseño se ve como se exporta. Quitar solo el filtro no vale: las
+   * fotos se quedarían con la contrainversión y saldrían en negativo.
+   */
+  const sceneTheme = pages && theme === 'dark' ? 'light' : theme;
   useEffect(() => { saveWorkspace(workspace); }, [workspace]);
   const changeWorkspace = (next: CanvasWorkspace) => {
     if (next === workspace) return;
@@ -799,6 +813,7 @@ export function Canvas2Editor({
     <div
       ref={rootRef}
       data-canvas2=""
+      data-canvas2-theme={theme}
       data-canvas2-narrow={narrow ? '' : undefined}
       // Al mirar o comentar no hay menú arriba a la izquierda: solo al editar.
       data-canvas2-readonly={viewMode ? '' : undefined}
@@ -893,7 +908,7 @@ export function Canvas2Editor({
           canvasActions: { saveAsImage: nativeImageExport },
           dockedSidebarBreakpoint,
         }}
-        {...(theme ? { theme } : {})}
+        {...(sceneTheme ? { theme: sceneTheme } : {})}
         excalidrawAPI={(instance) => {
           apiRef.current = instance;
           setApi(instance);
