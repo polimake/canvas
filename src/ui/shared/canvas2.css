@@ -265,7 +265,7 @@
 
 /* Incluye los diálogos que Excalidraw monta en document.body. */
 .excalidraw {
-  --ui-font: "Funnel Sans", sans-serif !important;
+  --ui-font: "Polimake Funnel Sans", sans-serif !important;
   font-family: var(--ui-font);
 }
 
@@ -285,7 +285,7 @@
    de páginas: los números de atajo bajo cada herramienta y el candado de
    «mantener herramienta». El avanzado conserva su aspecto compacto propio. */
 .canvas2-workspace:not([data-workspace="advanced"]) [data-canvas2] .excalidraw {
-  --ui-font: var(--font-funnel-sans, "Funnel Sans"), "Funnel Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --ui-font: var(--font-funnel-sans, "Polimake Funnel Sans"), "Polimake Funnel Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --shadow-island: 0 0 0 1px #e8e7e5;
   --island-bg-color: #ffffff;
   --icon-fill-color: #6e6962;

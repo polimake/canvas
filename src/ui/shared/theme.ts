@@ -79,4 +79,4 @@ export const palette: Record<Canvas2Theme, Palette> = {
 
 /** Fuente fija de los paneles; independiente de las fuentes del documento. */
 export const PANEL_FONT =
-  '"Funnel Sans", sans-serif';
+  '"Polimake Funnel Sans", sans-serif';
