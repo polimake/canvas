@@ -75,18 +75,72 @@ export function pickOverSelection(
   for (const [cx, cy] of [[common[0], common[1]], [common[2], common[1]], [common[0], common[3]], [common[2], common[3]]]) {
     if (Math.abs(point.x - cx) <= zone && Math.abs(point.y - cy) <= zone) return null;
   }
+  const top = topAt(elements, point);
+  if (!top || selectedElementIds[top.id]) return null;
+  // Del mismo grupo que lo seleccionado: es la misma cosa.
+  const groups = new Set(selected.flatMap((el) => el.groupIds ?? []));
+  if ((top.groupIds ?? []).some((g) => groups.has(g))) return null;
+  return top.id;
+}
+
+/** Una elipse se coge por dentro de la elipse, no por las esquinas de su caja. */
+function under(el: SceneElement, x: number, y: number): boolean {
+  if (!inside(boxOf(el), x, y)) return false;
+  const angle = (el as { angle?: number }).angle ?? 0;
+  if (el.type !== 'ellipse' || angle) return true;
+  const rx = Math.abs(el.width) / 2;
+  const ry = Math.abs(el.height) / 2;
+  if (!rx || !ry) return false;
+  const cx = Math.min(el.x, el.x + el.width) + rx;
+  const cy = Math.min(el.y, el.y + el.height) + ry;
+  return ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1;
+}
+
+/** Lo de más arriba que se puede coger bajo el punto, tal como se ve. */
+function topAt(elements: readonly SceneElement[], point: { x: number; y: number }): SceneElement | null {
   const frames = new Map(elements.filter((el) => el.type === 'frame' && !el.isDeleted).map((el) => [el.id, boxOf(el)]));
   let top: SceneElement | null = null;
   for (const el of elements) {
-    if (!grabbable(el) || !inside(boxOf(el), point.x, point.y)) continue;
+    if (!grabbable(el) || !under(el, point.x, point.y)) continue;
     // Lo de una página solo se ve dentro de ella (el marco recorta).
     const frame = el.frameId ? frames.get(el.frameId) : null;
     if (frame && !inside(frame, point.x, point.y)) continue;
     top = el;
   }
+  return top;
+}
+
+/**
+ * Pulsar un elemento pegado al borde de una página coge el elemento, no la
+ * página.
+ *
+ * Excalidraw mira las páginas (marcos) después de lo que tienen dentro y las
+ * coge por su borde: un elemento a menos de unos píxeles del borde no se podía
+ * arrastrar, se llevaba la página entera con todo lo suyo (banco del lienzo,
+ * 23/10/2026: «mover banco-elipse-1 cambia también 7 que no se tocaron», la
+ * elipse a 5 px del borde derecho). En Canva manda lo que está encima. Pasa a
+ * menudo: un diseño que sangra tiene sus bloques justo en el borde.
+ *
+ * Si el clic es de ese caso, devuelve el id del elemento; el lienzo lo
+ * selecciona antes de que Excalidraw vea el clic, y Excalidraw, que da
+ * prioridad a lo seleccionado, lo arrastra a él.
+ */
+export function pickOverPageEdge(
+  elements: readonly SceneElement[],
+  selectedElementIds: Readonly<Record<string, boolean>>,
+  point: { x: number; y: number },
+  zoom: number,
+): string | null {
+  const zone = HANDLE_ZONE_PX / (zoom || 1);
+  const nearEdge = elements.some((el) => {
+    if (el.isDeleted || (el.type !== 'frame' && el.type !== 'magicframe')) return false;
+    const [x1, y1, x2, y2] = boxOf(el);
+    const within = point.x >= x1 - zone && point.x <= x2 + zone && point.y >= y1 - zone && point.y <= y2 + zone;
+    const deep = point.x > x1 + zone && point.x < x2 - zone && point.y > y1 + zone && point.y < y2 - zone;
+    return within && !deep;
+  });
+  if (!nearEdge) return null;
+  const top = topAt(elements, point);
   if (!top || selectedElementIds[top.id]) return null;
-  // Del mismo grupo que lo seleccionado: es la misma cosa.
-  const groups = new Set(selected.flatMap((el) => el.groupIds ?? []));
-  if ((top.groupIds ?? []).some((g) => groups.has(g))) return null;
   return top.id;
 }

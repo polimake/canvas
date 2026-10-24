@@ -41,7 +41,7 @@ import { imageAtScenePoint, type ImageHit } from '../../core/media';
 import { palette } from '../shared/theme';
 import { installCanvaGestures } from './canvaGestures';
 import { installKeyRouting } from './keyRouting';
-import { pickOverSelection } from '../../core/pick';
+import { pickOverPageEdge, pickOverSelection } from '../../core/pick';
 import { emptySceneGate, sceneChange, type SceneGateState } from './sceneGate';
 
 /**
@@ -754,10 +754,24 @@ export function Canvas2Editor({
       if (s.activeTool.type !== 'selection' || s.editingTextElement || s.croppingElementId) return;
       const z = s.zoom.value;
       const point = { x: (ev.clientX - s.offsetLeft) / z - s.scrollX, y: (ev.clientY - s.offsetTop) / z - s.scrollY };
-      if (!pickOverSelection(api.getSceneElements(), s.selectedElementIds, point, z)) return;
+      const elements = api.getSceneElements();
+      if (pickOverSelection(elements, s.selectedElementIds, point, z)) {
+        flushSync(() => {
+          api.updateScene({
+            appState: { selectedElementIds: {}, selectedGroupIds: {} },
+            captureUpdate: CaptureUpdateAction.EVENTUALLY,
+          });
+        });
+        // Sin selección, Excalidraw coge lo de debajo; si eso está pegado al
+        // borde de una página, sigue haciendo falta lo de abajo.
+      }
+      // Pegado al borde de una página: seleccionado antes, Excalidraw lo
+      // arrastra a él y no a la página (ver core/pick.ts).
+      const edge = pickOverPageEdge(elements, api.getAppState().selectedElementIds, point, z);
+      if (!edge) return;
       flushSync(() => {
         api.updateScene({
-          appState: { selectedElementIds: {}, selectedGroupIds: {} },
+          appState: { selectedElementIds: { [edge]: true }, selectedGroupIds: {} },
           captureUpdate: CaptureUpdateAction.EVENTUALLY,
         });
       });
