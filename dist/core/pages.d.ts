@@ -139,6 +139,28 @@ export declare function addPage(api: ExcalidrawImperativeAPI, pageSize?: PageSiz
     capture?: CaptureMode;
     names?: PageNames;
 }): string;
+/**
+ * La página que se está mirando, para el seguimiento del encuadre: la que más
+ * se ve dentro de `bounds` (`[x1, y1, x2, y2]` de escena, lo de
+ * `getVisibleSceneBounds`), salvo que la activa ya se vea entera o tanto como
+ * la que más. Devuelve `null` si no se ve ninguna.
+ *
+ * Antes ganaba siempre la de más área a la vista, y en un empate la primera de
+ * la escena. Con la ventana ancha `goToPage` deja enteras también las vecinas
+ * (al 72 % del alto, una 4:5 ocupa poco más de un tercio del ancho), así que
+ * 150 ms después de saltar a la página 2 la activa volvía a ser la 1: la barra
+ * de la página se iba de esquina y el «¿Eliminar?» recién armado se desarmaba
+ * (`PageActions` lo desarma al cambiar de página) antes de poder pulsarlo.
+ */
+export declare function pageInView(elements: readonly {
+    id: string;
+    type: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    isDeleted?: boolean;
+}[], bounds: readonly [number, number, number, number], currentId: string | null | undefined): string | null;
 export declare function goToPage(api: ExcalidrawImperativeAPI, pageId: string, opts?: {
     coverage?: number;
 }): void;

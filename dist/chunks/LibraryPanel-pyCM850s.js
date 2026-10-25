@@ -475,6 +475,23 @@ function addPage(api, pageSize = DEFAULT_PAGE_SIZE, opts = {}) {
   commitElements(api, combined, opts.capture ?? "undoable");
   return id;
 }
+function pageInView(elements, bounds, currentId) {
+  const [x1, y1, x2, y2] = bounds;
+  let best = null;
+  let current = null;
+  for (const e of elements) {
+    if (e.type !== "frame" || e.isDeleted) continue;
+    const w = Math.min(e.x + e.width, x2) - Math.max(e.x, x1);
+    const h = Math.min(e.y + e.height, y2) - Math.max(e.y, y1);
+    if (w <= 0 || h <= 0) continue;
+    const area = w * h;
+    if (e.id === currentId) current = { area, whole: area >= e.width * e.height * 0.995 };
+    if (!best || area > best.area) best = { id: e.id, area };
+  }
+  if (!best) return null;
+  if (currentId && current && (current.whole || current.area >= best.area * 0.995)) return currentId;
+  return best.id;
+}
 const PAGE_VIEWPORT_COVERAGE = 0.72;
 function goToPage(api, pageId, opts) {
   const frame = api.getSceneElements().find((e) => e.id === pageId);
@@ -1033,7 +1050,7 @@ const palette = {
     warnText: "#e3a33a"
   }
 };
-const PANEL_FONT = '"Funnel Sans", sans-serif';
+const PANEL_FONT = '"Polimake Funnel Sans", sans-serif';
 function Svg({ children, size = 13 }) {
   const style = { display: "block", flexShrink: 0 };
   return /* @__PURE__ */ jsx(
@@ -4816,17 +4833,46 @@ function pickOverSelection(elements, selectedElementIds, point, zoom) {
   for (const [cx, cy] of [[common[0], common[1]], [common[2], common[1]], [common[0], common[3]], [common[2], common[3]]]) {
     if (Math.abs(point.x - cx) <= zone && Math.abs(point.y - cy) <= zone) return null;
   }
+  const top = topAt(elements, point);
+  if (!top || selectedElementIds[top.id]) return null;
+  const groups = new Set(selected.flatMap((el) => el.groupIds ?? []));
+  if ((top.groupIds ?? []).some((g) => groups.has(g))) return null;
+  return top.id;
+}
+function under(el, x, y) {
+  if (!inside(boxOf(el), x, y)) return false;
+  const angle = el.angle ?? 0;
+  if (el.type !== "ellipse" || angle) return true;
+  const rx = Math.abs(el.width) / 2;
+  const ry = Math.abs(el.height) / 2;
+  if (!rx || !ry) return false;
+  const cx = Math.min(el.x, el.x + el.width) + rx;
+  const cy = Math.min(el.y, el.y + el.height) + ry;
+  return ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1;
+}
+function topAt(elements, point) {
   const frames2 = new Map(elements.filter((el) => el.type === "frame" && !el.isDeleted).map((el) => [el.id, boxOf(el)]));
   let top = null;
   for (const el of elements) {
-    if (!grabbable(el) || !inside(boxOf(el), point.x, point.y)) continue;
+    if (!grabbable(el) || !under(el, point.x, point.y)) continue;
     const frame = el.frameId ? frames2.get(el.frameId) : null;
     if (frame && !inside(frame, point.x, point.y)) continue;
     top = el;
   }
+  return top;
+}
+function pickOverPageEdge(elements, selectedElementIds, point, zoom) {
+  const zone = HANDLE_ZONE_PX / (zoom || 1);
+  const nearEdge = elements.some((el) => {
+    if (el.isDeleted || el.type !== "frame" && el.type !== "magicframe") return false;
+    const [x1, y1, x2, y2] = boxOf(el);
+    const within = point.x >= x1 - zone && point.x <= x2 + zone && point.y >= y1 - zone && point.y <= y2 + zone;
+    const deep = point.x > x1 + zone && point.x < x2 - zone && point.y > y1 + zone && point.y < y2 - zone;
+    return within && !deep;
+  });
+  if (!nearEdge) return null;
+  const top = topAt(elements, point);
   if (!top || selectedElementIds[top.id]) return null;
-  const groups = new Set(selected.flatMap((el) => el.groupIds ?? []));
-  if ((top.groupIds ?? []).some((g) => groups.has(g))) return null;
   return top.id;
 }
 const emptySceneGate = () => ({ elements: null, versions: null, bg: null });
@@ -5110,10 +5156,20 @@ ${css}` : css;
       if (s.activeTool.type !== "selection" || s.editingTextElement || s.croppingElementId) return;
       const z = s.zoom.value;
       const point = { x: (ev.clientX - s.offsetLeft) / z - s.scrollX, y: (ev.clientY - s.offsetTop) / z - s.scrollY };
-      if (!pickOverSelection(api.getSceneElements(), s.selectedElementIds, point, z)) return;
+      const elements = api.getSceneElements();
+      if (pickOverSelection(elements, s.selectedElementIds, point, z)) {
+        flushSync(() => {
+          api.updateScene({
+            appState: { selectedElementIds: {}, selectedGroupIds: {} },
+            captureUpdate: CaptureUpdateAction.EVENTUALLY
+          });
+        });
+      }
+      const edge = pickOverPageEdge(elements, api.getAppState().selectedElementIds, point, z);
+      if (!edge) return;
       flushSync(() => {
         api.updateScene({
-          appState: { selectedElementIds: {}, selectedGroupIds: {} },
+          appState: { selectedElementIds: { [edge]: true }, selectedGroupIds: {} },
           captureUpdate: CaptureUpdateAction.EVENTUALLY
         });
       });
@@ -5166,20 +5222,12 @@ ${css}` : css;
     const unsub = api.onScrollChange(() => {
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
-        const [x1, y1, x2, y2] = getVisibleSceneBounds(api.getAppState());
-        let best = null;
-        for (const e of api.getSceneElements()) {
-          if (e.type !== "frame") continue;
-          const w = Math.min(e.x + e.width, x2) - Math.max(e.x, x1);
-          const h = Math.min(e.y + e.height, y2) - Math.max(e.y, y1);
-          if (w <= 0 || h <= 0) continue;
-          const area = w * h;
-          if (!best || area > best.area) best = { id: e.id, area };
-        }
-        if (best) {
-          const id = best.id;
-          setActivePageId((current) => current === id ? current : id);
-        }
+        const id = pageInView(
+          api.getSceneElements(),
+          getVisibleSceneBounds(api.getAppState()),
+          activePageIdRef.current
+        );
+        if (id) setActivePageId((current) => current === id ? current : id);
       }, 150);
     });
     return () => {
@@ -5732,4 +5780,4 @@ export {
   fitAllPages as y,
   renamePage as z
 };
-//# sourceMappingURL=LibraryPanel-DHmBBq9g.js.map
+//# sourceMappingURL=LibraryPanel-pyCM850s.js.map

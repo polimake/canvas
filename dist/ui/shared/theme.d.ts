@@ -41,5 +41,5 @@ export interface Palette {
 }
 export declare const palette: Record<Canvas2Theme, Palette>;
 /** Fuente fija de los paneles; independiente de las fuentes del documento. */
-export declare const PANEL_FONT = "\"Funnel Sans\", sans-serif";
+export declare const PANEL_FONT = "\"Polimake Funnel Sans\", sans-serif";
 //# sourceMappingURL=theme.d.ts.map
