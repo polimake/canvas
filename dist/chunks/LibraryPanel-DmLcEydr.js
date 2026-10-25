@@ -5103,6 +5103,239 @@ function installCanvaPick(root, api, win = window) {
     root.removeEventListener("pointerdown", onDown, true);
   };
 }
+const EDGE_ZONE_PX = 48;
+const EDGE_MAX_SPEED = 0.9;
+const EDGE_DELAY_MS = 150;
+const MAX_FRAME_MS = 50;
+const BOOKKEEPING = /* @__PURE__ */ new Set(["version", "versionNonce", "updated"]);
+function sameElement(a, b) {
+  const keys = /* @__PURE__ */ new Set([...Object.keys(a), ...Object.keys(b)]);
+  for (const k of keys) {
+    if (BOOKKEEPING.has(k)) continue;
+    const x = a[k];
+    const y = b[k];
+    if (x === y) continue;
+    if (x && y && typeof x === "object" && typeof y === "object" && JSON.stringify(x) === JSON.stringify(y)) continue;
+    return false;
+  }
+  return true;
+}
+function snapshotElements(elements) {
+  return elements.map((e) => {
+    const copy = { ...e };
+    const points = e.points;
+    if (Array.isArray(points)) copy.points = points.map((p) => Array.isArray(p) ? [...p] : p);
+    return copy;
+  });
+}
+function restoreElements(current, snapshot) {
+  const now = new Map(current.map((e) => [e.id, e]));
+  let changed = current.length !== snapshot.length;
+  const next = snapshot.map((before) => {
+    const live = now.get(before.id);
+    if (!live) {
+      changed = true;
+      return before;
+    }
+    if (sameElement(live, before)) return live;
+    changed = true;
+    const props = Object.fromEntries(Object.entries(before).filter(([k]) => !BOOKKEEPING.has(k)));
+    return patchElement(live, props);
+  });
+  if (!changed) {
+    for (let i = 0; i < next.length; i++) if (next[i] !== current[i]) return next;
+    return null;
+  }
+  return next;
+}
+function edgeVelocity(p, box, zone = EDGE_ZONE_PX, max = EDGE_MAX_SPEED) {
+  const axis = (pos, start, size) => {
+    const z = Math.min(zone, size / 4);
+    if (z <= 0) return 0;
+    const fromStart = pos - start;
+    const fromEnd = start + size - pos;
+    if (fromStart < z) return -max * Math.min(1, (z - fromStart) / z);
+    if (fromEnd < z) return max * Math.min(1, (z - fromEnd) / z);
+    return 0;
+  };
+  return { vx: axis(p.x, box.left, box.width), vy: axis(p.y, box.top, box.height) };
+}
+function contentBounds(elements, skip) {
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const e of elements) {
+    if (e.isDeleted || skip[e.id]) continue;
+    minX = Math.min(minX, e.x);
+    minY = Math.min(minY, e.y);
+    maxX = Math.max(maxX, e.x + e.width);
+    maxY = Math.max(maxY, e.y + e.height);
+  }
+  return Number.isFinite(minX) ? { minX, minY, maxX, maxY } : null;
+}
+function installCanvaDrag(api, win = window) {
+  var _a, _b;
+  let gesture = null;
+  const synthetic = /* @__PURE__ */ new WeakSet();
+  const raf = ((_a = win.requestAnimationFrame) == null ? void 0 : _a.bind(win)) ?? ((cb) => win.setTimeout(() => cb(Date.now()), 16));
+  const caf = ((_b = win.cancelAnimationFrame) == null ? void 0 : _b.bind(win)) ?? ((id) => win.clearTimeout(id));
+  const end = () => {
+    if (!gesture) return;
+    if (gesture.frame !== null) caf(gesture.frame);
+    gesture = null;
+    win.removeEventListener("pointermove", onMove);
+    win.removeEventListener("pointerup", end);
+    win.removeEventListener("pointercancel", end);
+    win.removeEventListener("blur", end);
+    win.removeEventListener("keydown", onKey, true);
+  };
+  const view = win;
+  const PointerCtor = view.PointerEvent ?? view.MouseEvent;
+  const pointer = (type, x, y, mods) => new PointerCtor(type, {
+    clientX: x,
+    clientY: y,
+    bubbles: true,
+    cancelable: true,
+    button: 0,
+    buttons: type === "pointerup" ? 0 : 1,
+    shiftKey: mods.shiftKey,
+    altKey: mods.altKey,
+    ctrlKey: mods.ctrlKey,
+    metaKey: mods.metaKey,
+    ...PointerCtor !== view.MouseEvent ? { pointerId: 1, pointerType: "mouse", isPrimary: true } : {}
+  });
+  const tick = (time) => {
+    const g = gesture;
+    if (!g) return;
+    g.frame = null;
+    const s = api.getAppState();
+    const dt = g.lastTick === null ? 16 : Math.min(MAX_FRAME_MS, Math.max(0, time - g.lastTick));
+    g.lastTick = time;
+    if (!s.selectedElementsAreBeingDragged) {
+      g.lastTick = null;
+      g.edgeSince = null;
+      return;
+    }
+    const { vx, vy } = edgeVelocity(g.last, { left: s.offsetLeft, top: s.offsetTop, width: s.width, height: s.height });
+    const zoom = s.zoom.value;
+    let dx = vx * dt;
+    let dy = vy * dt;
+    if (g.content) {
+      const viewW = s.width / zoom;
+      const viewH = s.height / zoom;
+      const left = -s.scrollX;
+      const top = -s.scrollY;
+      if (dx > 0 && left + viewW >= g.content.maxX + viewW / 2) dx = 0;
+      if (dx < 0 && left <= g.content.minX - viewW / 2) dx = 0;
+      if (dy > 0 && top + viewH >= g.content.maxY + viewH / 2) dy = 0;
+      if (dy < 0 && top <= g.content.minY - viewH / 2) dy = 0;
+    }
+    if (dx === 0 && dy === 0) {
+      g.lastTick = null;
+      g.edgeSince = null;
+      return;
+    }
+    if (g.edgeSince === null) g.edgeSince = time;
+    if (time - g.edgeSince < EDGE_DELAY_MS) {
+      g.frame = raf(tick);
+      return;
+    }
+    api.updateScene({
+      appState: { scrollX: s.scrollX - dx / zoom, scrollY: s.scrollY - dy / zoom },
+      captureUpdate: CaptureUpdateAction.EVENTUALLY
+    });
+    const target = g.last.target instanceof EventTarget ? g.last.target : win;
+    const move = pointer("pointermove", g.last.x, g.last.y, g.last);
+    synthetic.add(move);
+    target.dispatchEvent(move);
+    if (gesture === g) g.frame = raf(tick);
+  };
+  const schedule = () => {
+    if (gesture && gesture.frame === null) gesture.frame = raf(tick);
+  };
+  function onMove(ev) {
+    if (!gesture || synthetic.has(ev)) return;
+    gesture.last = {
+      x: ev.clientX,
+      y: ev.clientY,
+      target: ev.target,
+      shiftKey: ev.shiftKey,
+      altKey: ev.altKey,
+      ctrlKey: ev.ctrlKey,
+      metaKey: ev.metaKey
+    };
+    schedule();
+  }
+  function onKey(ev) {
+    const g = gesture;
+    if (!g || ev.key !== "Escape") return;
+    const { pds } = g;
+    if (!pds.drag.hasOccurred && !pds.resize.isResizing) return;
+    const s = api.getAppState();
+    if (s.editingTextElement || s.croppingElementId) return;
+    ev.preventDefault();
+    ev.stopImmediatePropagation();
+    end();
+    const zoom = s.zoom.value;
+    const x = (pds.origin.x + s.scrollX) * zoom + s.offsetLeft;
+    const y = (pds.origin.y + s.scrollY) * zoom + s.offsetTop;
+    const known = new Set(g.snapshot.map((e) => e.id));
+    const dragging = Object.keys(s.selectedElementIds).filter((k) => s.selectedElementIds[k]);
+    const keep = dragging.length > 0 && dragging.every((id) => known.has(id));
+    const selection = keep ? { selectedElementIds: Object.fromEntries(dragging.map((k) => [k, true])), selectedGroupIds: { ...s.selectedGroupIds } } : { selectedElementIds: g.selectedElementIds, selectedGroupIds: g.selectedGroupIds };
+    const putBack = () => {
+      const next = restoreElements(api.getSceneElementsIncludingDeleted(), g.snapshot);
+      if (next) commitElements(api, next, "transient", selection);
+      else api.updateScene({ appState: selection, captureUpdate: CaptureUpdateAction.EVENTUALLY });
+    };
+    flushSync(() => {
+      var _a2, _b2, _c, _d;
+      (_b2 = (_a2 = pds.eventListeners.onMove) == null ? void 0 : _a2.cancel) == null ? void 0 : _b2.call(_a2);
+      putBack();
+      (_d = (_c = pds.eventListeners).onUp) == null ? void 0 : _d.call(_c, pointer("pointerup", x, y, g.last));
+      putBack();
+    });
+  }
+  const unsubscribe = api.onPointerDown((tool, pds, event) => {
+    end();
+    if (tool.type !== "selection") return;
+    const s = api.getAppState();
+    if (s.viewModeEnabled || s.editingTextElement) return;
+    const selected = Object.fromEntries(
+      Object.entries(s.selectedElementIds).filter(([, v]) => v).map(([k]) => [k, true])
+    );
+    const elements = api.getSceneElementsIncludingDeleted();
+    gesture = {
+      pds,
+      snapshot: snapshotElements(elements),
+      selectedElementIds: selected,
+      selectedGroupIds: { ...s.selectedGroupIds },
+      last: {
+        x: event.clientX,
+        y: event.clientY,
+        target: event.target,
+        shiftKey: event.shiftKey,
+        altKey: event.altKey,
+        ctrlKey: event.ctrlKey,
+        metaKey: event.metaKey
+      },
+      content: contentBounds(elements, selected),
+      frame: null,
+      lastTick: null,
+      edgeSince: null
+    };
+    win.addEventListener("pointermove", onMove);
+    win.addEventListener("pointerup", end);
+    win.addEventListener("pointercancel", end);
+    win.addEventListener("blur", end);
+    win.addEventListener("keydown", onKey, true);
+  });
+  return () => {
+    end();
+    unsubscribe();
+  };
+}
 const emptySceneGate = () => ({ elements: null, versions: null, bg: null });
 function hashVersions(elements) {
   let hash = 5381;
@@ -5377,6 +5610,10 @@ ${css}` : css;
     const root = rootRef.current;
     if (!api || viewMode || !root) return;
     return installCanvaPick(root, api);
+  }, [api, viewMode]);
+  useEffect(() => {
+    if (!api || viewMode) return;
+    return installCanvaDrag(api);
   }, [api, viewMode]);
   useEffect(() => {
     if (!api || viewMode) return;
@@ -5981,4 +6218,4 @@ export {
   fitAllPages as y,
   renamePage as z
 };
-//# sourceMappingURL=LibraryPanel-D_mGj7s8.js.map
+//# sourceMappingURL=LibraryPanel-DmLcEydr.js.map
