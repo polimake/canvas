@@ -94,6 +94,8 @@ export function fakeApi(initial: any[], initialFiles: Record<string, any> = {}):
       return () => listeners.delete(cb);
     },
     onScrollChange: () => () => {},
+    // Arrastrar como en Canva (canvaDrag.ts) se cuelga del pulsar de Excalidraw.
+    onPointerDown: () => () => {},
     scrollToContent: () => {},
     // El lienzo registra sus gestos de teclado (canvaGestures.tsx) al montar.
     registeredActions: [] as { name: string }[],

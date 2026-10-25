@@ -41,6 +41,7 @@ import { palette } from '../shared/theme';
 import { installCanvaGestures } from './canvaGestures';
 import { installKeyRouting } from './keyRouting';
 import { installCanvaPick } from './canvaPick';
+import { installCanvaDrag } from './canvaDrag';
 import { emptySceneGate, sceneChange, type SceneGateState } from './sceneGate';
 
 /**
@@ -746,6 +747,13 @@ export function Canvas2Editor({
     const root = rootRef.current;
     if (!api || viewMode || !root) return;
     return installCanvaPick(root, api);
+  }, [api, viewMode]);
+
+  // Arrastrar como en Canva (ver canvaDrag.ts): Escape a mitad lo cancela sin
+  // dejar paso de deshacer, y llevar algo al borde de la vista la desplaza.
+  useEffect(() => {
+    if (!api || viewMode) return;
+    return installCanvaDrag(api);
   }, [api, viewMode]);
 
   // El teclado del lienzo también con el foco en la tira o en un panel (ver

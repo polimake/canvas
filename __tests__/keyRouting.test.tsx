@@ -69,6 +69,19 @@ describe('el teclado del lienzo con el foco fuera de él', () => {
     expect(document.activeElement?.classList.contains('excalidraw')).toBe(true);
   });
 
+  it('Ctrl+Y y Ctrl+Mayús+Z desde la tira y desde «+ página» también llegan, como en Canva', () => {
+    const { container } = abrir();
+    const ficha = container.querySelector<HTMLElement>('[data-canvas2-pages] div[role="button"]')!;
+    ficha.focus();
+    fireEvent.keyDown(ficha, { key: 'y', code: 'KeyY', ctrlKey: true });
+    const mas = container.querySelector<HTMLElement>('[data-testid="canvas2-add-page"]')!;
+    expect(mas).toBeTruthy();
+    mas.focus();
+    fireEvent.keyDown(mas, { key: 'Z', code: 'KeyZ', ctrlKey: true, shiftKey: true });
+    fireEvent.keyDown(mas, { key: 'z', code: 'KeyZ', ctrlKey: true });
+    expect(oido).toEqual(['Ctrl+y', 'Ctrl+Z', 'Ctrl+z']);
+  });
+
   it('la T con el foco en ninguna parte (recién abierto) llega al lienzo', () => {
     abrir();
     (document.activeElement as HTMLElement | null)?.blur();
