@@ -1,11 +1,11 @@
 import { jsxs, jsx, Fragment as Fragment$1 } from "react/jsx-runtime";
 import { useState, useRef, useEffect, Fragment, useMemo, useCallback, useId, useReducer } from "react";
-import { createPortal, flushSync } from "react-dom";
 import "@excalidraw/excalidraw/index.css";
 import { newElementWith, CaptureUpdateAction, convertToExcalidrawElements, serializeAsJSON, restore, exportToBlob, exportToCanvas, exportToSvg, MainMenu, FONT_FAMILY, useI18n, viewportCoordsToSceneCoords, getVisibleSceneBounds, Excalidraw, getNonDeletedElements } from "@excalidraw/excalidraw";
 import { cloneSceneElements } from "../components.js";
 import { P as PAGE_GAP } from "./layout-BEpoNps2.js";
 import { fontFormatHint, buildFontFaceCss, fontFamilyAlias, normalizeFontSrc, customFontFamilyId, dedupeFontFaces } from "../fonts.js";
+import { createPortal, flushSync } from "react-dom";
 const CAPTURE = {
   // One undo entry, immediately.
   undoable: CaptureUpdateAction.IMMEDIATELY,
@@ -2412,12 +2412,12 @@ async function insertImageWithPreview(api, blob, uploader, opts) {
     throw new Error("insertImageWithPreview requiere un MediaUploader: las imágenes van a MediaMonster.");
   }
   const filename = (opts == null ? void 0 : opts.filename) ?? `canvas-${Date.now()}.png`;
-  const local = await blobToDataUrl(blob);
-  const { width, height } = await loadImageSize(local);
+  const local2 = await blobToDataUrl(blob);
+  const { width, height } = await loadImageSize(local2);
   let pendingFileId = null;
   const elementId = insertImageByReference(
     api,
-    { url: local, mimeType: blob.type || "image/png", width, height },
+    { url: local2, mimeType: blob.type || "image/png", width, height },
     {
       ...opts,
       // Anotado ANTES de que la subida empiece: el `addFiles` de ahí dentro ya
@@ -4797,14 +4797,15 @@ function installKeyRouting(win, getCanvas, getScope) {
 }
 const HANDLE_ZONE_PX = 16;
 function boxOf(el) {
-  const { x, y, width, height } = el;
+  const box = boxOfUnrotated(el);
   const angle = el.angle ?? 0;
-  if (!angle) return [Math.min(x, x + width), Math.min(y, y + height), Math.max(x, x + width), Math.max(y, y + height)];
-  const cx = x + width / 2;
-  const cy = y + height / 2;
+  if (!angle) return box;
+  const [x1, y1, x2, y2] = box;
+  const cx = (x1 + x2) / 2;
+  const cy = (y1 + y2) / 2;
   const cos = Math.cos(angle);
   const sin = Math.sin(angle);
-  const pts = [[x, y], [x + width, y], [x, y + height], [x + width, y + height]].map(([px, py]) => [
+  const pts = [[x1, y1], [x2, y1], [x1, y2], [x2, y2]].map(([px, py]) => [
     cx + (px - cx) * cos - (py - cy) * sin,
     cy + (px - cx) * sin + (py - cy) * cos
   ]);
@@ -4833,33 +4834,182 @@ function pickOverSelection(elements, selectedElementIds, point, zoom) {
   for (const [cx, cy] of [[common[0], common[1]], [common[2], common[1]], [common[0], common[3]], [common[2], common[3]]]) {
     if (Math.abs(point.x - cx) <= zone && Math.abs(point.y - cy) <= zone) return null;
   }
-  const top = topAt(elements, point);
+  const top = topAt(elements, point, zoom);
   if (!top || selectedElementIds[top.id]) return null;
   const groups = new Set(selected.flatMap((el) => el.groupIds ?? []));
   if ((top.groupIds ?? []).some((g) => groups.has(g))) return null;
   return top.id;
 }
-function under(el, x, y) {
-  if (!inside(boxOf(el), x, y)) return false;
-  const angle = el.angle ?? 0;
-  if (el.type !== "ellipse" || angle) return true;
-  const rx = Math.abs(el.width) / 2;
-  const ry = Math.abs(el.height) / 2;
-  if (!rx || !ry) return false;
-  const cx = Math.min(el.x, el.x + el.width) + rx;
-  const cy = Math.min(el.y, el.y + el.height) + ry;
-  return ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1;
+const STROKE_SLACK_PX = 3;
+const EXCALIDRAW_HIT_PX = 8;
+function isTransparent(color2) {
+  if (color2 === void 0 || color2 === null) return false;
+  const c = String(color2).trim().toLowerCase();
+  return c === "transparent" || c === "" || /^#[0-9a-f]{4}$/.test(c) && c.endsWith("0") || /^#[0-9a-f]{8}$/.test(c) && c.endsWith("00");
 }
-function topAt(elements, point) {
-  const frames2 = new Map(elements.filter((el) => el.type === "frame" && !el.isDeleted).map((el) => [el.id, boxOf(el)]));
+const pointsOf = (el) => {
+  const pts = el.points;
+  return Array.isArray(pts) && pts.length ? pts : null;
+};
+function boxOfUnrotated(el) {
+  const pts = pointsOf(el);
+  if (pts) {
+    const xs = pts.map((p) => el.x + p[0]);
+    const ys = pts.map((p) => el.y + p[1]);
+    return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+  }
+  const { x, y, width, height } = el;
+  return [Math.min(x, x + width), Math.min(y, y + height), Math.max(x, x + width), Math.max(y, y + height)];
+}
+function local(el, x, y) {
+  const box = boxOfUnrotated(el);
+  const angle = el.angle ?? 0;
+  if (!angle) return { x, y, box };
+  const cx = (box[0] + box[2]) / 2;
+  const cy = (box[1] + box[3]) / 2;
+  const cos = Math.cos(-angle);
+  const sin = Math.sin(-angle);
+  return { x: cx + (x - cx) * cos - (y - cy) * sin, y: cy + (x - cx) * sin + (y - cy) * cos, box };
+}
+function distToSegment(px, py, ax, ay, bx, by) {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const len = dx * dx + dy * dy;
+  const t = len ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / len)) : 0;
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+}
+function insidePolygon(px, py, poly) {
+  let inPoly = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i];
+    const [xj, yj] = poly[j];
+    if (yi > py !== yj > py && px < (xj - xi) * (py - yi) / (yj - yi) + xi) inPoly = !inPoly;
+  }
+  return inPoly;
+}
+function under(el, x, y, zoom, byId) {
+  const z = zoom || 1;
+  const p = local(el, x, y);
+  const [x1, y1, x2, y2] = p.box;
+  const sw = Math.max(0, Number(el.strokeWidth) || 0);
+  const tol = sw / 2 + STROKE_SLACK_PX / z;
+  const filled = !isTransparent(el.backgroundColor);
+  const pts = pointsOf(el);
+  if (el.type === "line" || el.type === "arrow" || el.type === "freedraw" || pts) {
+    if (!pts) return false;
+    const abs = pts.map(([px, py]) => [el.x + px, el.y + py]);
+    if (abs.length === 1) return Math.hypot(p.x - abs[0][0], p.y - abs[0][1]) <= tol;
+    for (let i = 1; i < abs.length; i++) {
+      if (distToSegment(p.x, p.y, abs[i - 1][0], abs[i - 1][1], abs[i][0], abs[i][1]) <= tol) return true;
+    }
+    const first = abs[0];
+    const last = abs[abs.length - 1];
+    const closed = Math.hypot(first[0] - last[0], first[1] - last[1]) < 1e-6;
+    return closed && filled && insidePolygon(p.x, p.y, abs);
+  }
+  const shape = el.type === "ellipse" || el.type === "diamond" || el.type === "rectangle";
+  const rx = (x2 - x1) / 2;
+  const ry = (y2 - y1) / 2;
+  const cx = x1 + rx;
+  const cy = y1 + ry;
+  if (!shape || filled) {
+    if (p.x < x1 || p.x > x2 || p.y < y1 || p.y > y2) return false;
+    if (!shape || el.type === "rectangle") return true;
+    if (!rx || !ry) return false;
+    if (el.type === "ellipse") return ((p.x - cx) / rx) ** 2 + ((p.y - cy) / ry) ** 2 <= 1;
+    return Math.abs(p.x - cx) / rx + Math.abs(p.y - cy) / ry <= 1;
+  }
+  const bound = el.boundElements ?? [];
+  for (const b of bound) {
+    const t = b.type === "text" ? byId == null ? void 0 : byId.get(b.id) : void 0;
+    if (t && !t.isDeleted && inside(boxOf(t), x, y)) return true;
+  }
+  if (el.type === "rectangle") {
+    const out = p.x >= x1 - tol && p.x <= x2 + tol && p.y >= y1 - tol && p.y <= y2 + tol;
+    const deep = p.x > x1 + tol && p.x < x2 - tol && p.y > y1 + tol && p.y < y2 - tol;
+    return out && !deep;
+  }
+  if (!rx || !ry) return false;
+  if (el.type === "ellipse") {
+    const r = Math.hypot((p.x - cx) / rx, (p.y - cy) / ry);
+    return Math.abs(r - 1) * Math.min(rx, ry) <= tol;
+  }
+  const d = Math.abs(p.x - cx) / rx + Math.abs(p.y - cy) / ry;
+  return Math.abs(d - 1) * rx * ry / Math.hypot(rx, ry) <= tol;
+}
+const framesOf = (elements) => new Map(elements.filter((el) => (el.type === "frame" || el.type === "magicframe") && !el.isDeleted).map((el) => [el.id, boxOf(el)]));
+function topAt(elements, point, zoom = 1) {
+  const frames2 = framesOf(elements);
+  const byId = new Map(elements.map((el) => [el.id, el]));
   let top = null;
   for (const el of elements) {
-    if (!grabbable(el) || !under(el, point.x, point.y)) continue;
+    if (!grabbable(el) || !under(el, point.x, point.y, zoom, byId)) continue;
     const frame = el.frameId ? frames2.get(el.frameId) : null;
     if (frame && !inside(frame, point.x, point.y)) continue;
     top = el;
   }
   return top;
+}
+const outerGroup = (el) => {
+  const g = el.groupIds ?? [];
+  return g.length ? g[g.length - 1] : null;
+};
+function onSelectionHandles(selected, point, zoom) {
+  if (!selected.length) return false;
+  const z = zoom;
+  const boxes = selected.map(boxOf);
+  const x1 = Math.min(...boxes.map((b) => b[0]));
+  const y1 = Math.min(...boxes.map((b) => b[1]));
+  const x2 = Math.max(...boxes.map((b) => b[2]));
+  const y2 = Math.max(...boxes.map((b) => b[3]));
+  const { x, y } = point;
+  const zone = HANDLE_ZONE_PX / z;
+  for (const [cx, cy] of [[x1, y1], [x2, y1], [x1, y2], [x2, y2]]) {
+    if (Math.abs(x - cx) <= zone && Math.abs(y - cy) <= zone) return true;
+  }
+  const reach = 10 / z;
+  const inner = 5 / z;
+  const near = x >= x1 - reach && x <= x2 + reach && y >= y1 - reach && y <= y2 + reach;
+  const deep = x > x1 + inner && x < x2 - inner && y > y1 + inner && y < y2 - inner;
+  if (near && !deep) return true;
+  return Math.abs(x - (x1 + x2) / 2) <= 12 / z && y <= y1 && y >= y1 - 36 / z;
+}
+const trueOnly = (ids) => Object.fromEntries(Object.entries(ids).filter(([, v]) => v).map(([k]) => [k, true]));
+function pickVisible(elements, state, point, zoom) {
+  const z = zoom || 1;
+  const selected = elements.filter((el) => !el.isDeleted && state.selectedElementIds[el.id]);
+  if (selected.some((el) => el.type === "frame" || el.type === "magicframe")) return null;
+  if (onSelectionHandles(selected, point, z)) return null;
+  const top = topAt(elements, point, z);
+  if (!top) return null;
+  if (top.type === "image") {
+    const p = local(top, point.x, point.y);
+    const m = 5 / z;
+    if (p.x < p.box[0] + m || p.x > p.box[2] - m || p.y < p.box[1] + m || p.y > p.box[3] - m) return null;
+  }
+  const frames2 = framesOf(elements);
+  const reach = EXCALIDRAW_HIT_PX / z;
+  const group = outerGroup(top);
+  const grazed = elements.slice(elements.indexOf(top) + 1).some((el) => {
+    if (el.isDeleted || el.locked || el.type === "frame" || el.type === "magicframe" || isPageBackground(el)) return false;
+    if (el.containerId) return false;
+    if (group && outerGroup(el) === group) return false;
+    const [x1, y1, x2, y2] = boxOf(el);
+    if (!(point.x >= x1 - reach && point.x <= x2 + reach && point.y >= y1 - reach && point.y <= y2 + reach)) return false;
+    const frame = el.frameId ? frames2.get(el.frameId) : null;
+    return !frame || inside(frame, point.x, point.y);
+  });
+  if (!grazed) return null;
+  if (state.selectedElementIds[top.id]) {
+    return { id: top.id, selectedElementIds: trueOnly(state.selectedElementIds), selectedGroupIds: trueOnly(state.selectedGroupIds ?? {}) };
+  }
+  const editing = state.editingGroupId ?? null;
+  if (group && !(editing && (top.groupIds ?? []).includes(editing))) {
+    const ids = {};
+    for (const el of elements) if (!el.isDeleted && (el.groupIds ?? []).includes(group)) ids[el.id] = true;
+    return { id: top.id, selectedElementIds: ids, selectedGroupIds: { [group]: true } };
+  }
+  return { id: top.id, selectedElementIds: { [top.id]: true }, selectedGroupIds: {} };
 }
 function pickOverPageEdge(elements, selectedElementIds, point, zoom) {
   const zone = HANDLE_ZONE_PX / (zoom || 1);
@@ -4871,9 +5021,87 @@ function pickOverPageEdge(elements, selectedElementIds, point, zoom) {
     return within && !deep;
   });
   if (!nearEdge) return null;
-  const top = topAt(elements, point);
+  const top = topAt(elements, point, zoom);
   if (!top || selectedElementIds[top.id]) return null;
   return top.id;
+}
+function installCanvaPick(root, api, win = window) {
+  let disarm = null;
+  const drop = () => {
+    disarm == null ? void 0 : disarm();
+    disarm = null;
+  };
+  const select = (ids, groups, keepLinear) => {
+    const s = api.getAppState();
+    const stale = !!s.selectedLinearElement && s.selectedLinearElement.elementId !== keepLinear;
+    flushSync(() => {
+      if (stale) {
+        api.updateScene({
+          appState: { selectedElementIds: ids, selectedGroupIds: groups, selectedLinearElement: null },
+          captureUpdate: CaptureUpdateAction.EVENTUALLY
+        });
+      } else {
+        api.updateScene({
+          appState: { selectedElementIds: ids, selectedGroupIds: groups },
+          captureUpdate: CaptureUpdateAction.EVENTUALLY
+        });
+      }
+    });
+  };
+  const arm = (down, id) => {
+    const s = api.getAppState();
+    const ids = { ...s.selectedElementIds };
+    const groups = { ...s.selectedGroupIds };
+    const want = Object.fromEntries(Object.keys(ids).filter((k) => ids[k]).map((k) => [k, true]));
+    const wantGroups = Object.fromEntries(Object.keys(groups).filter((k) => groups[k]).map((k) => [k, true]));
+    const onUp = () => {
+      drop();
+      queueMicrotask(() => {
+        const now = api.getAppState();
+        if (now.selectedElementIds[id] || now.editingTextElement || now.activeTool.type !== "selection") return;
+        select(want, wantGroups, id);
+      });
+    };
+    const afterDown = (ev) => {
+      if (ev !== down) return;
+      win.removeEventListener("pointerdown", afterDown);
+      win.addEventListener("pointerup", onUp);
+    };
+    win.addEventListener("pointerdown", afterDown);
+    win.addEventListener("pointercancel", drop);
+    disarm = () => {
+      win.removeEventListener("pointerdown", afterDown);
+      win.removeEventListener("pointerup", onUp);
+      win.removeEventListener("pointercancel", drop);
+    };
+  };
+  const onDown = (ev) => {
+    drop();
+    if (ev.button !== 0 || ev.shiftKey || ev.ctrlKey || ev.metaKey || ev.altKey) return;
+    const target = ev.target;
+    if (!(target instanceof HTMLCanvasElement) || !target.classList.contains("interactive")) return;
+    const s = api.getAppState();
+    if (s.activeTool.type !== "selection" || s.editingTextElement || s.croppingElementId) return;
+    const z = s.zoom.value;
+    const point = { x: (ev.clientX - s.offsetLeft) / z - s.scrollX, y: (ev.clientY - s.offsetTop) / z - s.scrollY };
+    const elements = api.getSceneElements();
+    if (pickOverSelection(elements, s.selectedElementIds, point, z)) select({}, {}, null);
+    const visible = pickVisible(elements, api.getAppState(), point, z);
+    if (visible) {
+      select(visible.selectedElementIds, visible.selectedGroupIds, visible.id);
+      arm(ev, visible.id);
+      return;
+    }
+    const edge = pickOverPageEdge(elements, api.getAppState().selectedElementIds, point, z);
+    if (!edge) return;
+    select({ [edge]: true }, {}, edge);
+    arm(ev, edge);
+  };
+  root.addEventListener("pointerdown", onDown, true);
+  return () => {
+    drop();
+    root.removeEventListener("pointerdown", onDown, true);
+  };
 }
 const emptySceneGate = () => ({ elements: null, versions: null, bg: null });
 function hashVersions(elements) {
@@ -5148,34 +5376,7 @@ ${css}` : css;
   useEffect(() => {
     const root = rootRef.current;
     if (!api || viewMode || !root) return;
-    const onDown = (ev) => {
-      if (ev.button !== 0 || ev.shiftKey || ev.ctrlKey || ev.metaKey || ev.altKey) return;
-      const target = ev.target;
-      if (!(target instanceof HTMLCanvasElement) || !target.classList.contains("interactive")) return;
-      const s = api.getAppState();
-      if (s.activeTool.type !== "selection" || s.editingTextElement || s.croppingElementId) return;
-      const z = s.zoom.value;
-      const point = { x: (ev.clientX - s.offsetLeft) / z - s.scrollX, y: (ev.clientY - s.offsetTop) / z - s.scrollY };
-      const elements = api.getSceneElements();
-      if (pickOverSelection(elements, s.selectedElementIds, point, z)) {
-        flushSync(() => {
-          api.updateScene({
-            appState: { selectedElementIds: {}, selectedGroupIds: {} },
-            captureUpdate: CaptureUpdateAction.EVENTUALLY
-          });
-        });
-      }
-      const edge = pickOverPageEdge(elements, api.getAppState().selectedElementIds, point, z);
-      if (!edge) return;
-      flushSync(() => {
-        api.updateScene({
-          appState: { selectedElementIds: { [edge]: true }, selectedGroupIds: {} },
-          captureUpdate: CaptureUpdateAction.EVENTUALLY
-        });
-      });
-    };
-    root.addEventListener("pointerdown", onDown, true);
-    return () => root.removeEventListener("pointerdown", onDown, true);
+    return installCanvaPick(root, api);
   }, [api, viewMode]);
   useEffect(() => {
     if (!api || viewMode) return;
@@ -5780,4 +5981,4 @@ export {
   fitAllPages as y,
   renamePage as z
 };
-//# sourceMappingURL=LibraryPanel-pyCM850s.js.map
+//# sourceMappingURL=LibraryPanel-D_mGj7s8.js.map
