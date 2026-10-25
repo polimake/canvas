@@ -452,6 +452,42 @@ export function addPage(
   return id;
 }
 
+/**
+ * La página que se está mirando, para el seguimiento del encuadre: la que más
+ * se ve dentro de `bounds` (`[x1, y1, x2, y2]` de escena, lo de
+ * `getVisibleSceneBounds`), salvo que la activa ya se vea entera o tanto como
+ * la que más. Devuelve `null` si no se ve ninguna.
+ *
+ * Antes ganaba siempre la de más área a la vista, y en un empate la primera de
+ * la escena. Con la ventana ancha `goToPage` deja enteras también las vecinas
+ * (al 72 % del alto, una 4:5 ocupa poco más de un tercio del ancho), así que
+ * 150 ms después de saltar a la página 2 la activa volvía a ser la 1: la barra
+ * de la página se iba de esquina y el «¿Eliminar?» recién armado se desarmaba
+ * (`PageActions` lo desarma al cambiar de página) antes de poder pulsarlo.
+ */
+export function pageInView(
+  elements: readonly { id: string; type: string; x: number; y: number; width: number; height: number; isDeleted?: boolean }[],
+  bounds: readonly [number, number, number, number],
+  currentId: string | null | undefined,
+): string | null {
+  const [x1, y1, x2, y2] = bounds;
+  let best: { id: string; area: number } | null = null;
+  let current: { area: number; whole: boolean } | null = null;
+  for (const e of elements) {
+    if (e.type !== 'frame' || e.isDeleted) continue;
+    const w = Math.min(e.x + e.width, x2) - Math.max(e.x, x1);
+    const h = Math.min(e.y + e.height, y2) - Math.max(e.y, y1);
+    if (w <= 0 || h <= 0) continue;
+    const area = w * h;
+    // Un pelo de tolerancia: el encuadre animado no siempre cae en el píxel.
+    if (e.id === currentId) current = { area, whole: area >= e.width * e.height * 0.995 };
+    if (!best || area > best.area) best = { id: e.id, area };
+  }
+  if (!best) return null;
+  if (currentId && current && (current.whole || current.area >= best.area * 0.995)) return currentId;
+  return best.id;
+}
+
 /** Center + zoom the viewport onto a page. */
 /**
  * Cuánto de la pantalla ocupa la página al saltar a ella (0,1–1).

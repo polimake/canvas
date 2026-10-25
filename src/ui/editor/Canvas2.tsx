@@ -29,7 +29,7 @@ import { readWorkspace, saveWorkspace } from '../workspaces/preference';
 import { useIsNarrow } from '../hooks/narrow';
 import { ToolbarSlot } from './ToolbarSlot';
 import type { FilesMap } from '../hooks/pageThumbnails';
-import { addPage, createBlankScene, goToPage, listPages, relayoutPages, type PageSize } from '../../core/pages';
+import { addPage, createBlankScene, goToPage, listPages, pageInView, relayoutPages, type PageSize } from '../../core/pages';
 import { commitElements } from '../../core/mutate';
 import { ensurePagePapers, hasRaisedPaper } from '../../core/background';
 import { resolveBrandKit, type BrandKitInput, type Canvas2Brand } from '../../core/brand';
@@ -850,20 +850,15 @@ export function Canvas2Editor({
     const unsub = api.onScrollChange(() => {
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
-        const [x1, y1, x2, y2] = getVisibleSceneBounds(api.getAppState());
-        let best: { id: string; area: number } | null = null;
-        for (const e of api.getSceneElements()) {
-          if (e.type !== 'frame') continue;
-          const w = Math.min(e.x + e.width, x2) - Math.max(e.x, x1);
-          const h = Math.min(e.y + e.height, y2) - Math.max(e.y, y1);
-          if (w <= 0 || h <= 0) continue;
-          const area = w * h;
-          if (!best || area > best.area) best = { id: e.id, area };
-        }
-        if (best) {
-          const id = best.id;
-          setActivePageId((current) => (current === id ? current : id));
-        }
+        // La activa se queda si se ve entera o tanto como la que más
+        // (`pageInView`): saltar a una página con la tira no puede devolver la
+        // activa a la vecina 150 ms después.
+        const id = pageInView(
+          api.getSceneElements(),
+          getVisibleSceneBounds(api.getAppState()),
+          activePageIdRef.current,
+        );
+        if (id) setActivePageId((current) => (current === id ? current : id));
       }, 150);
     });
     return () => {
