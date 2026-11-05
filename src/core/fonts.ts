@@ -212,6 +212,27 @@ export function fontFormatHint(src: string): string | null {
 }
 
 /**
+ * Un texto dentro de una cadena CSS entre comillas dobles. Las letras llegan de
+ * escenas, de `editorConfig` y del kit de marca, y este CSS va a un `<style>` del
+ * documento: una comilla o un salto de línea sin escapar dejarían reglas para toda
+ * la ventana. Con `<` y `>` tampoco sale del `<style>` de un SVG.
+ */
+function dentroDeCadenaCss(texto: string): string {
+  // eslint-disable-next-line no-control-regex
+  return texto.replace(/["\\<>\u0000-\u001f\u007f]/g, (c) => `\\${c.charCodeAt(0).toString(16)} `);
+}
+
+/** Un `font-weight` de verdad, o `normal`. Va sin comillas: no se puede escapar. */
+function pesoCss(peso: string | undefined): string {
+  return peso && /^(normal|bold|bolder|lighter|\d{1,4}( \d{1,4})?)$/.test(peso) ? peso : 'normal';
+}
+
+/** Un `font-style` de verdad, o `normal`. Va sin comillas: no se puede escapar. */
+function estiloCss(estilo: string | undefined): string {
+  return estilo && /^(normal|italic|oblique( -?\d{1,3}(\.\d+)?deg){0,2})$/.test(estilo) ? estilo : 'normal';
+}
+
+/**
  * CSS de las `@font-face`. PURA: la usan tanto la inyección en pantalla como el
  * embebido en el SVG exportado, y así las dos declaran exactamente lo mismo.
  */
@@ -223,10 +244,11 @@ export function buildFontFaceCss(
     .filter((f) => f.family && f.src)
     .map((f) => {
       const hint = fontFormatHint(f.src);
-      const src = hint ? `url("${f.src}") format("${hint}")` : `url("${f.src}")`;
+      const direccion = `url("${dentroDeCadenaCss(f.src)}")`;
+      const src = hint ? `${direccion} format("${hint}")` : direccion;
       return (
-        `@font-face{font-family:"${f.family}";src:${src};` +
-        `font-weight:${f.weight ?? 'normal'};font-style:${f.style ?? 'normal'};` +
+        `@font-face{font-family:"${dentroDeCadenaCss(f.family)}";src:${src};` +
+        `font-weight:${pesoCss(f.weight)};font-style:${estiloCss(f.style)};` +
         (opts?.display ? `font-display:${opts.display};` : '') +
         '}'
       );

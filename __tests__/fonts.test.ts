@@ -244,3 +244,61 @@ describe('normalizeFontSrc', () => {
     expect(normalizeFontSrc('data:font/woff2;base64,AAA')).toBe('data:font/woff2;base64,AAA');
   });
 });
+
+// seguridad run-3 49: una letra da exactamente una regla, diga lo que diga. Las
+// letras llegan de escenas, de `editorConfig` y del kit de marca, y este CSS va a
+// un <style> del documento de la app.
+describe('buildFontFaceCss no deja salir nada de sus cadenas', () => {
+  /** Lo que queda tras quitar el contenido de las cadenas, como lo lee el navegador. */
+  const sinCadenas = (css: string) => {
+    let fuera = '';
+    let dentro = false;
+    for (let i = 0; i < css.length; i++) {
+      const c = css[i];
+      if (dentro) {
+        if (c === '\\') i++;
+        else if (c === '"' || c === '\n') dentro = false;
+      } else if (c === '"') dentro = true;
+      else fuera += c;
+    }
+    return fuera;
+  };
+  const llaves = (css: string) => sinCadenas(css).replace(/[^{}]/g, '');
+  const trampa = 'X";}body{outline:thick solid red}@font-face{font-family:"Y';
+
+  it('una familia o un src con comillas no cierra la cadena', () => {
+    for (const cara of [
+      { family: trampa, src: 'a.woff2' },
+      { family: 'F', src: 'a.woff2") } body{outline:thick solid red} @font-face{src:url("y' },
+    ]) {
+      const css = buildFontFaceCss([cara]);
+      expect(llaves(css)).toBe('{}');
+      expect(sinCadenas(css)).not.toContain('body');
+    }
+  });
+
+  it('tampoco con barra invertida, salto de línea o <', () => {
+    for (const family of ['A\\', 'A\n}body{color:red}', 'A\r}body{color:red}', 'A\f}body{color:red}', 'A</style><b>']) {
+      const css = buildFontFaceCss([{ family, src: 'a.woff2' }]);
+      expect(llaves(css)).toBe('{}');
+      expect(css).not.toContain('<');
+      expect(css.split('\n')).toHaveLength(1);
+    }
+  });
+
+  it('el peso y el estilo solo valen si son eso', () => {
+    const css = buildFontFaceCss([
+      { family: 'F', src: 'a.woff2', weight: '700;}body{color:red}', style: 'italic;}body{color:red}' } as never,
+    ]);
+    expect(llaves(css)).toBe('{}');
+    expect(css).not.toContain('body');
+    expect(css).toContain('font-weight:normal');
+    expect(css).toContain('font-style:normal');
+  });
+
+  it('una letra normal sale igual que siempre', () => {
+    expect(buildFontFaceCss([{ family: 'Bebas Neue', src: '/letras/Titular (de E).ttf', weight: '700', style: 'italic' }], { display: 'swap' })).toBe(
+      '@font-face{font-family:"Bebas Neue";src:url("/letras/Titular (de E).ttf") format("truetype");font-weight:700;font-style:italic;font-display:swap;}',
+    );
+  });
+});
