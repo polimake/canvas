@@ -48,11 +48,21 @@ function fontFormatHint(src) {
   if (limpio.endsWith(".ttf")) return "truetype";
   return null;
 }
+function dentroDeCadenaCss(texto) {
+  return texto.replace(/["\\<>\u0000-\u001f\u007f]/g, (c) => `\\${c.charCodeAt(0).toString(16)} `);
+}
+function pesoCss(peso) {
+  return peso && /^(normal|bold|bolder|lighter|\d{1,4}( \d{1,4})?)$/.test(peso) ? peso : "normal";
+}
+function estiloCss(estilo) {
+  return estilo && /^(normal|italic|oblique( -?\d{1,3}(\.\d+)?deg){0,2})$/.test(estilo) ? estilo : "normal";
+}
 function buildFontFaceCss(faces, opts) {
   return faces.filter((f) => f.family && f.src).map((f) => {
     const hint = fontFormatHint(f.src);
-    const src = hint ? `url("${f.src}") format("${hint}")` : `url("${f.src}")`;
-    return `@font-face{font-family:"${f.family}";src:${src};font-weight:${f.weight ?? "normal"};font-style:${f.style ?? "normal"};` + ((opts == null ? void 0 : opts.display) ? `font-display:${opts.display};` : "") + "}";
+    const direccion = `url("${dentroDeCadenaCss(f.src)}")`;
+    const src = hint ? `${direccion} format("${hint}")` : direccion;
+    return `@font-face{font-family:"${dentroDeCadenaCss(f.family)}";src:${src};font-weight:${pesoCss(f.weight)};font-style:${estiloCss(f.style)};` + ((opts == null ? void 0 : opts.display) ? `font-display:${opts.display};` : "") + "}";
   }).join("\n");
 }
 function dedupeFontFaces(faces) {
