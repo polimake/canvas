@@ -37,6 +37,11 @@ export interface Canvas2Labels {
     frameTool: string;
     /** «Find on canvas» del menú principal: tampoco la trae. */
     findOnCanvas: string;
+    /** El tema del lienzo en el menú (`themeChoice`): el grupo y sus tres opciones. */
+    theme: string;
+    themeApp: string;
+    themeLight: string;
+    themeDark: string;
   };
   library: {
     title: string;
@@ -252,6 +257,10 @@ export const DEFAULT_LABELS: Canvas2Labels = {
     hidePanels: 'Ocultar paneles',
     frameTool: 'Marco',
     findOnCanvas: 'Buscar en el lienzo',
+    theme: 'Tema del lienzo',
+    themeApp: 'Como la app',
+    themeLight: 'Claro',
+    themeDark: 'Oscuro',
   },
   library: {
     title: 'Biblioteca',

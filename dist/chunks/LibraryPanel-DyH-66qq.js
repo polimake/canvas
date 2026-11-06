@@ -1182,7 +1182,11 @@ const DEFAULT_LABELS = {
     showPanels: "Mostrar paneles",
     hidePanels: "Ocultar paneles",
     frameTool: "Marco",
-    findOnCanvas: "Buscar en el lienzo"
+    findOnCanvas: "Buscar en el lienzo",
+    theme: "Tema del lienzo",
+    themeApp: "Como la app",
+    themeLight: "Claro",
+    themeDark: "Oscuro"
   },
   library: {
     title: "Biblioteca",
@@ -2159,7 +2163,11 @@ function LooseWarning({ api, activePageId, theme, viewMode, narrow, labels }) {
         // barra de herramientas. `max-content` le deja el ancho de su texto; en
         // móvil va justo debajo de la barra de arriba, entre la tira de iconos
         // de la izquierda y las utilidades de Excalidraw de la derecha.
-        ...narrow ? { top: 64, left: 52, right: 48 } : { top: 12, left: "50%", transform: "translateX(-50%)", width: "max-content" },
+        ...narrow ? { top: 64, left: 52, right: 48 } : (
+          // Abajo, encima de la tira de páginas (Olis, 06/11): arriba tapaba la
+          // barra de herramientas y los ajustes. Es el hueco que nunca ocupa nada.
+          { bottom: 112, left: "50%", transform: "translateX(-50%)", width: "max-content" }
+        ),
         zIndex: 6,
         display: "flex",
         alignItems: "center",
@@ -2167,7 +2175,9 @@ function LooseWarning({ api, activePageId, theme, viewMode, narrow, labels }) {
         padding: "7px 10px",
         borderRadius: 8,
         border: `1px solid ${c.warnBorder}`,
-        background: c.warnBg,
+        // El tinte ámbar sobre el fondo del panel, opaco: traslúcido, al mover
+        // el lienzo se veía lo de debajo a través (Olis, 06/11).
+        background: `linear-gradient(${c.warnBg}, ${c.warnBg}), ${c.bg}`,
         color: c.warnText,
         fontSize: 12,
         boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
@@ -2807,9 +2817,25 @@ function CanvasMenu({
   hydrateFiles,
   fontFaces,
   onSaveComponent,
+  themeChoice,
   labels: labelsProp
 }) {
   const L = mergeLabels(labelsProp);
+  const themeItems = themeChoice ? /* @__PURE__ */ jsx(MainMenu.Group, { title: L.workspace.theme, children: [
+    ["app", L.workspace.themeApp],
+    ["light", L.workspace.themeLight],
+    ["dark", L.workspace.themeDark]
+  ].map(([value, text]) => /* @__PURE__ */ jsx(
+    MainMenu.Item,
+    {
+      role: "menuitemradio",
+      "aria-checked": themeChoice.value === value,
+      selected: themeChoice.value === value,
+      onSelect: () => themeChoice.onChange(value),
+      children: text
+    },
+    value
+  )) }) : null;
   const workspaceItems = !viewMode && onWorkspaceChange ? /* @__PURE__ */ jsx(MainMenu.Group, { title: L.workspace.label, children: ["excalidraw", "design", "advanced"].map((value) => /* @__PURE__ */ jsx(
     MainMenu.Item,
     {
@@ -2892,6 +2918,7 @@ function CanvasMenu({
         !viewMode && /* @__PURE__ */ jsx(MainMenu.DefaultItems.ClearCanvas, {}),
         /* @__PURE__ */ jsx(MainMenu.Separator, {})
       ] }),
+      themeItems,
       /* @__PURE__ */ jsx(MainMenu.DefaultItems.SearchMenu, {}),
       /* @__PURE__ */ jsx(MainMenu.DefaultItems.ToggleTheme, {}),
       /* @__PURE__ */ jsx(MainMenu.DefaultItems.Help, {})
@@ -2935,6 +2962,7 @@ function CanvasMenu({
       }
     ),
     /* @__PURE__ */ jsx(MainMenu.Separator, {}),
+    themeItems,
     /* @__PURE__ */ jsx(MainMenu.DefaultItems.SearchMenu, {}),
     /* @__PURE__ */ jsx(MainMenu.DefaultItems.ToggleTheme, {}),
     /* @__PURE__ */ jsx(MainMenu.DefaultItems.Help, {})
@@ -5427,6 +5455,7 @@ function Canvas2Editor({
   componentsPanel,
   agentPanel,
   onSaveComponent,
+  themeChoice,
   onActivePageChange,
   onMediaDrop,
   mediaDropType = MEDIA_DROP_TYPE,
@@ -5888,6 +5917,7 @@ ${css}` : css;
                     hydrateFiles,
                     fontFaces: fuentes.faces,
                     onSaveComponent,
+                    themeChoice,
                     labels
                   }
                 )
@@ -6218,4 +6248,4 @@ export {
   fitAllPages as y,
   renamePage as z
 };
-//# sourceMappingURL=LibraryPanel-DmLcEydr.js.map
+//# sourceMappingURL=LibraryPanel-DyH-66qq.js.map

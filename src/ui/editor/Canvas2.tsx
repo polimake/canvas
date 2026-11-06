@@ -14,7 +14,7 @@ import {
 import { PageNavigator } from '../navigation/PageNavigator';
 import { LooseWarning } from '../overlays/LooseWarning';
 import { VideoFramePicker } from '../overlays/VideoFramePicker';
-import { CanvasMenu } from '../navigation/CanvasMenu';
+import { CanvasMenu, type CanvasThemeChoice } from '../navigation/CanvasMenu';
 import { PageActions } from '../navigation/PageActions';
 import { ModeSwitch, type Canvas2ModeControl } from '../navigation/ModeSwitch';
 import { DesignPanel } from '../panels/DesignPanel';
@@ -203,6 +203,8 @@ export interface Canvas2EditorProps {
    * (POST a su API + miniatura); canvas2 solo ofrece la entrada de menú.
    */
   onSaveComponent?: () => void;
+  /** El tema del lienzo elegible en el menú ☰ (ver `CanvasMenu`). Lo guarda el host. */
+  themeChoice?: CanvasThemeChoice;
   /**
    * Se suelta algo de la biblioteca sobre el lienzo.
    *
@@ -420,6 +422,7 @@ export function Canvas2Editor({
   componentsPanel,
   agentPanel,
   onSaveComponent,
+  themeChoice,
   onActivePageChange,
   onMediaDrop,
   mediaDropType = MEDIA_DROP_TYPE,
@@ -1103,6 +1106,7 @@ export function Canvas2Editor({
             // pantalla, embebidas también en el SVG exportado.
             fontFaces={fuentes.faces}
             onSaveComponent={onSaveComponent}
+            themeChoice={themeChoice}
             labels={labels}
           />
       </Excalidraw>

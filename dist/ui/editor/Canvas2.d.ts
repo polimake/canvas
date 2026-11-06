@@ -2,6 +2,7 @@ import { type ReactNode } from 'react';
 import '../shared/canvas2.css';
 import { type ExcalidrawImperativeAPI } from '../../core/excal';
 import { PageNavigator } from '../navigation/PageNavigator';
+import { type CanvasThemeChoice } from '../navigation/CanvasMenu';
 import { type Canvas2ModeControl } from '../navigation/ModeSwitch';
 import type { CanvasWorkspace } from '../workspaces/types';
 import type { FilesMap } from '../hooks/pageThumbnails';
@@ -167,6 +168,8 @@ export interface Canvas2EditorProps {
      * (POST a su API + miniatura); canvas2 solo ofrece la entrada de menú.
      */
     onSaveComponent?: () => void;
+    /** El tema del lienzo elegible en el menú ☰ (ver `CanvasMenu`). Lo guarda el host. */
+    themeChoice?: CanvasThemeChoice;
     /**
      * Se suelta algo de la biblioteca sobre el lienzo.
      *
@@ -285,7 +288,7 @@ export declare const MEDIA_DROP_TYPE = "application/x-canvas2-media";
  * this behind a `next/dynamic(..., { ssr: false })` boundary in the host app
  * (see apps/web/src/app/canvas/page.tsx).
  */
-export declare function Canvas2Editor({ workspace: workspaceProp, defaultWorkspace, onWorkspaceChange, className, initialScene, onSceneChange, viewMode, theme: themeProp, langCode, onReady, nativeImageExport, fontOverrides, changeDebounceMs, pages, pageSize, initialPageIndex, layers, pageThumbnails, pageThumbnailFiles, brandKit, hydrateFiles, dockedSidebarBreakpoint, library, componentsPanel, agentPanel, onSaveComponent, onActivePageChange, onMediaDrop, mediaDropType, onFilesDrop, labels, resolveVideoSrc, releaseVideoSrc, onPickVideoFrame, rightEdge, modeControl, toolbarActions, }: Canvas2EditorProps): import("react").JSX.Element;
+export declare function Canvas2Editor({ workspace: workspaceProp, defaultWorkspace, onWorkspaceChange, className, initialScene, onSceneChange, viewMode, theme: themeProp, langCode, onReady, nativeImageExport, fontOverrides, changeDebounceMs, pages, pageSize, initialPageIndex, layers, pageThumbnails, pageThumbnailFiles, brandKit, hydrateFiles, dockedSidebarBreakpoint, library, componentsPanel, agentPanel, onSaveComponent, themeChoice, onActivePageChange, onMediaDrop, mediaDropType, onFilesDrop, labels, resolveVideoSrc, releaseVideoSrc, onPickVideoFrame, rightEdge, modeControl, toolbarActions, }: Canvas2EditorProps): import("react").JSX.Element;
 /** Backwards-compatible alias — the bare wrapper is now a controlled editor. */
 export declare const Canvas2: typeof Canvas2Editor;
 export default Canvas2Editor;

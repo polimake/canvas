@@ -49,8 +49,19 @@ export interface CanvasMenuProps {
     fontFaces?: readonly SvgFontFace[];
     /** "Guardar página como componente" — la subida la hace el host. */
     onSaveComponent?: () => void;
+    /**
+     * El tema del lienzo, elegido aquí y guardado por el host. Sin él, no hay
+     * grupo: el tema lo manda el host por `theme` y Excalidraw no lo cambia.
+     */
+    themeChoice?: CanvasThemeChoice;
     /** Textos, inyectados por el host (ver labels.ts). */
     labels?: PartialLabels;
 }
-export declare function CanvasMenu({ pages: pageMode, workspace, onWorkspaceChange, api, activePageId, viewMode, hydrateFiles, fontFaces, onSaveComponent, labels: labelsProp, }: CanvasMenuProps): import("react").JSX.Element;
+/** «Como la app», claro u oscuro: lo que elige la persona, no el tema pintado. */
+export type CanvasThemeChoiceValue = 'app' | 'light' | 'dark';
+export interface CanvasThemeChoice {
+    value: CanvasThemeChoiceValue;
+    onChange: (value: CanvasThemeChoiceValue) => void;
+}
+export declare function CanvasMenu({ pages: pageMode, workspace, onWorkspaceChange, api, activePageId, viewMode, hydrateFiles, fontFaces, onSaveComponent, themeChoice, labels: labelsProp, }: CanvasMenuProps): import("react").JSX.Element;
 //# sourceMappingURL=CanvasMenu.d.ts.map

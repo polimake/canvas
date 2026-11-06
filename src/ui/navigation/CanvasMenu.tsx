@@ -55,8 +55,20 @@ export interface CanvasMenuProps {
   fontFaces?: readonly SvgFontFace[];
   /** "Guardar página como componente" — la subida la hace el host. */
   onSaveComponent?: () => void;
+  /**
+   * El tema del lienzo, elegido aquí y guardado por el host. Sin él, no hay
+   * grupo: el tema lo manda el host por `theme` y Excalidraw no lo cambia.
+   */
+  themeChoice?: CanvasThemeChoice;
   /** Textos, inyectados por el host (ver labels.ts). */
   labels?: PartialLabels;
+}
+
+/** «Como la app», claro u oscuro: lo que elige la persona, no el tema pintado. */
+export type CanvasThemeChoiceValue = 'app' | 'light' | 'dark';
+export interface CanvasThemeChoice {
+  value: CanvasThemeChoiceValue;
+  onChange: (value: CanvasThemeChoiceValue) => void;
 }
 
 /** `fallback` es el nombre de serie (`labels.menu.exportName`), para cuando la página no da uno. */
@@ -74,9 +86,26 @@ export function CanvasMenu({
   hydrateFiles,
   fontFaces,
   onSaveComponent,
+  themeChoice,
   labels: labelsProp,
 }: CanvasMenuProps) {
   const L = mergeLabels(labelsProp);
+  // El tema del lienzo, como el espacio de trabajo: tres opciones marcables
+  // (Olis, 06/11: sale del engranaje de la barra del host).
+  const themeItems = themeChoice ? (
+    <MainMenu.Group title={L.workspace.theme}>
+      {([
+        ['app', L.workspace.themeApp],
+        ['light', L.workspace.themeLight],
+        ['dark', L.workspace.themeDark],
+      ] as const).map(([value, text]) => (
+        <MainMenu.Item key={value} role="menuitemradio" aria-checked={themeChoice.value === value}
+          selected={themeChoice.value === value} onSelect={() => themeChoice.onChange(value)}>
+          {text}
+        </MainMenu.Item>
+      ))}
+    </MainMenu.Group>
+  ) : null;
   const workspaceItems = !viewMode && onWorkspaceChange ? (
     <MainMenu.Group title={L.workspace.label}>
       {(['excalidraw', 'design', 'advanced'] as const).map((value) => (
@@ -179,7 +208,8 @@ export function CanvasMenu({
           {!viewMode && <MainMenu.DefaultItems.ClearCanvas />}
           <MainMenu.Separator />
         </>}
-        <MainMenu.DefaultItems.SearchMenu />
+        {themeItems}
+      <MainMenu.DefaultItems.SearchMenu />
         <MainMenu.DefaultItems.ToggleTheme />
         <MainMenu.DefaultItems.Help />
       </MainMenu>
@@ -249,6 +279,7 @@ export function CanvasMenu({
           `SaveAsImage`, que es el diálogo nativo que revienta con imágenes
           remotas — su sitio lo ocupa el grupo Exportar de arriba. */}
       <MainMenu.Separator />
+      {themeItems}
       <MainMenu.DefaultItems.SearchMenu />
       <MainMenu.DefaultItems.ToggleTheme />
       <MainMenu.DefaultItems.Help />

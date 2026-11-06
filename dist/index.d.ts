@@ -29,7 +29,7 @@ export type { PageAlignment } from './core/align';
 export { LayersPanel } from './ui/panels/LayersPanel';
 export type { LayersPanelProps } from './ui/panels/LayersPanel';
 export { CanvasMenu } from './ui/navigation/CanvasMenu';
-export type { CanvasMenuProps } from './ui/navigation/CanvasMenu';
+export type { CanvasMenuProps, CanvasThemeChoice, CanvasThemeChoiceValue } from './ui/navigation/CanvasMenu';
 export { PageActions } from './ui/navigation/PageActions';
 export type { PageActionsProps } from './ui/navigation/PageActions';
 export { setAsBackground, extendToPage } from './core/imageOps';

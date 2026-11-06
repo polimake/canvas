@@ -105,7 +105,7 @@ export type { LayersPanelProps } from './ui/panels/LayersPanel';
 // Menú principal del editor (fondo de página, tamaño, exportar). Lo monta
 // Canvas2Editor; se exporta para hosts que compongan su propio editor.
 export { CanvasMenu } from './ui/navigation/CanvasMenu';
-export type { CanvasMenuProps } from './ui/navigation/CanvasMenu';
+export type { CanvasMenuProps, CanvasThemeChoice, CanvasThemeChoiceValue } from './ui/navigation/CanvasMenu';
 // Acciones de la página activa, flotando sobre el lienzo junto a su nombre.
 export { PageActions } from './ui/navigation/PageActions';
 export type { PageActionsProps } from './ui/navigation/PageActions';

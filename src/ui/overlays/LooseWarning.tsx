@@ -58,7 +58,9 @@ export function LooseWarning({ api, activePageId, theme, viewMode, narrow, label
         // de la izquierda y las utilidades de Excalidraw de la derecha.
         ...(narrow
           ? { top: 64, left: 52, right: 48 }
-          : { top: 12, left: '50%', transform: 'translateX(-50%)', width: 'max-content' }),
+          : // Abajo, encima de la tira de páginas (Olis, 06/11): arriba tapaba la
+            // barra de herramientas y los ajustes. Es el hueco que nunca ocupa nada.
+            { bottom: 112, left: '50%', transform: 'translateX(-50%)', width: 'max-content' }),
         zIndex: 6,
         display: 'flex',
         alignItems: 'center',
@@ -66,7 +68,9 @@ export function LooseWarning({ api, activePageId, theme, viewMode, narrow, label
         padding: '7px 10px',
         borderRadius: 8,
         border: `1px solid ${c.warnBorder}`,
-        background: c.warnBg,
+        // El tinte ámbar sobre el fondo del panel, opaco: traslúcido, al mover
+        // el lienzo se veía lo de debajo a través (Olis, 06/11).
+        background: `linear-gradient(${c.warnBg}, ${c.warnBg}), ${c.bg}`,
         color: c.warnText,
         fontSize: 12,
         boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
