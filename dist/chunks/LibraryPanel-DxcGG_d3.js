@@ -4562,6 +4562,43 @@ function ToolbarSlot({ root, children }) {
   }, [root]);
   return row ? createPortal(children, row) : null;
 }
+function indexDuplicates(next, prev) {
+  var _a, _b;
+  const before = new Set(prev.map((el) => el.id));
+  const out = next.slice();
+  for (let i = 0; i < out.length; i++) {
+    const el = out[i];
+    if (before.has(el.id)) continue;
+    const lower = ((_a = out[i - 1]) == null ? void 0 : _a.index) ?? null;
+    if (lower === null) continue;
+    let j = i + 1;
+    while (j < out.length && !before.has(out[j].id)) j++;
+    const following = ((_b = out[j]) == null ? void 0 : _b.index) ?? null;
+    const upper = following !== null && following > lower ? following : null;
+    const index = el.index;
+    if (index && lower < index && (upper === null || index < upper)) continue;
+    out[i] = { ...el, index: keyAfter(lower, upper) };
+  }
+  return out;
+}
+const DIGITS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+function keyAfter(lower, upper) {
+  const tail = upper !== null && upper.startsWith(lower) ? upper.slice(lower.length) : null;
+  return lower + midpoint("", tail);
+}
+function midpoint(a, b) {
+  const zero = DIGITS[0];
+  if (b !== null) {
+    let n = 0;
+    while ((a[n] ?? zero) === b[n]) n++;
+    if (n > 0) return b.slice(0, n) + midpoint(a.slice(n), b.slice(n));
+  }
+  const digitA = a ? DIGITS.indexOf(a[0]) : 0;
+  const digitB = b !== null ? DIGITS.indexOf(b[0]) : DIGITS.length;
+  if (digitB - digitA > 1) return DIGITS[Math.round(0.5 * (digitA + digitB))];
+  if (b !== null && b.length > 1) return b.slice(0, 1);
+  return DIGITS[digitA] + midpoint(a.slice(1), null);
+}
 function copyDropEffect(effectAllowed) {
   return effectAllowed === "move" || effectAllowed === "linkMove" ? "move" : "copy";
 }
@@ -5868,6 +5905,7 @@ ${css}` : css;
                   dockedSidebarBreakpoint
                 },
                 ...theme ? { theme } : {},
+                onDuplicate: (next, prev) => indexDuplicates(next, prev),
                 excalidrawAPI: (instance) => {
                   apiRef.current = instance;
                   setApi(instance);
@@ -6248,4 +6286,4 @@ export {
   fitAllPages as y,
   renamePage as z
 };
-//# sourceMappingURL=LibraryPanel-DyH-66qq.js.map
+//# sourceMappingURL=LibraryPanel-DxcGG_d3.js.map
