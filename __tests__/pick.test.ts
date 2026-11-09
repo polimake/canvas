@@ -45,8 +45,13 @@ describe('pulsar sobre lo que está encima', () => {
     expect(pickOverSelection(bloqueada, { texto: true }, { x: 360, y: 920 }, 0.5)).toBeNull();
   });
 
-  it('una página seleccionada se arrastra entera', () => {
-    expect(pickOverSelection(escena(), { p: true }, { x: 360, y: 920 }, 0.5)).toBeNull();
+  it('con la página seleccionada, pulsar un elemento suyo lo coge a él', () => {
+    expect(pickOverSelection(escena(), { p: true }, { x: 360, y: 920 }, 0.5)).toBe('foto');
+  });
+
+  it('con la página seleccionada, por su fondo vacío o su asa se arrastra o escala la página', () => {
+    expect(pickOverSelection(escena(), { p: true }, { x: 900, y: 300 }, 0.5)).toBeNull();
+    expect(pickOverSelection(escena(), { p: true }, { x: 1070, y: 1340 }, 0.5)).toBeNull();
   });
 });
 

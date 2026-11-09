@@ -62,8 +62,11 @@ export function pickOverSelection(
 ): string | null {
   const selected = elements.filter((el) => !el.isDeleted && selectedElementIds[el.id]);
   if (!selected.length) return null;
-  // Una página seleccionada se arrastra entera: eso es cosa de Excalidraw.
-  if (selected.some((el) => el.type === 'frame' || el.type === 'magicframe')) return null;
+  // Con una página seleccionada pasa lo mismo: pulsar un elemento suyo lo coge
+  // a él, como en Canva; por su fondo vacío (el papel) la página se sigue
+  // arrastrando entera, porque ahí `topAt` no da nada. Hasta el 9/11 la página
+  // seleccionada se llevaba consigo el texto que se quería mover (banco azar,
+  // semilla 912, paso 29).
   const boxes = selected.map(boxOf);
   const common: Box = [
     Math.min(...boxes.map((b) => b[0])), Math.min(...boxes.map((b) => b[1])),
