@@ -87,6 +87,20 @@ describe('pulsar un elemento pegado al borde de una página', () => {
   it('si ya está seleccionado, Excalidraw ya lo arrastra', () => {
     expect(pickOverPageEdge(aCaballo(), { elipse: true }, { x: 1075, y: 232 }, 0.5)).toBeNull();
   });
+
+  it('el asa de lo seleccionado manda aunque haya otra cosa encima pegada al borde', () => {
+    // Una caja pegada al borde derecho de la página 1, seleccionada, y un texto
+    // encima de su esquina de abajo a la derecha (1070, 600).
+    const els = [
+      papel('papel-1', 'p1'),
+      member('caja', 'p1', 700, 300, 370, 300),
+      member('texto', 'p1', 1000, 560, 76, 80, { type: 'text' }),
+      frame('p1', 0, 0, 1080, 1350),
+    ] as any[];
+    expect(pickOverPageEdge(els, { caja: true }, { x: 1074, y: 604 }, 0.5)).toBeNull();
+    // Sin la caja seleccionada, ahí se coge el texto.
+    expect(pickOverPageEdge(els, {}, { x: 1074, y: 604 }, 0.5)).toBe('texto');
+  });
 });
 
 /**

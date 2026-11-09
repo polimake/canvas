@@ -371,6 +371,11 @@ export function pickOverPageEdge(
     return within && !deep;
   });
   if (!nearEdge) return null;
+  // El asa de lo seleccionado manda, como en Canva: con una elipse pegada al
+  // borde y un texto encima de su esquina, pulsar el asa cogía el texto y se lo
+  // llevaba a otra página (banco azar, semilla 3106, paso 18; 9/11).
+  const selected = elements.filter((el) => !el.isDeleted && selectedElementIds[el.id]);
+  if (onSelectionHandles(selected, point, zoom)) return null;
   const top = topAt(elements, point, zoom);
   if (!top || selectedElementIds[top.id]) return null;
   return top.id;
