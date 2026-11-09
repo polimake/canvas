@@ -5020,7 +5020,7 @@ const outerGroup = (el) => {
 };
 function onSelectionHandles(selected, point, zoom) {
   if (!selected.length) return false;
-  const z = zoom;
+  const z = zoom || 1;
   const boxes = selected.map(boxOf);
   const x1 = Math.min(...boxes.map((b) => b[0]));
   const y1 = Math.min(...boxes.map((b) => b[1]));
@@ -5085,6 +5085,8 @@ function pickOverPageEdge(elements, selectedElementIds, point, zoom) {
     return within && !deep;
   });
   if (!nearEdge) return null;
+  const selected = elements.filter((el) => !el.isDeleted && selectedElementIds[el.id]);
+  if (onSelectionHandles(selected, point, zoom)) return null;
   const top = topAt(elements, point, zoom);
   if (!top || selectedElementIds[top.id]) return null;
   return top.id;
@@ -6285,4 +6287,4 @@ export {
   fitAllPages as y,
   renamePage as z
 };
-//# sourceMappingURL=LibraryPanel-CB2sosWn.js.map
+//# sourceMappingURL=LibraryPanel-Bw-BWq99.js.map
