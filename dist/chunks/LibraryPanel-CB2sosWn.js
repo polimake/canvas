@@ -4886,7 +4886,6 @@ const grabbable = (el) => !el.isDeleted && el.type !== "frame" && el.type !== "m
 function pickOverSelection(elements, selectedElementIds, point, zoom) {
   const selected = elements.filter((el) => !el.isDeleted && selectedElementIds[el.id]);
   if (!selected.length) return null;
-  if (selected.some((el) => el.type === "frame" || el.type === "magicframe")) return null;
   const boxes = selected.map(boxOf);
   const common = [
     Math.min(...boxes.map((b) => b[0])),
@@ -6286,4 +6285,4 @@ export {
   fitAllPages as y,
   renamePage as z
 };
-//# sourceMappingURL=LibraryPanel-DxcGG_d3.js.map
+//# sourceMappingURL=LibraryPanel-CB2sosWn.js.map
