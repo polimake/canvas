@@ -59,6 +59,8 @@ export declare function exportSceneSvg(api: ExcalidrawImperativeAPI, opts?: Expo
     fontFaces?: readonly SvgFontFace[];
     /** Con esto las fuentes se incrustan como data URI y el SVG queda autocontenido. */
     fontFetcher?: (url: string) => Promise<Blob>;
+    /** Los elementos a exportar en vez de los de la escena (`recortes.ts`). */
+    elements?: readonly SceneElement[];
 }): Promise<SVGSVGElement>;
 /**
  * Render a STORED scene to SVG without mounting an editor.
@@ -137,5 +139,6 @@ export declare function exportScenePdf(api: ExcalidrawImperativeAPI, opts?: {
     background?: boolean;
     scale?: number;
     files?: ExportOptions['files'];
+    elements?: readonly SceneElement[];
 }): Promise<Blob>;
 //# sourceMappingURL=export.d.ts.map

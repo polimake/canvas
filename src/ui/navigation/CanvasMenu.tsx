@@ -5,6 +5,7 @@ import { MainMenu, type ExcalidrawImperativeAPI } from '../../core/excal';
 import { listPages, goToPage, type PageInfo } from '../../core/pages';
 import { convertToPages, looseElements } from '../../core/paginate';
 import { exportScenePng, exportSceneSvg, exportScenePdf, downloadBlob } from '../../core/export';
+import { elementosParaExportar } from '../../core/recortes';
 import type { FilesMap } from '../hooks/pageThumbnails';
 import type { SvgFontFace } from '../../core/svgFonts';
 import { mergeLabels, type PartialLabels } from '../shared/labels';
@@ -155,15 +156,18 @@ export function CanvasMenu({
       const files = hydrateFiles
         ? await hydrateFiles(kind === 'svg' ? { output: 'dataurl' } : undefined)
         : undefined;
+      // El host puede dar otra imagen de la misma foto (el original en vez de
+      // la vista previa): los recortes, a su tamaño (`recortes.ts`).
+      const elements = files ? await elementosParaExportar(api.getSceneElements(), files as never) : undefined;
       if (kind === 'png') {
         downloadBlob(
-          await exportScenePng(api, { pageId: activePageId ?? undefined, files }),
+          await exportScenePng(api, { pageId: activePageId ?? undefined, files, elements }),
           `${base}.png`,
         );
       } else if (kind === 'png-all') {
         for (const page of pages) {
           downloadBlob(
-            await exportScenePng(api, { pageId: page.id, files }),
+            await exportScenePng(api, { pageId: page.id, files, elements }),
             `${safeFilename(page.name, L.menu.exportName)}.png`,
           );
         }
@@ -171,6 +175,7 @@ export function CanvasMenu({
         const svg = await exportSceneSvg(api, {
           pageId: activePageId ?? undefined,
           files,
+          elements,
           fontFaces,
           // Google sirve las fuentes con CORS abierto, así que un `fetch` normal
           // basta: no hace falta el proxy del worker (que además solo permite
@@ -181,7 +186,7 @@ export function CanvasMenu({
         const blob = new Blob([new XMLSerializer().serializeToString(svg)], { type: 'image/svg+xml' });
         downloadBlob(blob, `${base}.svg`);
       } else {
-        downloadBlob(await exportScenePdf(api, { files }), `${safeFilename(pages[0]?.name, L.menu.exportName)}.pdf`);
+        downloadBlob(await exportScenePdf(api, { files, elements }), `${safeFilename(pages[0]?.name, L.menu.exportName)}.pdf`);
       }
     } catch (err) {
       console.error('[canvas2] export failed', err);
