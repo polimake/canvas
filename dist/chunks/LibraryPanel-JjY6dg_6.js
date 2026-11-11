@@ -794,7 +794,7 @@ function exportScenePng(api, opts) {
 async function exportSceneSvg(api, opts) {
   const svg = await sinRuidoDeFuentes(
     () => exportToSvg({
-      elements: api.getSceneElements(),
+      elements: (opts == null ? void 0 : opts.elements) ?? api.getSceneElements(),
       appState: exportAppState(api, opts),
       files: (opts == null ? void 0 : opts.files) ?? api.getFiles(),
       exportingFrame: findFrame(api, opts == null ? void 0 : opts.pageId)
@@ -896,7 +896,7 @@ function downloadBlob(blob, filename) {
 }
 async function exportScenePdf(api, opts) {
   const { jsPDF } = await import("jspdf");
-  const elements = api.getSceneElements();
+  const elements = (opts == null ? void 0 : opts.elements) ?? api.getSceneElements();
   const files = (opts == null ? void 0 : opts.files) ?? api.getFiles();
   const appState = exportAppState(api, opts);
   const targets = frames$2(api).length ? frames$2(api) : [null];
@@ -2804,6 +2804,57 @@ function VideoFramePicker({
     }
   );
 }
+function recortesALaImagen(elements, tamanos) {
+  return elements.map((e) => {
+    const crop = e.crop;
+    if (e.type !== "image" || !crop || typeof e.fileId !== "string") return e;
+    const tamano = tamanos.get(e.fileId);
+    if (!tamano || tamano.width <= 0 || tamano.height <= 0) return e;
+    if (!(crop.naturalWidth > 0) || !(crop.naturalHeight > 0)) return e;
+    if (tamano.width === crop.naturalWidth && tamano.height === crop.naturalHeight) return e;
+    const sx = tamano.width / crop.naturalWidth;
+    const sy = tamano.height / crop.naturalHeight;
+    return {
+      ...e,
+      crop: {
+        ...crop,
+        x: crop.x * sx,
+        y: crop.y * sy,
+        width: crop.width * sx,
+        height: crop.height * sy,
+        naturalWidth: tamano.width,
+        naturalHeight: tamano.height
+      }
+    };
+  });
+}
+function medir(src) {
+  return new Promise((listo) => {
+    if (typeof Image === "undefined") return listo(null);
+    const img = new Image();
+    img.onload = () => listo(img.naturalWidth > 0 ? { width: img.naturalWidth, height: img.naturalHeight } : null);
+    img.onerror = () => listo(null);
+    img.src = src;
+  });
+}
+async function elementosParaExportar(elements, files, medirImagen = medir) {
+  const ids = /* @__PURE__ */ new Set();
+  for (const e of elements) {
+    if (e.type === "image" && e.crop && typeof e.fileId === "string") ids.add(e.fileId);
+  }
+  if (ids.size === 0) return [...elements];
+  const tamanos = /* @__PURE__ */ new Map();
+  await Promise.all(
+    [...ids].map(async (id) => {
+      var _a;
+      const src = (_a = files[id]) == null ? void 0 : _a.dataURL;
+      if (typeof src !== "string" || !src) return;
+      const tamano = await medirImagen(src).catch(() => null);
+      if (tamano) tamanos.set(id, tamano);
+    })
+  );
+  return recortesALaImagen(elements, tamanos);
+}
 function safeFilename(name, fallback) {
   return (name || fallback).replace(/[\\/:*?"<>|]+/g, "-").trim() || fallback;
 }
@@ -2871,15 +2922,16 @@ function CanvasMenu({
     try {
       const base = safeFilename(activePage == null ? void 0 : activePage.name, L.menu.exportName);
       const files = hydrateFiles ? await hydrateFiles(kind === "svg" ? { output: "dataurl" } : void 0) : void 0;
+      const elements = files ? await elementosParaExportar(api.getSceneElements(), files) : void 0;
       if (kind === "png") {
         downloadBlob(
-          await exportScenePng(api, { pageId: activePageId ?? void 0, files }),
+          await exportScenePng(api, { pageId: activePageId ?? void 0, files, elements }),
           `${base}.png`
         );
       } else if (kind === "png-all") {
         for (const page of pages) {
           downloadBlob(
-            await exportScenePng(api, { pageId: page.id, files }),
+            await exportScenePng(api, { pageId: page.id, files, elements }),
             `${safeFilename(page.name, L.menu.exportName)}.png`
           );
         }
@@ -2887,6 +2939,7 @@ function CanvasMenu({
         const svg = await exportSceneSvg(api, {
           pageId: activePageId ?? void 0,
           files,
+          elements,
           fontFaces,
           // Google sirve las fuentes con CORS abierto, así que un `fetch` normal
           // basta: no hace falta el proxy del worker (que además solo permite
@@ -2897,7 +2950,7 @@ function CanvasMenu({
         const blob = new Blob([new XMLSerializer().serializeToString(svg)], { type: "image/svg+xml" });
         downloadBlob(blob, `${base}.svg`);
       } else {
-        downloadBlob(await exportScenePdf(api, { files }), `${safeFilename((_a = pages[0]) == null ? void 0 : _a.name, L.menu.exportName)}.pdf`);
+        downloadBlob(await exportScenePdf(api, { files, elements }), `${safeFilename((_a = pages[0]) == null ? void 0 : _a.name, L.menu.exportName)}.pdf`);
       }
     } catch (err) {
       console.error("[canvas2] export failed", err);
@@ -6287,4 +6340,4 @@ export {
   fitAllPages as y,
   renamePage as z
 };
-//# sourceMappingURL=LibraryPanel-Bw-BWq99.js.map
+//# sourceMappingURL=LibraryPanel-JjY6dg_6.js.map
