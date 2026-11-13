@@ -26,7 +26,6 @@ import { WorkspaceLayout } from '../workspaces/WorkspaceLayout';
 import type { CanvasWorkspace, WorkspacePanel } from '../workspaces/types';
 import { readWorkspace, saveWorkspace } from '../workspaces/preference';
 import { useIsNarrow } from '../hooks/narrow';
-import { ToolbarSlot } from './ToolbarSlot';
 import type { FilesMap } from '../hooks/pageThumbnails';
 import { addPage, createBlankScene, goToPage, listPages, pageInView, relayoutPages, type PageSize } from '../../core/pages';
 import { commitElements } from '../../core/mutate';
@@ -926,6 +925,29 @@ export function Canvas2Editor({
     })),
     ...(workspace === 'excalidraw' && !viewMode ? toolbarActions ?? [] : []),
   ];
+  // Al final de la píldora de herramientas de Excalidraw (`renderToolbarExtra`,
+  // parche de vendor/excalidraw). La función solo cambia cuando cambia lo que
+  // se ve: Excalidraw es un `memo` y una función nueva en cada render lo
+  // repintaría entero. Los clics leen la acción viva por su id.
+  const pillActionsRef = useRef(pillActions);
+  pillActionsRef.current = pillActions;
+  const pillKey = narrow ? '' : JSON.stringify(pillActions.map(a => [a.id, a.label, a.pressed ?? null]));
+  const renderToolbarExtra = useCallback(() => {
+    const actions = pillKey && pillKey !== '[]' ? pillActionsRef.current : [];
+    if (!actions.length) return null;
+    return (
+      <>
+        <span className="canvas2-toolbar-divider" aria-hidden="true" />
+        {actions.map(action => (
+          <button key={action.id} type="button" className="canvas2-toolbar-text"
+            aria-pressed={action.pressed ?? undefined}
+            onClick={() => pillActionsRef.current.find(a => a.id === action.id)?.onSelect()}>
+            {action.label}
+          </button>
+        ))}
+      </>
+    );
+  }, [pillKey]);
 
   return (
     <WorkspaceLayout className={className} workspace={workspace}
@@ -1047,6 +1069,7 @@ export function Canvas2Editor({
         // Seleccionar no es un paso de deshacer, como en Canva (parche de
         // vendor/excalidraw; Mayúsculas+flecha a 10 px va en el mismo).
         historyIgnoresSelection
+        renderToolbarExtra={renderToolbarExtra}
         excalidrawAPI={(instance) => {
           apiRef.current = instance;
           setApi(instance);
@@ -1190,17 +1213,6 @@ export function Canvas2Editor({
           labels={labels}
         />
       )}
-      {pillActions.length > 0 && !narrow ? (
-        <ToolbarSlot root={rootRef}>
-          <span className="canvas2-toolbar-divider" aria-hidden="true" />
-          {pillActions.map(action => (
-            <button key={action.id} type="button" className="canvas2-toolbar-text"
-              aria-pressed={action.pressed ?? undefined} onClick={action.onSelect}>
-              {action.label}
-            </button>
-          ))}
-        </ToolbarSlot>
-      ) : null}
       {rightEdge && !narrow ? (
         <div
           data-canvas2-right-edge=""
