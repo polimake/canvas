@@ -59,11 +59,11 @@ function cacheGet(key) {
   return hit;
 }
 function cacheSet(key, entry) {
-  if (entry.bytes > CACHE_MAX_BYTES) return;
+  if (entry.bytes > CACHE_MAX_BYTES) return entry;
   const previo = BYTES_CACHE.get(key);
   if (previo) {
-    cacheBytes -= previo.bytes;
-    releaseEntry(previo);
+    releaseEntry(entry);
+    return previo;
   }
   BYTES_CACHE.set(key, entry);
   cacheBytes += entry.bytes;
@@ -77,6 +77,7 @@ function cacheSet(key, entry) {
       releaseEntry(victima);
     }
   }
+  return entry;
 }
 function clearHydrationCache() {
   for (const entry of BYTES_CACHE.values()) releaseEntry(entry);
@@ -108,8 +109,8 @@ async function buildHydratedFiles(api, fetcher, { output = "blob", preferProxy =
           const dataURL = await blobToDataUrl(blob, file.mimeType);
           return { url: dataURL, mimeType, bytes: dataURL.length, revocable: false };
         })();
-        cacheSet(key, entry);
-        files[file.id] = { ...file, dataURL: entry.url, mimeType: entry.mimeType };
+        const used = cacheSet(key, entry);
+        files[file.id] = { ...file, dataURL: used.url, mimeType: used.mimeType };
         hydrated += 1;
       } catch {
         failed.push(remota);
