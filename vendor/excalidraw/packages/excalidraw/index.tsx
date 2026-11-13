@@ -53,6 +53,7 @@ const ExcalidrawBase = (props: ExcalidrawProps) => {
     aiEnabled,
     showDeprecatedFonts,
     historyIgnoresSelection,
+    renderToolbarExtra,
   } = props;
 
   const canvasActions = props.UIOptions?.canvasActions;
@@ -144,6 +145,7 @@ const ExcalidrawBase = (props: ExcalidrawProps) => {
           aiEnabled={aiEnabled !== false}
           showDeprecatedFonts={showDeprecatedFonts}
           historyIgnoresSelection={historyIgnoresSelection}
+          renderToolbarExtra={renderToolbarExtra}
         >
           {children}
         </App>

@@ -88,6 +88,7 @@ export const MobileMenu = ({
                       UIOptions={UIOptions}
                       app={app}
                     />
+                    {app.props.renderToolbarExtra?.(true, appState)}
                   </Stack.Row>
                 </Island>
                 {renderTopRightUI && renderTopRightUI(true, appState)}

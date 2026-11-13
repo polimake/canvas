@@ -298,6 +298,10 @@ const LayerUI = ({
                               UIOptions={UIOptions}
                               app={app}
                             />
+                            {app.props.renderToolbarExtra?.(
+                              device.editor.isMobile,
+                              appState,
+                            )}
                           </Stack.Row>
                         </Island>
                         {isCollaborating && (

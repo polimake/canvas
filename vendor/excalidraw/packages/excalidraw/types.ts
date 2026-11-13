@@ -534,6 +534,14 @@ export interface ExcalidrawProps {
     isMobile: boolean,
     appState: UIAppState,
   ) => JSX.Element | null;
+  /**
+   * Polimake: lo que se pinta al final de la fila de herramientas, dentro de
+   * su píldora (como `renderTopRightUI`, pero en la barra).
+   */
+  renderToolbarExtra?: (
+    isMobile: boolean,
+    appState: UIAppState,
+  ) => JSX.Element | null;
   langCode?: Language["code"];
   viewModeEnabled?: boolean;
   zenModeEnabled?: boolean;
