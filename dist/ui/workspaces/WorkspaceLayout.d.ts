@@ -20,5 +20,5 @@ export interface WorkspaceLayoutProps extends OpenPanelProps {
     actions?: WorkspaceAction[];
 }
 /** The surface stays in the same React slot across every layout change. */
-export declare function WorkspaceLayout({ children, className, workspace, panels, theme, labels, narrow, actions, openPanel, onOpenPanelChange }: WorkspaceLayoutProps): import("react").JSX.Element;
+export declare function WorkspaceLayout({ children, className, workspace, panels, theme, labels, narrow, actions, openPanel, onOpenPanelChange }: WorkspaceLayoutProps): any;
 //# sourceMappingURL=WorkspaceLayout.d.ts.map

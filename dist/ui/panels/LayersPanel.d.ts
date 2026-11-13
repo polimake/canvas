@@ -17,5 +17,5 @@ export interface LayersPanelProps {
  * "Fondo"/"Extender" actions. Excalidraw
  * has no per-element hidden flag, so visibility is emulated with `opacity: 0`.
  */
-export declare function LayersPanel({ api, activePageId, theme, viewMode, embedded, labels: labelsProp, }: LayersPanelProps): import("react").JSX.Element | null;
+export declare function LayersPanel({ api, activePageId, theme, viewMode, embedded, labels: labelsProp, }: LayersPanelProps): any;
 //# sourceMappingURL=LayersPanel.d.ts.map

@@ -23,6 +23,6 @@ interface ModeSwitchProps extends Canvas2ModeControl {
  * cálido y el activo en tinta. Van en la misma columna, abajo, así los dos
  * grupos de iconos del borde derecho se leen como uno. El nombre, al pasar.
  */
-export declare function ModeSwitch({ mode, onChange, modes, theme, narrow, labels }: ModeSwitchProps): import("react").JSX.Element | null;
+export declare function ModeSwitch({ mode, onChange, modes, theme, narrow, labels }: ModeSwitchProps): any;
 export {};
 //# sourceMappingURL=ModeSwitch.d.ts.map

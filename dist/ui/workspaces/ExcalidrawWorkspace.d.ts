@@ -3,5 +3,5 @@ import type { OpenPanelProps, WorkspaceAction, WorkspacePanelsProps } from './ty
 export declare function ExcalidrawWorkspace({ panels, narrow, actions, openPanel, onOpenPanelChange }: WorkspacePanelsProps & OpenPanelProps & {
     narrow?: boolean;
     actions?: WorkspaceAction[];
-}): import("react").JSX.Element;
+}): any;
 //# sourceMappingURL=ExcalidrawWorkspace.d.ts.map

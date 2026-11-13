@@ -42,5 +42,5 @@ export interface LibraryPanelProps {
     icon?: ReactNode;
     testId?: string;
 }
-export declare function LibraryPanel({ children, title, theme, viewMode, defaultCollapsed, labels: labelsProp, anchorTop, icon, testId, }: LibraryPanelProps): import("react").JSX.Element | null;
+export declare function LibraryPanel({ children, title, theme, viewMode, defaultCollapsed, labels: labelsProp, anchorTop, icon, testId, }: LibraryPanelProps): any;
 //# sourceMappingURL=LibraryPanel.d.ts.map

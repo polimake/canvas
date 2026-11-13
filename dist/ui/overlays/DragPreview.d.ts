@@ -17,5 +17,5 @@ export interface DragPreviewProps {
     children: React.ReactNode;
     radius?: number;
 }
-export declare function DragPreview({ active, grab, children, radius }: DragPreviewProps): import("react").ReactPortal | null;
+export declare function DragPreview({ active, grab, children, radius }: DragPreviewProps): any;
 //# sourceMappingURL=DragPreview.d.ts.map

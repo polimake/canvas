@@ -49,7 +49,10 @@ export interface Canvas2EditorProps {
     /** Read-only mode (preview / comment). Maps to `viewModeEnabled` and hides
      *  every mutating control in the canvas2 chrome (page actions, inserts). */
     viewMode?: boolean;
-    /** 'light' | 'dark'. Omit to use Excalidraw's default. */
+    /**
+     * 'light' | 'dark'. Omit to use Excalidraw's default. Con `pages`, el oscuro
+     * es solo del cromo: el diseño se pinta con sus colores (ver `sceneTheme`).
+     */
     theme?: 'light' | 'dark';
     /** UI language. Defaults to Spanish to match studio. */
     langCode?: string;
@@ -288,7 +291,7 @@ export declare const MEDIA_DROP_TYPE = "application/x-canvas2-media";
  * this behind a `next/dynamic(..., { ssr: false })` boundary in the host app
  * (see apps/web/src/app/canvas/page.tsx).
  */
-export declare function Canvas2Editor({ workspace: workspaceProp, defaultWorkspace, onWorkspaceChange, className, initialScene, onSceneChange, viewMode, theme: themeProp, langCode, onReady, nativeImageExport, fontOverrides, changeDebounceMs, pages, pageSize, initialPageIndex, layers, pageThumbnails, pageThumbnailFiles, brandKit, hydrateFiles, dockedSidebarBreakpoint, library, componentsPanel, agentPanel, onSaveComponent, themeChoice, onActivePageChange, onMediaDrop, mediaDropType, onFilesDrop, labels, resolveVideoSrc, releaseVideoSrc, onPickVideoFrame, rightEdge, modeControl, toolbarActions, }: Canvas2EditorProps): import("react").JSX.Element;
+export declare function Canvas2Editor({ workspace: workspaceProp, defaultWorkspace, onWorkspaceChange, className, initialScene, onSceneChange, viewMode, theme: themeProp, langCode, onReady, nativeImageExport, fontOverrides, changeDebounceMs, pages, pageSize, initialPageIndex, layers, pageThumbnails, pageThumbnailFiles, brandKit, hydrateFiles, dockedSidebarBreakpoint, library, componentsPanel, agentPanel, onSaveComponent, themeChoice, onActivePageChange, onMediaDrop, mediaDropType, onFilesDrop, labels, resolveVideoSrc, releaseVideoSrc, onPickVideoFrame, rightEdge, modeControl, toolbarActions, }: Canvas2EditorProps): any;
 /** Backwards-compatible alias — the bare wrapper is now a controlled editor. */
 export declare const Canvas2: typeof Canvas2Editor;
 export default Canvas2Editor;

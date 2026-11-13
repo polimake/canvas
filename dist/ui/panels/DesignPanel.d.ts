@@ -11,5 +11,5 @@ export interface DesignPanelProps {
     /** Textos, inyectados por el host (ver labels.ts). */
     labels?: PartialLabels;
 }
-export declare function DesignPanel({ api, activePageId, theme, viewMode, brandKit, labels: labelsProp, }: DesignPanelProps): import("react").JSX.Element;
+export declare function DesignPanel({ api, activePageId, theme, viewMode, brandKit, labels: labelsProp, }: DesignPanelProps): any;
 //# sourceMappingURL=DesignPanel.d.ts.map

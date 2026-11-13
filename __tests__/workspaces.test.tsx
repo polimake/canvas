@@ -18,13 +18,13 @@ vi.mock('../src/core/excal', () => ({
     Separator: () => null,
     DefaultItems: Object.fromEntries(['LoadScene', 'SaveToActiveFile', 'Export', 'SaveAsImage', 'ClearCanvas', 'SearchMenu', 'ToggleTheme', 'Help'].map(name => [name, () => null])),
   }),
-  Excalidraw: function Engine({ excalidrawAPI, children, gridModeEnabled }: { excalidrawAPI: (api: unknown) => void; children: ReactNode; gridModeEnabled?: boolean }) {
+  Excalidraw: function Engine({ excalidrawAPI, children, gridModeEnabled, theme }: { excalidrawAPI: (api: unknown) => void; children: ReactNode; gridModeEnabled?: boolean; theme?: string }) {
     useEffect(() => {
       mounted();
       excalidrawAPI(engine.api);
       return unmounted;
     }, []);
-    return <div data-testid="engine" data-grid={gridModeEnabled}>{children}</div>;
+    return <div data-testid="engine" data-grid={gridModeEnabled} data-theme={theme}>{children}</div>;
   },
 }));
 const { Canvas2Editor } = await import('../src/ui/editor/Canvas2');
@@ -180,4 +180,17 @@ it('clamps a preview page that was removed before entering the editor', () => {
   render(<Canvas2Editor pages initialPageIndex={8} onActivePageChange={active} />);
   act(() => { engine.api.updateScene({ elements: engine.get() }); });
   expect(active).toHaveBeenLastCalledWith('p2');
+});
+
+describe('dark theme', () => {
+  it('keeps a page design in its real colours: dark chrome, light scene', () => {
+    const { container, unmount } = render(<Canvas2Editor theme="dark" pages />);
+    // El oscuro de Excalidraw invierte el lienzo: un diseño rojo salía rosa.
+    expect(screen.getByTestId('engine').getAttribute('data-theme')).toBe('light');
+    expect(container.querySelector('[data-canvas2]')?.getAttribute('data-canvas2-theme')).toBe('dark');
+    unmount();
+    // Una pizarra sin páginas conserva el modo noche nativo.
+    render(<Canvas2Editor theme="dark" />);
+    expect(screen.getByTestId('engine').getAttribute('data-theme')).toBe('dark');
+  });
 });

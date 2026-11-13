@@ -8,5 +8,5 @@ export interface PageActionsProps {
     /** Textos, inyectados por el host (ver labels.ts). */
     labels?: PartialLabels;
 }
-export declare function PageActions({ api, activePageId, theme, onActiveChange, labels: labelsProp, }: PageActionsProps): import("react").JSX.Element | null;
+export declare function PageActions({ api, activePageId, theme, onActiveChange, labels: labelsProp, }: PageActionsProps): any;
 //# sourceMappingURL=PageActions.d.ts.map

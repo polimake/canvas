@@ -63,5 +63,5 @@ export interface CanvasThemeChoice {
     value: CanvasThemeChoiceValue;
     onChange: (value: CanvasThemeChoiceValue) => void;
 }
-export declare function CanvasMenu({ pages: pageMode, workspace, onWorkspaceChange, api, activePageId, viewMode, hydrateFiles, fontFaces, onSaveComponent, themeChoice, labels: labelsProp, }: CanvasMenuProps): import("react").JSX.Element;
+export declare function CanvasMenu({ pages: pageMode, workspace, onWorkspaceChange, api, activePageId, viewMode, hydrateFiles, fontFaces, onSaveComponent, themeChoice, labels: labelsProp, }: CanvasMenuProps): any;
 //# sourceMappingURL=CanvasMenu.d.ts.map
