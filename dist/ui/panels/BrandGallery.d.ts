@@ -15,5 +15,5 @@ export interface BrandGalleryProps {
     /** Textos, inyectados por el host (ver labels.ts). */
     labels?: PartialLabels;
 }
-export declare function BrandGallery({ api, brandKit, theme, activePageId, viewMode, embedded, labels: labelsProp, }: BrandGalleryProps): any;
+export declare function BrandGallery({ api, brandKit, theme, activePageId, viewMode, embedded, labels: labelsProp, }: BrandGalleryProps): import("react").JSX.Element | null;
 //# sourceMappingURL=BrandGallery.d.ts.map

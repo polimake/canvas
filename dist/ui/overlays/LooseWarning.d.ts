@@ -25,5 +25,5 @@ export interface LooseWarningProps {
     narrow?: boolean;
     labels?: PartialLabels;
 }
-export declare function LooseWarning({ api, activePageId, theme, viewMode, narrow, labels }: LooseWarningProps): any;
+export declare function LooseWarning({ api, activePageId, theme, viewMode, narrow, labels }: LooseWarningProps): import("react").JSX.Element | null;
 //# sourceMappingURL=LooseWarning.d.ts.map

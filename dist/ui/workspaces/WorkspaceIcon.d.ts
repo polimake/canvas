@@ -1,4 +1,4 @@
 export declare function WorkspaceIcon({ name }: {
     name: string;
-}): any;
+}): import("react").JSX.Element;
 //# sourceMappingURL=WorkspaceIcon.d.ts.map

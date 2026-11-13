@@ -19,7 +19,7 @@
  * Mayúsculas+flecha. Excalidraw mueve 5 px; Canva, 10. Las flechas solas no se
  * tocan (1 px), ni el paso de la cuadrícula cuando está puesta.
  */
-import { newElementWith, type SceneElement } from './excal';
+import { newElementWith, type SceneAppState, type SceneElement } from './excal';
 
 /**
  * Claves del estado observado por la historia que son selección o modo de
@@ -45,8 +45,8 @@ export interface HistoryEntryLike {
 export interface HistoryLike {
   undoStack: HistoryEntryLike[];
   redoStack: HistoryEntryLike[];
-  undo: (elements: Map<string, SceneElement>, appState: any, snapshot: unknown) => [Map<string, SceneElement>, any] | void;
-  redo: (elements: Map<string, SceneElement>, appState: any, snapshot: unknown) => [Map<string, SceneElement>, any] | void;
+  undo: (elements: Map<string, SceneElement>, appState: SceneAppState, snapshot: unknown) => [Map<string, SceneElement>, SceneAppState] | void;
+  redo: (elements: Map<string, SceneElement>, appState: SceneAppState, snapshot: unknown) => [Map<string, SceneElement>, SceneAppState] | void;
   onHistoryChangedEmitter?: { on: (cb: () => void) => () => void };
 }
 
@@ -86,7 +86,7 @@ export function hasRealEntry(stack: readonly HistoryEntryLike[] | undefined): bo
  * Lo mismo que comprueba el `executeHistoryAction` de Excalidraw: con un gesto
  * a medias (arrastre, texto en edición, dibujo) no se deshace nada.
  */
-export function historyIsBusy(appState: any, app: AppLike | undefined): boolean {
+export function historyIsBusy(appState: SceneAppState, app: AppLike | undefined): boolean {
   return !!(
     appState.multiElement ||
     appState.resizingElement ||
@@ -108,9 +108,9 @@ export type HistoryDirection = 'undo' | 'redo';
 export function performHistory(
   direction: HistoryDirection,
   elements: readonly SceneElement[],
-  appState: any,
+  appState: SceneAppState,
   app: AppLike | undefined,
-): { elements: SceneElement[]; appState: any } | null {
+): { elements: SceneElement[]; appState: SceneAppState } | null {
   const history = app?.history;
   const store = app?.store;
   if (!history || !store || historyIsBusy(appState, app)) return null;

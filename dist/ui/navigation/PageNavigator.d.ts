@@ -33,5 +33,5 @@ export interface PageNavigatorProps {
  * renombrar con doble clic. Todo lo demás vive donde se opera: las acciones de la página en
  * `PageActions`, sobre el lienzo; fondo, tamaño y exportación en `CanvasMenu`.
  */
-export declare function PageNavigator({ api, theme, viewMode, narrow, activeId: controlledActiveId, onActiveChange, labels: labelsProp, thumbnails, thumbnailFiles, pageSize, }: PageNavigatorProps): any;
+export declare function PageNavigator({ api, theme, viewMode, narrow, activeId: controlledActiveId, onActiveChange, labels: labelsProp, thumbnails, thumbnailFiles, pageSize, }: PageNavigatorProps): import("react").JSX.Element;
 //# sourceMappingURL=PageNavigator.d.ts.map

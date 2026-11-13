@@ -42,5 +42,5 @@ export interface VideoFramePickerProps {
         mimeType?: string;
     } | null>;
 }
-export declare function VideoFramePicker({ api, theme, viewMode, labels, resolveVideoSrc, releaseVideoSrc, onPickFrame, }: VideoFramePickerProps): any;
+export declare function VideoFramePicker({ api, theme, viewMode, labels, resolveVideoSrc, releaseVideoSrc, onPickFrame, }: VideoFramePickerProps): import("react").JSX.Element | null;
 //# sourceMappingURL=VideoFramePicker.d.ts.map

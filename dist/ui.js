@@ -1,19 +1,19 @@
 "use client";
-import { B, C, a, b, D, c, d, L, e, M, P, f, g, V, a as a2, m, p } from "./chunks/LibraryPanel-BqwqTHEz.js";
+import { B, C, a, b, f, D, e, L, c, M, g, d, P, V, a as a2, m, p } from "./chunks/LibraryPanel-CzqBh7nk.js";
 export {
   B as BrandGallery,
   C as Canvas2,
   a as Canvas2Editor,
   b as CanvasMenu,
-  D as DEFAULT_LABELS,
-  c as DesignPanel,
-  d as DragPreview,
+  f as DEFAULT_LABELS,
+  D as DesignPanel,
+  e as DragPreview,
   L as LayersPanel,
-  e as LibraryPanel,
+  c as LibraryPanel,
   M as ModeSwitch,
-  P as PANEL_FONT,
-  f as PageActions,
-  g as PageNavigator,
+  g as PANEL_FONT,
+  d as PageActions,
+  P as PageNavigator,
   V as VideoFramePicker,
   a2 as default,
   m as mergeLabels,

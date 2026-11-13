@@ -65,5 +65,7 @@ import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
 export type SceneElement = ReturnType<ExcalidrawImperativeAPI['getSceneElements']>[number];
 /** The elements array accepted by `updateScene`. */
 export type SceneElements = Parameters<ExcalidrawImperativeAPI['updateScene']>[0]['elements'];
+/** El estado de la escena (appState) tal como lo devuelve el API en vivo. */
+export type SceneAppState = ReturnType<ExcalidrawImperativeAPI['getAppState']>;
 /** A frame element (our "page"). */
 export type FrameElement = Extract<SceneElement, { type: 'frame' }>;

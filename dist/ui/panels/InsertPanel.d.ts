@@ -9,5 +9,5 @@ export declare function InsertPanel({ api, pageId, text, labels, families }: {
         heading: string | null;
         body: string | null;
     };
-}): any;
+}): import("react").JSX.Element;
 //# sourceMappingURL=InsertPanel.d.ts.map

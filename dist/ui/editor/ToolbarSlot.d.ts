@@ -10,5 +10,5 @@ import { type ReactNode, type RefObject } from 'react';
 export declare function ToolbarSlot({ root, children }: {
     root: RefObject<HTMLElement | null>;
     children: ReactNode;
-}): any;
+}): import("react").ReactPortal | null;
 //# sourceMappingURL=ToolbarSlot.d.ts.map
