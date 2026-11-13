@@ -38,7 +38,6 @@ import { mergeLabels, type PartialLabels } from '../shared/labels';
 import { copyDropEffect } from '../shared/dropEffect';
 import { imageAtScenePoint, type ImageHit } from '../../core/media';
 import { palette } from '../shared/theme';
-import { installCanvaGestures } from './canvaGestures';
 import { installKeyRouting } from './keyRouting';
 import { installCanvaPick } from './canvaPick';
 import { installCanvaDrag } from './canvaDrag';
@@ -750,12 +749,6 @@ export function Canvas2Editor({
     // el salto.
   }, [openingPageId]);
 
-  // Deshacer sin pasos de selección y Mayúsculas+flecha a 10 px, como Canva.
-  // En un efecto y no en `excalidrawAPI`: ver installCanvaGestures.
-  useEffect(() => {
-    if (api) installCanvaGestures(api);
-  }, [api]);
-
   // Pulsar coge lo que se ve bajo el puntero, como en Canva: lo de encima
   // aunque haya otra cosa seleccionada debajo, lo de debajo si lo de encima
   // solo lo roza, lo pegado al borde de una página y no la página (ver
@@ -1051,6 +1044,9 @@ export function Canvas2Editor({
           defaultSidebarTrigger: false,
         }}
         {...(sceneTheme ? { theme: sceneTheme } : {})}
+        // Seleccionar no es un paso de deshacer, como en Canva (parche de
+        // vendor/excalidraw; Mayúsculas+flecha a 10 px va en el mismo).
+        historyIgnoresSelection
         excalidrawAPI={(instance) => {
           apiRef.current = instance;
           setApi(instance);
