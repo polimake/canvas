@@ -10,3 +10,6 @@ artifacts/
 # asi el escritorio no necesita ni vite ni cadena de compilacion para arrancar.
 # Si algun dia se publica a un registro, esto se puede revisar; mientras sea
 # submodulo, el dist es parte de la entrega.
+
+# Caché de yarn de scripts/excalidraw.mjs (se borra sola al acabar)
+vendor/.yarn-cache/
