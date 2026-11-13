@@ -2,6 +2,6 @@
   "fuente": "vendor/excalidraw",
   "fork": "https://github.com/polimake/excalidraw",
   "upstream": "https://github.com/excalidraw/excalidraw",
-  "version": "0.18.1-polimake.0",
+  "version": "0.18.1-polimake.1",
   "commitDelLienzo": "0614d63a7fe5e52573a941d6b810202944ea2dd2"
 }

@@ -55,13 +55,16 @@ menos nos separemos, menos cuesta ponerse al día.
 
 ## Parches
 
-Ninguno todavía: la primera versión es la 0.18.1 tal cual, para comprobar que
-compilarla nosotros no cambia nada.
+La base es la 0.18.1 tal cual (`polimake.0`), que sale idéntica byte a byte a
+la de npm. Encima:
+
+| Versión | Parche | Dónde |
+|---|---|---|
+| `polimake.1` | Marco con esquinas rectas (`FRAME_STYLE.radius` 8 → 0): un marco es una página. Studio lo parcheaba sobre el dist de npm. | `packages/excalidraw/constants.ts` |
 
 Candidatos, de más a menos código que nos ahorran:
 
 - Sacar su historial por la API (hoy `src/core/gestures.ts` sustituye deshacer y rehacer).
 - Poder borrar entradas del mapa de ficheros (`src/core/media.ts`).
 - Medidas reales de nuestras fuentes y nuestras familias en su selector (`src/core/fonts.ts`).
-- Radio 0 en el marco: Studio ya lo parchea sobre el dist de npm.
 - Vídeo como elemento propio (`src/core/video.ts`).

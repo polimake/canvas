@@ -28,7 +28,7 @@ const salida = join(raiz, 'vendor', 'excalidraw-dist');
 const enWindows = process.platform === 'win32';
 
 /** Sufijo de versión: 0.18.1 → 0.18.1-polimake.N. Se sube a mano al cambiar el fuente. */
-const SUFIJO = 'polimake.0';
+const SUFIJO = 'polimake.1';
 
 function correr(cmd, args, cwd) {
   console.log(`> ${cmd} ${args.join(' ')}  (${cwd.slice(raiz.length + 1) || '.'})`);

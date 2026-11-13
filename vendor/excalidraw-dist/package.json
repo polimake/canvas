@@ -1,6 +1,6 @@
 {
   "name": "@excalidraw/excalidraw",
-  "version": "0.18.1-polimake.0",
+  "version": "0.18.1-polimake.1",
   "description": "Excalidraw as a React component — compilado por Polimake desde vendor/excalidraw",
   "license": "MIT",
   "repository": "https://github.com/polimake/excalidraw",
