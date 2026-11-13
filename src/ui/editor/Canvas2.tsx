@@ -30,7 +30,6 @@ import { ToolbarSlot } from './ToolbarSlot';
 import type { FilesMap } from '../hooks/pageThumbnails';
 import { addPage, createBlankScene, goToPage, listPages, pageInView, relayoutPages, type PageSize } from '../../core/pages';
 import { commitElements } from '../../core/mutate';
-import { indexDuplicates } from '../../core/duplicate';
 import { ensurePagePapers, hasRaisedPaper } from '../../core/background';
 import { resolveBrandKit, type BrandKitInput, type Canvas2Brand } from '../../core/brand';
 import { buildFontFaceCss, dedupeFontFaces, type CustomFontFace } from '../../core/fonts';
@@ -1049,10 +1048,6 @@ export function Canvas2Editor({
           dockedSidebarBreakpoint,
         }}
         {...(sceneTheme ? { theme: sceneTheme } : {})}
-        // El Ctrl+D de Excalidraw deja a la copia el índice del original; en la
-        // build de desarrollo eso lanza y el duplicado se pierde (ver
-        // `core/duplicate.ts`).
-        onDuplicate={(next, prev) => indexDuplicates(next, prev)}
         excalidrawAPI={(instance) => {
           apiRef.current = instance;
           setApi(instance);
