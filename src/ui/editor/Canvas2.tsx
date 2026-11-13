@@ -949,11 +949,7 @@ export function Canvas2Editor({
       data-canvas2-narrow={narrow ? '' : undefined}
       // Al mirar o comentar no hay menú arriba a la izquierda: solo al editar.
       data-canvas2-readonly={viewMode ? '' : undefined}
-      // `--c2-frame-tool` y `--c2-find-on-canvas`: los rótulos de dos entradas de
-      // los menús de Excalidraw que su español no traduce; los pinta canvas2.css.
-      style={{ position: 'relative', width: '100%', height: '100%',
-        ['--c2-frame-tool' as string]: JSON.stringify(L.workspace.frameTool),
-        ['--c2-find-on-canvas' as string]: JSON.stringify(L.workspace.findOnCanvas) }}
+      style={{ position: 'relative', width: '100%', height: '100%' }}
       // Soltar desde la biblioteca. Se escucha en el envoltorio y no dentro de
       // Excalidraw porque su lienzo ya tiene su propio manejador de drop (para
       // ficheros del sistema) y no admite tipos ajenos.
@@ -1046,6 +1042,13 @@ export function Canvas2Editor({
         UIOptions={{
           canvasActions: { saveAsImage: nativeImageExport },
           dockedSidebarBreakpoint,
+          // Opciones del parche de vendor/excalidraw. Antes se escondían con CSS:
+          // la Ayuda, las pistas de lienzo infinito («mantenga la rueda…») y el
+          // botón de su Biblioteca (la nuestra es otra; la barra lateral se queda
+          // porque el buscador del menú se abre en ella).
+          helpButton: false,
+          hints: false,
+          defaultSidebarTrigger: false,
         }}
         {...(sceneTheme ? { theme: sceneTheme } : {})}
         excalidrawAPI={(instance) => {
