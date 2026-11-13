@@ -62,7 +62,7 @@
     "excalidraw": "node scripts/excalidraw.mjs"
   },
   "dependencies": {
-    "@excalidraw/excalidraw": "file:./vendor/excalidraw-dist",
+    "@excalidraw/excalidraw": "https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.1-polimake.2/excalidraw-excalidraw-0.18.1-polimake.2.tgz",
     "ag-psd": "^31.0.2",
     "fast-xml-parser": "^5.11.1",
     "fflate": "^0.8.3",
