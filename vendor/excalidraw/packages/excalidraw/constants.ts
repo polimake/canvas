@@ -168,7 +168,9 @@ export const FRAME_STYLE = {
   roughness: 0 as ExcalidrawElement["roughness"],
   roundness: null as ExcalidrawElement["roundness"],
   backgroundColor: "transparent" as ExcalidrawElement["backgroundColor"],
-  radius: 8,
+  // Polimake: un marco es una página (un post, una story), y una página tiene
+  // las esquinas rectas. Con 8 el borde y el recorte salían redondeados.
+  radius: 0,
   nameOffsetY: 3,
   nameColorLightTheme: "#999999",
   nameColorDarkTheme: "#7a7a7a",
