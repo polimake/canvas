@@ -52,7 +52,7 @@ export type { LibraryPanelProps } from './ui/panels/LibraryPanel';
 export { serializeScene, parseScene, restoreScene } from './core/serialize';
 export type { StoredScene } from './core/serialize';
 export { exportScenePng, exportSceneSvg, exportScenePdf, captureThumbnail, downloadBlob, exportStoredSceneSvg, exportStoredScenePng, storedScenePageCount, } from './core/export';
-export type { ExportOptions } from './core/export';
+export type { ExportOptions, ImageExportOptions } from './core/export';
 export { insertImageFromBlob, insertImageFromUrl, insertImageWithPreview, replaceImageFromUrl, resolveInsertPageId, cascadePoints, imageAtScenePoint, externalizeInlineImages, hasUploadsInFlight, buildPersistableFiles, findInlineImageIds, isInlineDataUrl, dataUrlToBlob, } from './core/media';
 export type { InsertImageOptions, ImageHit, MediaUploader, FileEntry, ExternalizeResult, PersistableFiles, } from './core/media';
 export { cloneSceneElements, listSlots, deriveComponentMeta, extractComponentFragment, instantiateComponent, appendComponentToEditorConfig, measureWrappedText, fitImageInBox, } from './core/components';

@@ -43,7 +43,10 @@ export interface Canvas2EditorProps {
     /** Read-only mode (preview / comment). Maps to `viewModeEnabled` and hides
      *  every mutating control in the canvas2 chrome (page actions, inserts). */
     viewMode?: boolean;
-    /** 'light' | 'dark'. Omit to use Excalidraw's default. */
+    /**
+     * 'light' | 'dark'. Omit to use Excalidraw's default. Con `pages`, el oscuro
+     * es solo del cromo: el diseño se pinta con sus colores (ver `sceneTheme`).
+     */
     theme?: 'light' | 'dark';
     /** UI language. Defaults to Spanish to match studio. */
     langCode?: string;

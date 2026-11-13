@@ -643,8 +643,11 @@ function dimensions(opts) {
     scale
   });
 }
+function framesIn(elements) {
+  return elements.filter((e) => e.type === "frame").slice().sort((a, b) => a.x - b.x);
+}
 function frames$2(api) {
-  return api.getSceneElements().filter((e) => e.type === "frame").slice().sort((a, b) => a.x - b.x);
+  return framesIn(api.getSceneElements());
 }
 function findFrame(api, pageId) {
   if (!pageId) return null;
@@ -658,13 +661,19 @@ function exportAppState(api, opts) {
   };
 }
 function exportScenePng(api, opts) {
+  const elements = (opts == null ? void 0 : opts.elements) ?? api.getSceneElements();
+  const frame = (opts == null ? void 0 : opts.pageId) ? framesIn(elements).find((f) => f.id === opts.pageId) ?? null : null;
+  if ((opts == null ? void 0 : opts.pageId) && !frame) {
+    return Promise.reject(new Error(`exportScenePng: la página ${opts.pageId} no está en la escena`));
+  }
   return exportToBlob({
-    elements: api.getSceneElements(),
+    elements,
     appState: exportAppState(api, opts),
     files: (opts == null ? void 0 : opts.files) ?? api.getFiles(),
-    exportingFrame: findFrame(api, opts == null ? void 0 : opts.pageId),
+    exportingFrame: frame,
     ...(opts == null ? void 0 : opts.maxWidthOrHeight) ? { maxWidthOrHeight: opts.maxWidthOrHeight } : { getDimensions: dimensions(opts) },
-    mimeType: "image/png"
+    mimeType: (opts == null ? void 0 : opts.mimeType) ?? "image/png",
+    ...(opts == null ? void 0 : opts.quality) !== void 0 ? { quality: opts.quality } : {}
   });
 }
 async function exportSceneSvg(api, opts) {
@@ -825,7 +834,16 @@ function usePageThumbnails(api, opts) {
   useEffect(() => {
     if (!api || !enabled) return;
     let cancelled = false;
+    let lastSceneVersion = -1;
+    let running = false;
     const tick = async () => {
+      if (running || document.visibilityState === "hidden") return;
+      const all = api.getSceneElements();
+      let sceneVersion = all.length;
+      for (const el of all) sceneVersion += el.version;
+      if (sceneVersion === lastSceneVersion) return;
+      running = true;
+      let changed = false;
       const files2 = filesRef.current;
       const pages = listPages(api);
       const live = new Set(pages.map((p) => p.id));
@@ -834,6 +852,7 @@ function usePageThumbnails(api, opts) {
           URL.revokeObjectURL(urlsRef.current[id2]);
           delete urlsRef.current[id2];
           delete stampsRef.current[id2];
+          changed = true;
         }
       }
       for (const page of pages) {
@@ -851,6 +870,7 @@ function usePageThumbnails(api, opts) {
           const prev = urlsRef.current[page.id];
           urlsRef.current[page.id] = next;
           stampsRef.current[page.id] = stamp;
+          changed = true;
           if (prev) setTimeout(() => URL.revokeObjectURL(prev), 1e3);
         } catch (err) {
           console.warn(
@@ -860,7 +880,10 @@ function usePageThumbnails(api, opts) {
           stampsRef.current[page.id] = stamp;
         }
       }
-      if (!cancelled) setThumbs({ ...urlsRef.current });
+      running = false;
+      if (cancelled) return;
+      lastSceneVersion = sceneVersion;
+      if (changed) setThumbs({ ...urlsRef.current });
     };
     void tick();
     const id = setInterval(() => void tick(), DEBOUNCE_MS);
@@ -4394,6 +4417,7 @@ function Canvas2Editor({
   const [openPanel, setOpenPanel] = useState(null);
   const workspace = workspaceProp ?? localWorkspace;
   const theme = themeProp;
+  const sceneTheme = pages && theme === "dark" ? "light" : theme;
   useEffect(() => {
     saveWorkspace(workspace);
   }, [workspace]);
@@ -4685,6 +4709,7 @@ ${css}` : css;
         {
           ref: rootRef,
           "data-canvas2": "",
+          "data-canvas2-theme": theme,
           "data-canvas2-narrow": narrow ? "" : void 0,
           "data-canvas2-readonly": viewMode ? "" : void 0,
           style: { position: "relative", width: "100%", height: "100%" },
@@ -4750,7 +4775,7 @@ ${css}` : css;
                   canvasActions: { saveAsImage: nativeImageExport },
                   dockedSidebarBreakpoint
                 },
-                ...theme ? { theme } : {},
+                ...sceneTheme ? { theme: sceneTheme } : {},
                 excalidrawAPI: (instance) => {
                   apiRef.current = instance;
                   setApi(instance);
@@ -5129,4 +5154,4 @@ export {
   captureThumbnail as y,
   cascadePoints as z
 };
-//# sourceMappingURL=LibraryPanel-Dtlr_WoW.js.map
+//# sourceMappingURL=LibraryPanel-C13rf6XX.js.map

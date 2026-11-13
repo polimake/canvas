@@ -1,4 +1,4 @@
-import { exportToBlob, type ExcalidrawImperativeAPI } from './excal';
+import { exportToBlob, type ExcalidrawImperativeAPI, type SceneElement } from './excal';
 import { type StoredScene } from './serialize';
 import { type SvgFontFace } from './svgFonts';
 /**
@@ -34,8 +34,21 @@ export interface ExportOptions {
      */
     files?: Parameters<typeof exportToBlob>[0]['files'];
 }
-/** Export the scene (or one page) to a PNG blob. */
-export declare function exportScenePng(api: ExcalidrawImperativeAPI, opts?: ExportOptions): Promise<Blob>;
+export interface ImageExportOptions extends ExportOptions {
+    /** PNG by default. Page previews go out as WebP: a fraction of the bytes. */
+    mimeType?: 'image/png' | 'image/webp' | 'image/jpeg';
+    /** 0–1, for WebP and JPEG. */
+    quality?: number;
+    /**
+     * The scene to export instead of the live one: a snapshot taken BEFORE an
+     * await. A save that exported after its network round-trip read whatever
+     * the editor held by then — nothing, if it had closed — and uploaded a
+     * 20×20 blank as the design's preview (seen in prod 2026-10-02).
+     */
+    elements?: readonly SceneElement[];
+}
+/** Export the scene (or one page) to an image blob, PNG unless asked otherwise. */
+export declare function exportScenePng(api: ExcalidrawImperativeAPI, opts?: ImageExportOptions): Promise<Blob>;
 /** Export the scene (or one page) to an SVG element. */
 export declare function exportSceneSvg(api: ExcalidrawImperativeAPI, opts?: ExportOptions & {
     /**
