@@ -6,15 +6,17 @@
  *   node scripts/excalidraw.mjs            compila y empaqueta
  *   node scripts/excalidraw.mjs --instalar instala antes sus dependencias (yarn 1)
  *
- * `vendor/excalidraw` es un `git subtree` de github.com/polimake/excalidraw
- * (rama `polimake`): el fuente se edita ahí mismo y los parches viajan al fork
- * con `git subtree push`. Ver vendor/EXCALIDRAW.md.
+ * `vendor/excalidraw` es el fuente de Excalidraw (git subtree de la etiqueta
+ * BASE del original) con nuestros parches encima, uno por commit. Se edita ahí
+ * mismo. Ver vendor/EXCALIDRAW.md.
  *
- * `vendor/excalidraw-dist` va en git, por lo mismo que nuestro `dist/`: quien
- * coge el lienzo como submódulo (desktop, Studio) lo usa, no lo compila.
+ * `vendor/excalidraw-dist` NO va en git: lo publica como Release del lienzo
+ * la acción `.github/workflows/excalidraw.yml` al subir una etiqueta
+ * `excalidraw-v<versión>`, y desktop y Studio lo instalan desde esa descarga.
+ * En local sirve para probar antes de publicar.
  * Solo lleva la build de producción y los tipos: la de desarrollo pesaba 28 MB
- * más y el fuente ya está aquí para depurar. Por eso la condición
- * `development` de sus `exports` apunta también a `dist/prod`.
+ * más y el fuente está aquí para depurar. Por eso la condición `development`
+ * de sus `exports` apunta también a `dist/prod`.
  */
 import { execFileSync } from 'node:child_process';
 import { cpSync, existsSync, readFileSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -28,7 +30,9 @@ const salida = join(raiz, 'vendor', 'excalidraw-dist');
 const enWindows = process.platform === 'win32';
 
 /** Sufijo de versión: 0.18.1 → 0.18.1-polimake.N. Se sube a mano al cambiar el fuente. */
-const SUFIJO = 'polimake.1';
+const SUFIJO = 'polimake.2';
+/** La etiqueta del original sobre la que van nuestros parches. */
+const BASE = 'v0.18.1';
 
 function correr(cmd, args, cwd) {
   console.log(`> ${cmd} ${args.join(' ')}  (${cwd.slice(raiz.length + 1) || '.'})`);
@@ -58,8 +62,6 @@ correr('node', ['../../scripts/buildPackage.js'], paquete);
 correr('node', [join(fuente, 'node_modules', 'typescript', 'bin', 'tsc'), '--newLine', 'lf'], paquete);
 
 const original = JSON.parse(readFileSync(join(paquete, 'package.json'), 'utf8'));
-const revision = execFileSync('git', ['log', '-1', '--format=%H', '--', 'vendor/excalidraw'], { cwd: raiz })
-  .toString().trim();
 
 rmSync(salida, { recursive: true, force: true });
 mkdirSync(join(salida, 'dist'), { recursive: true });
@@ -72,7 +74,7 @@ const pkg = {
   version: `${original.version}-${SUFIJO}`,
   description: `${original.description} — compilado por Polimake desde vendor/excalidraw`,
   license: original.license,
-  repository: 'https://github.com/polimake/excalidraw',
+  repository: 'https://github.com/polimake/canvas',
   type: original.type,
   types: original.types,
   main: original.main,
@@ -97,10 +99,10 @@ const pkg = {
 writeFileSync(join(salida, 'package.json'), JSON.stringify(pkg, null, 2) + '\n');
 writeFileSync(join(salida, 'ORIGEN.json'), JSON.stringify({
   fuente: 'vendor/excalidraw',
-  fork: 'https://github.com/polimake/excalidraw',
+  releases: 'https://github.com/polimake/canvas/releases',
   upstream: 'https://github.com/excalidraw/excalidraw',
   version: pkg.version,
-  commitDelLienzo: revision,
+  base: BASE,
 }, null, 2) + '\n');
 
 console.log(`\nListo: vendor/excalidraw-dist (${pkg.version}).`);
