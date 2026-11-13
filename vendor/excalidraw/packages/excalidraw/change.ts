@@ -525,6 +525,16 @@ export class AppStateChange implements Change<AppState> {
     return Delta.isEmpty(this.delta);
   }
 
+  /** Polimake: las claves del estado que cambian, en cualquiera de los lados. */
+  public changedKeys(): string[] {
+    return [
+      ...new Set([
+        ...Object.keys(this.delta.deleted),
+        ...Object.keys(this.delta.inserted),
+      ]),
+    ];
+  }
+
   /**
    * It is necessary to post process the partials in case of reference values,
    * for which we need to calculate the real diff between `deleted` and `inserted`.
