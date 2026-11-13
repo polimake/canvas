@@ -57,10 +57,11 @@
     "lint": "eslint",
     "verify:build": "node scripts/verify-build.mjs",
     "release:package": "node scripts/release-package.mjs",
-    "verify:package": "node scripts/verify-package.mjs"
+    "verify:package": "node scripts/verify-package.mjs",
+    "excalidraw": "node scripts/excalidraw.mjs"
   },
   "dependencies": {
-    "@excalidraw/excalidraw": "^0.18.1",
+    "@excalidraw/excalidraw": "file:./vendor/excalidraw-dist",
     "ag-psd": "^31.0.2",
     "fast-xml-parser": "^5.11.1",
     "fflate": "^0.8.3",
