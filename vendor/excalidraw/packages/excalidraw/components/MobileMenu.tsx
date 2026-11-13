@@ -93,6 +93,7 @@ export const MobileMenu = ({
                 {renderTopRightUI && renderTopRightUI(true, appState)}
                 <div className="mobile-misc-tools-container">
                   {!appState.viewModeEnabled &&
+                    app.props.UIOptions.defaultSidebarTrigger !== false &&
                     appState.openDialog?.name !== "elementLinkSelector" && (
                       <DefaultSidebarTriggerTunnel.Out />
                     )}
@@ -120,12 +121,14 @@ export const MobileMenu = ({
             </Stack.Col>
           )}
         </Section>
-        <HintViewer
-          appState={appState}
-          isMobile={true}
-          device={device}
-          app={app}
-        />
+        {app.props.UIOptions.hints !== false && (
+          <HintViewer
+            appState={appState}
+            isMobile={true}
+            device={device}
+            app={app}
+          />
+        )}
       </FixedSideContainer>
     );
   };

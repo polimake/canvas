@@ -627,6 +627,15 @@ export type UIOptions = Partial<{
   tools: {
     image: boolean;
   };
+  /** Polimake: `false` oculta el botón de Ayuda de abajo a la derecha. */
+  helpButton: boolean;
+  /** Polimake: `false` oculta la franja de pistas bajo la barra (`HintViewer`). */
+  hints: boolean;
+  /**
+   * Polimake: `false` oculta el botón que abre la barra lateral por defecto
+   * (la Biblioteca). La barra sigue: el buscador del menú se abre en ella.
+   */
+  defaultSidebarTrigger: boolean;
   /** @deprecated does nothing. Will be removed in 0.15 */
   welcomeScreen?: boolean;
 }>;

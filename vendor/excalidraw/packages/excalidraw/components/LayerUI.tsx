@@ -260,12 +260,14 @@ const LayerUI = ({
                             "zen-mode": appState.zenModeEnabled,
                           })}
                         >
-                          <HintViewer
-                            appState={appState}
-                            isMobile={device.editor.isMobile}
-                            device={device}
-                            app={app}
-                          />
+                          {UIOptions.hints !== false && (
+                            <HintViewer
+                              appState={appState}
+                              isMobile={device.editor.isMobile}
+                              device={device}
+                              app={app}
+                            />
+                          )}
                           {heading}
                           <Stack.Row gap={1}>
                             <PenModeButton
@@ -340,6 +342,7 @@ const LayerUI = ({
             )}
             {renderTopRightUI?.(device.editor.isMobile, appState)}
             {!appState.viewModeEnabled &&
+              UIOptions.defaultSidebarTrigger !== false &&
               appState.openDialog?.name !== "elementLinkSelector" &&
               // hide button when sidebar docked
               (!isSidebarDocked ||
