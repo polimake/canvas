@@ -1,32 +1,34 @@
-import { register } from "./register";
-import { getSelectedElements } from "../scene";
-import { getNonDeletedElements } from "../element";
+import { getNonDeletedElements } from "@excalidraw/element";
+import { bindOrUnbindBindingElements } from "@excalidraw/element";
+import { getCommonBoundingBox } from "@excalidraw/element";
+import { newElementWith } from "@excalidraw/element";
+import { deepCopyElement } from "@excalidraw/element";
+import { resizeMultipleElements } from "@excalidraw/element";
+import {
+  isArrowElement,
+  isElbowArrow,
+  updateElbowArrowRoute,
+} from "@excalidraw/element";
+import { updateFrameMembershipOfSelectedElements } from "@excalidraw/element";
+import { CODES, KEYS, arrayToMap } from "@excalidraw/common";
+
+import { CaptureUpdateAction } from "@excalidraw/element";
+
 import type {
   ExcalidrawArrowElement,
   ExcalidrawElbowArrowElement,
   ExcalidrawElement,
   NonDeleted,
   NonDeletedSceneElementsMap,
-} from "../element/types";
-import { resizeMultipleElements } from "../element/resizeElements";
-import type { AppClassProperties, AppState } from "../types";
-import { arrayToMap } from "../utils";
-import { CODES, KEYS } from "../keys";
-import {
-  bindOrUnbindLinearElements,
-  isBindingEnabled,
-} from "../element/binding";
-import { updateFrameMembershipOfSelectedElements } from "../frame";
+} from "@excalidraw/element/types";
+
+import { getSelectedElements } from "../scene";
+
 import { flipHorizontal, flipVertical } from "../components/icons";
-import { CaptureUpdateAction } from "../store";
-import {
-  isArrowElement,
-  isElbowArrow,
-  isLinearElement,
-} from "../element/typeChecks";
-import { mutateElement, newElementWith } from "../element/mutateElement";
-import { deepCopyElement } from "../element/newElement";
-import { getCommonBoundingBox } from "../element/bounds";
+
+import { register } from "./register";
+
+import type { AppClassProperties, AppState } from "../types";
 
 export const actionFlipHorizontal = register({
   name: "flipHorizontal",
@@ -98,7 +100,6 @@ const flipSelectedElements = (
   const updatedElements = flipElements(
     selectedElements,
     elementsMap,
-    appState,
     flipDirection,
     app,
   );
@@ -113,7 +114,6 @@ const flipSelectedElements = (
 const flipElements = (
   selectedElements: NonDeleted<ExcalidrawElement>[],
   elementsMap: NonDeletedSceneElementsMap,
-  appState: AppState,
   flipDirection: "horizontal" | "vertical",
   app: AppClassProperties,
 ): ExcalidrawElement[] => {
@@ -125,10 +125,13 @@ const flipElements = (
   ) {
     return selectedElements.map((element) => {
       const _element = element as ExcalidrawArrowElement;
-      return newElementWith(_element, {
+      const flipped = newElementWith(_element, {
         startArrowhead: _element.endArrowhead,
         endArrowhead: _element.startArrowhead,
       });
+      return isElbowArrow(flipped)
+        ? newElementWith(flipped, updateElbowArrowRoute(flipped, elementsMap))
+        : flipped;
     });
   }
 
@@ -150,17 +153,14 @@ const flipElements = (
       flipByY: flipDirection === "vertical",
       shouldResizeFromCenter: true,
       shouldMaintainAspectRatio: true,
+      renderEnvironment: app.renderEnvironment,
     },
   );
 
-  bindOrUnbindLinearElements(
-    selectedElements.filter(isLinearElement),
-    elementsMap,
-    app.scene.getNonDeletedElements(),
+  bindOrUnbindBindingElements(
+    selectedElements.filter(isArrowElement),
     app.scene,
-    isBindingEnabled(appState),
-    [],
-    appState.zoom,
+    app.state,
   );
 
   // ---------------------------------------------------------------------------
@@ -187,13 +187,13 @@ const flipElements = (
     getCommonBoundingBox(selectedElements);
   const [diffX, diffY] = [midX - newMidX, midY - newMidY];
   otherElements.forEach((element) =>
-    mutateElement(element, {
+    app.scene.mutateElement(element, {
       x: element.x + diffX,
       y: element.y + diffY,
     }),
   );
   elbowArrows.forEach((element) =>
-    mutateElement(element, {
+    app.scene.mutateElement(element, {
       x: element.x + diffX,
       y: element.y + diffY,
     }),

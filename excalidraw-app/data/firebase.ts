@@ -1,38 +1,35 @@
 import { reconcileElements } from "@excalidraw/excalidraw";
+import { MIME_TYPES, toBrandedType } from "@excalidraw/common";
+import { decompressData } from "@excalidraw/excalidraw/data/encode";
+import {
+  encryptData,
+  decryptData,
+} from "@excalidraw/excalidraw/data/encryption";
+import { restoreElements } from "@excalidraw/excalidraw/data/restore";
+import { getSceneVersion } from "@excalidraw/element";
+
+import type { RemoteExcalidrawElement } from "@excalidraw/excalidraw/data/reconcile";
 import type {
   ExcalidrawElement,
   FileId,
   OrderedExcalidrawElement,
-} from "@excalidraw/excalidraw/element/types";
-import { getSceneVersion } from "@excalidraw/excalidraw/element";
-import type Portal from "../collab/Portal";
-import { restoreElements } from "@excalidraw/excalidraw/data/restore";
+} from "@excalidraw/element/types";
 import type {
   AppState,
   BinaryFileData,
   BinaryFileMetadata,
   DataURL,
 } from "@excalidraw/excalidraw/types";
+
 import { FILE_CACHE_MAX_AGE_SEC } from "../app_constants";
-import { decompressData } from "@excalidraw/excalidraw/data/encode";
-import {
-  encryptData,
-  decryptData,
-} from "@excalidraw/excalidraw/data/encryption";
-import { MIME_TYPES } from "@excalidraw/excalidraw/constants";
-import type { SyncableExcalidrawElement } from ".";
+
 import { getSyncableElements } from ".";
-import { initializeApp } from "firebase/app";
-import {
-  getFirestore,
-  doc,
-  getDoc,
-  runTransaction,
-  Bytes,
-} from "firebase/firestore";
-import { getStorage, ref, uploadBytes } from "firebase/storage";
+
+import type { SyncableExcalidrawElement } from ".";
+import type Portal from "../collab/Portal";
 import type { Socket } from "socket.io-client";
-import type { RemoteExcalidrawElement } from "@excalidraw/excalidraw/data/reconcile";
+import type { Bytes } from "firebase/firestore";
+import type { UploadMetadata } from "firebase/storage";
 
 // private
 // -----------------------------------------------------------------------------
@@ -49,35 +46,41 @@ try {
   FIREBASE_CONFIG = {};
 }
 
-let firebaseApp: ReturnType<typeof initializeApp> | null = null;
-let firestore: ReturnType<typeof getFirestore> | null = null;
-let firebaseStorage: ReturnType<typeof getStorage> | null = null;
-
-const _initializeFirebase = () => {
-  if (!firebaseApp) {
-    firebaseApp = initializeApp(FIREBASE_CONFIG);
-  }
-  return firebaseApp;
+const lazy = <T>(load: () => Promise<T>) => {
+  let promise: Promise<T> | null = null;
+  return () =>
+    (promise ??= load().catch((error) => {
+      promise = null;
+      throw error;
+    }));
 };
 
-const _getFirestore = () => {
-  if (!firestore) {
-    firestore = getFirestore(_initializeFirebase());
-  }
-  return firestore;
-};
+const _initializeFirebase = lazy(async () => {
+  const sdk = await import("./firebaseSDK");
+  return { sdk, app: sdk.initializeApp(FIREBASE_CONFIG) };
+});
 
-const _getStorage = () => {
-  if (!firebaseStorage) {
-    firebaseStorage = getStorage(_initializeFirebase());
-  }
-  return firebaseStorage;
-};
+const _loadFirestore = lazy(async () => {
+  const { sdk, app } = await _initializeFirebase();
+  const { getFirestore, doc, getDoc, runTransaction, Bytes } = sdk;
+  return { firestore: getFirestore(app), doc, getDoc, runTransaction, Bytes };
+});
+
+const _loadStorage = lazy(async () => {
+  const { sdk, app } = await _initializeFirebase();
+  const { getStorage, ref, uploadBytes } = sdk;
+  return { storage: getStorage(app), ref, uploadBytes };
+});
 
 // -----------------------------------------------------------------------------
 
-export const loadFirebaseStorage = async () => {
-  return _getStorage();
+export const uploadBytesToFirebase = async (
+  path: string,
+  data: Blob | Uint8Array,
+  metadata?: UploadMetadata,
+) => {
+  const { storage, ref, uploadBytes } = await _loadStorage();
+  return uploadBytes(ref(storage, path), data, metadata);
 };
 
 type FirebaseStoredScene = {
@@ -101,8 +104,8 @@ const decryptElements = async (
   data: FirebaseStoredScene,
   roomKey: string,
 ): Promise<readonly ExcalidrawElement[]> => {
-  const ciphertext = data.ciphertext.toUint8Array();
-  const iv = data.iv.toUint8Array();
+  const ciphertext = data.ciphertext.toUint8Array() as Uint8Array<ArrayBuffer>;
+  const iv = data.iv.toUint8Array() as Uint8Array<ArrayBuffer>;
 
   const decrypted = await decryptData(iv, ciphertext, roomKey);
   const decodedData = new TextDecoder("utf-8").decode(
@@ -145,7 +148,10 @@ export const saveFilesToFirebase = async ({
   prefix: string;
   files: { id: FileId; buffer: Uint8Array }[];
 }) => {
-  const storage = await loadFirebaseStorage();
+  // failing to load the SDK must fail the whole save rather than be reported
+  // per file as `erroredFiles` (which share links ignore, and collab never
+  // retries)
+  const { storage, ref, uploadBytes } = await _loadStorage();
 
   const erroredFiles: FileId[] = [];
   const savedFiles: FileId[] = [];
@@ -173,6 +179,7 @@ const createFirebaseSceneDocument = async (
 ) => {
   const sceneVersion = getSceneVersion(elements);
   const { ciphertext, iv } = await encryptElements(roomKey, elements);
+  const { Bytes } = await _loadFirestore();
   return {
     sceneVersion,
     ciphertext: Bytes.fromUint8Array(new Uint8Array(ciphertext)),
@@ -196,7 +203,7 @@ export const saveToFirebase = async (
     return null;
   }
 
-  const firestore = _getFirestore();
+  const { firestore, doc, runTransaction } = await _loadFirestore();
   const docRef = doc(firestore, "scenes", roomId);
 
   const storedScene = await runTransaction(firestore, async (transaction) => {
@@ -239,7 +246,7 @@ export const saveToFirebase = async (
 
   FirebaseSceneVersionCache.set(socket, storedElements);
 
-  return storedElements;
+  return toBrandedType<RemoteExcalidrawElement[]>(storedElements);
 };
 
 export const loadFromFirebase = async (
@@ -247,7 +254,7 @@ export const loadFromFirebase = async (
   roomKey: string,
   socket: Socket | null,
 ): Promise<readonly SyncableExcalidrawElement[] | null> => {
-  const firestore = _getFirestore();
+  const { firestore, doc, getDoc } = await _loadFirestore();
   const docRef = doc(firestore, "scenes", roomId);
   const docSnap = await getDoc(docRef);
   if (!docSnap.exists()) {
@@ -255,7 +262,9 @@ export const loadFromFirebase = async (
   }
   const storedScene = docSnap.data() as FirebaseStoredScene;
   const elements = getSyncableElements(
-    restoreElements(await decryptElements(storedScene, roomKey), null),
+    restoreElements(await decryptElements(storedScene, roomKey), null, {
+      deleteInvisibleElements: true,
+    }),
   );
 
   if (socket) {

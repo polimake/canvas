@@ -1,8 +1,8 @@
-import { useEffect, useLayoutEffect, useState } from "react";
 import { THEME } from "@excalidraw/excalidraw";
-import { EVENT } from "@excalidraw/excalidraw/constants";
-import type { Theme } from "@excalidraw/excalidraw/element/types";
-import { CODES, KEYS } from "@excalidraw/excalidraw/keys";
+import { useEffect, useLayoutEffect, useState } from "react";
+
+import type { Theme } from "@excalidraw/element/types";
+
 import { STORAGE_KEYS } from "./app_constants";
 
 const getDarkThemeMediaQuery = (): MediaQueryList | undefined =>
@@ -30,28 +30,10 @@ export const useHandleAppTheme = () => {
       mediaQuery?.addEventListener("change", handleChange);
     }
 
-    const handleKeydown = (event: KeyboardEvent) => {
-      if (
-        !event[KEYS.CTRL_OR_CMD] &&
-        event.altKey &&
-        event.shiftKey &&
-        event.code === CODES.D
-      ) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        setAppTheme(editorTheme === THEME.DARK ? THEME.LIGHT : THEME.DARK);
-      }
-    };
-
-    document.addEventListener(EVENT.KEYDOWN, handleKeydown, { capture: true });
-
     return () => {
       mediaQuery?.removeEventListener("change", handleChange);
-      document.removeEventListener(EVENT.KEYDOWN, handleKeydown, {
-        capture: true,
-      });
     };
-  }, [appTheme, editorTheme, setAppTheme]);
+  }, [appTheme]);
 
   useLayoutEffect(() => {
     localStorage.setItem(STORAGE_KEYS.LOCAL_STORAGE_THEME, appTheme);
