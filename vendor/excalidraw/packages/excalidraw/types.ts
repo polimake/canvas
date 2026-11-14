@@ -534,14 +534,6 @@ export interface ExcalidrawProps {
     isMobile: boolean,
     appState: UIAppState,
   ) => JSX.Element | null;
-  /**
-   * Polimake: lo que se pinta al final de la fila de herramientas, dentro de
-   * su píldora (como `renderTopRightUI`, pero en la barra).
-   */
-  renderToolbarExtra?: (
-    isMobile: boolean,
-    appState: UIAppState,
-  ) => JSX.Element | null;
   langCode?: Language["code"];
   viewModeEnabled?: boolean;
   zenModeEnabled?: boolean;
@@ -591,11 +583,6 @@ export interface ExcalidrawProps {
   ) => JSX.Element | null;
   aiEnabled?: boolean;
   showDeprecatedFonts?: boolean;
-  /**
-   * Polimake: seleccionar no es un paso de deshacer (como en Canva). Ver
-   * `HistoryOptions.ignoreSelectionOnly` en history.ts.
-   */
-  historyIgnoresSelection?: boolean;
 }
 
 export type SceneData = {
@@ -640,15 +627,6 @@ export type UIOptions = Partial<{
   tools: {
     image: boolean;
   };
-  /** Polimake: `false` oculta el botón de Ayuda de abajo a la derecha. */
-  helpButton: boolean;
-  /** Polimake: `false` oculta la franja de pistas bajo la barra (`HintViewer`). */
-  hints: boolean;
-  /**
-   * Polimake: `false` oculta el botón que abre la barra lateral por defecto
-   * (la Biblioteca). La barra sigue: el buscador del menú se abre en ella.
-   */
-  defaultSidebarTrigger: boolean;
   /** @deprecated does nothing. Will be removed in 0.15 */
   welcomeScreen?: boolean;
 }>;

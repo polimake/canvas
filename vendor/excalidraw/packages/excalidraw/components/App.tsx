@@ -712,9 +712,7 @@ class App extends React.Component<AppProps, AppState> {
     this.visibleElements = [];
 
     this.store = new Store();
-    this.history = new History({
-      ignoreSelectionOnly: props.historyIgnoresSelection,
-    });
+    this.history = new History();
 
     if (excalidrawAPI) {
       const api: ExcalidrawImperativeAPI = {
@@ -761,9 +759,7 @@ class App extends React.Component<AppProps, AppState> {
     };
 
     this.fonts = new Fonts(this.scene);
-    this.history = new History({
-      ignoreSelectionOnly: props.historyIgnoresSelection,
-    });
+    this.history = new History();
 
     this.actionManager.registerAll(actions);
     this.actionManager.registerAction(

@@ -7,7 +7,7 @@ import {
   UndoRedoActions,
   ZoomActions,
 } from "../Actions";
-import { useApp, useDevice } from "../App";
+import { useDevice } from "../App";
 import { useTunnels } from "../../context/tunnels";
 import { HelpButton } from "../HelpButton";
 import { Section } from "../Section";
@@ -28,7 +28,6 @@ const Footer = ({
   const { FooterCenterTunnel, WelcomeScreenHelpHintTunnel } = useTunnels();
 
   const device = useDevice();
-  const app = useApp();
   const showFinalize =
     !appState.viewModeEnabled && appState.multiElement && device.isTouchScreen;
 
@@ -79,11 +78,9 @@ const Footer = ({
       >
         <div style={{ position: "relative" }}>
           {renderWelcomeScreen && <WelcomeScreenHelpHintTunnel.Out />}
-          {app.props.UIOptions.helpButton !== false && (
-            <HelpButton
-              onClick={() => actionManager.executeAction(actionShortcuts)}
-            />
-          )}
+          <HelpButton
+            onClick={() => actionManager.executeAction(actionShortcuts)}
+          />
         </div>
       </div>
       <ExitZenModeAction

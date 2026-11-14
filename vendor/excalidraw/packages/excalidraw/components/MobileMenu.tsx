@@ -88,13 +88,11 @@ export const MobileMenu = ({
                       UIOptions={UIOptions}
                       app={app}
                     />
-                    {app.props.renderToolbarExtra?.(true, appState)}
                   </Stack.Row>
                 </Island>
                 {renderTopRightUI && renderTopRightUI(true, appState)}
                 <div className="mobile-misc-tools-container">
                   {!appState.viewModeEnabled &&
-                    app.props.UIOptions.defaultSidebarTrigger !== false &&
                     appState.openDialog?.name !== "elementLinkSelector" && (
                       <DefaultSidebarTriggerTunnel.Out />
                     )}
@@ -122,14 +120,12 @@ export const MobileMenu = ({
             </Stack.Col>
           )}
         </Section>
-        {app.props.UIOptions.hints !== false && (
-          <HintViewer
-            appState={appState}
-            isMobile={true}
-            device={device}
-            app={app}
-          />
-        )}
+        <HintViewer
+          appState={appState}
+          isMobile={true}
+          device={device}
+          app={app}
+        />
       </FixedSideContainer>
     );
   };

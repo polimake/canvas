@@ -43,7 +43,6 @@ import {
   getSelectedElements,
 } from "../scene/selection";
 import { CaptureUpdateAction } from "../store";
-import { syncMovedIndices } from "../fractionalIndex";
 
 export const actionDuplicateSelection = register({
   name: "duplicateSelection",
@@ -80,18 +79,6 @@ export const actionDuplicateSelection = register({
       if (mappedElements) {
         nextState.elements = mappedElements;
       }
-    }
-
-    // Polimake (backport de upstream): las copias heredan el índice
-    // fraccionario del original y la escena lo valida antes de arreglarlo
-    // (en la build de desarrollo, lanza y el duplicado se pierde). Upstream lo
-    // resolvió igual: syncMovedIndices con los elementos nuevos.
-    if (nextState.elements) {
-      const originales = arrayToMap(elements);
-      nextState.elements = syncMovedIndices(
-        nextState.elements,
-        arrayToMap(nextState.elements.filter((el) => !originales.has(el.id))),
-      );
     }
 
     return {

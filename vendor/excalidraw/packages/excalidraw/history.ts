@@ -1,62 +1,10 @@
 import type { AppStateChange, ElementsChange } from "./change";
-import type {
-  ExcalidrawElement,
-  SceneElementsMap,
-} from "./element/types";
+import type { SceneElementsMap } from "./element/types";
 import { Emitter } from "./emitter";
 import type { Snapshot } from "./store";
 import type { AppState } from "./types";
 
 type HistoryStack = HistoryEntry[];
-
-/**
- * Polimake: opciones de la historia.
- *
- * `ignoreSelectionOnly`: como en Canva, seleccionar no es un paso. Sin esto
- * cada clic que selecciona deja su entrada y «seleccionar y Ctrl+Z» solo
- * deselecciona. Con esto, una entrada que no cambia elementos y solo cambia
- * claves de selección no se graba; las que mezclan selección con un cambio de
- * verdad se graban enteras. También evita quedarse a medio paso con un texto
- * vacío (ver `leavesNewEmptyText`).
- */
-export type HistoryOptions = {
-  ignoreSelectionOnly?: boolean;
-};
-
-/** Claves de `ObservedAppState` que son selección o modo de edición. */
-const SELECTION_KEYS = new Set([
-  "selectedElementIds",
-  "selectedGroupIds",
-  "editingGroupId",
-  "selectedLinearElementId",
-  "editingLinearElementId",
-  "croppingElementId",
-]);
-
-const isEmptyLiveText = (element: ExcalidrawElement | undefined) =>
-  !!element &&
-  element.type === "text" &&
-  !element.isDeleted &&
-  element.text === "";
-
-/**
- * Un texto nuevo puede ocupar DOS entradas: si había algo seleccionado, el
- * `pointerup` del clic con la herramienta de texto graba la escena con el
- * texto ya puesto y aún vacío, y al cerrar el editor llega la segunda con lo
- * escrito. Deshacer la segunda deja un texto "" vivo, cosa que Excalidraw nunca
- * deja por sí solo (lo borra al cerrar el editor): es medio paso.
- */
-const leavesNewEmptyText = (
-  before: SceneElementsMap,
-  after: SceneElementsMap,
-) => {
-  for (const [id, element] of after) {
-    if (isEmptyLiveText(element) && !isEmptyLiveText(before.get(id))) {
-      return true;
-    }
-  }
-  return false;
-};
 
 export class HistoryChangedEvent {
   constructor(
@@ -72,17 +20,6 @@ export class History {
 
   private readonly undoStack: HistoryStack = [];
   private readonly redoStack: HistoryStack = [];
-
-  constructor(private readonly options: HistoryOptions = {}) {}
-
-  private isSelectionOnly(entry: HistoryEntry) {
-    return (
-      entry.elementsChange.isEmpty() &&
-      entry.appStateChange
-        .changedKeys()
-        .every((key) => SELECTION_KEYS.has(key))
-    );
-  }
 
   public get isUndoStackEmpty() {
     return this.undoStack.length === 0;
@@ -106,10 +43,7 @@ export class History {
   ) {
     const entry = HistoryEntry.create(appStateChange, elementsChange);
 
-    if (
-      !entry.isEmpty() &&
-      !(this.options.ignoreSelectionOnly && this.isSelectionOnly(entry))
-    ) {
+    if (!entry.isEmpty()) {
       // we have the latest changes, no need to `applyLatest`, which is done within `History.push`
       this.undoStack.push(entry.inverse());
 
@@ -174,7 +108,6 @@ export class History {
 
       // iterate through the history entries in case they result in no visible changes
       while (historyEntry) {
-        const previousElements = nextElements;
         try {
           [nextElements, nextAppState, containsVisibleChange] =
             historyEntry.applyTo(nextElements, nextAppState, snapshot);
@@ -183,13 +116,7 @@ export class History {
           push(historyEntry);
         }
 
-        if (
-          containsVisibleChange &&
-          !(
-            this.options.ignoreSelectionOnly &&
-            leavesNewEmptyText(previousElements, nextElements)
-          )
-        ) {
+        if (containsVisibleChange) {
           break;
         }
 

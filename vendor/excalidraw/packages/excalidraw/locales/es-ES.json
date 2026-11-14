@@ -145,13 +145,6 @@
     "hint_emptyLibrary": "Seleccione un elemento en el lienzo para añadirlo aquí, o instale una biblioteca del repositorio público, a continuación.",
     "hint_emptyPrivateLibrary": "Seleccione un elemento del lienzo para añadirlo aquí."
   },
-  "search": {
-    "title": "Buscar en el lienzo",
-    "noMatch": "No se ha encontrado nada...",
-    "singleResult": "resultado",
-    "multipleResults": "resultados",
-    "placeholder": "Buscar texto en el lienzo..."
-  },
   "buttons": {
     "clearReset": "Limpiar lienzo y reiniciar el color de fondo",
     "exportJSON": "Exportar a archivo",
@@ -255,7 +248,7 @@
     "penMode": "Modo Lápiz - previene toque",
     "link": "Añadir/Actualizar enlace para una forma seleccionada",
     "eraser": "Borrar",
-    "frame": "Marco",
+    "frame": "",
     "magicframe": "Esquema a código",
     "embeddable": "Incrustar Web",
     "laser": "Puntero láser",
