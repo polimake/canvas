@@ -214,7 +214,7 @@
     }
   },
   "search": {
-    "title": "Encontrar en lienzo",
+    "title": "Buscar en el lienzo",
     "noMatch": "No hay coincidencias...",
     "singleResult": "resultado",
     "multipleResults": "resultados",
@@ -330,7 +330,7 @@
     "penMode": "Modo Lápiz - previene toque",
     "link": "Añadir / Actualizar enlace para una forma seleccionada",
     "eraser": "Borrar",
-    "frame": "Herramienta Estructura",
+    "frame": "Marco",
     "magicframe": "Esquema a código",
     "embeddable": "Incrustar Web",
     "laser": "Puntero láser",

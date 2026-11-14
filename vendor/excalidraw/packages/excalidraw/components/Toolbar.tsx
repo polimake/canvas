@@ -192,17 +192,25 @@ const ExtraToolsDropdown = ({
             {t("toolBar.lasso")}
           </DropdownMenu.Item>
         )}
-        <div style={{ margin: "6px 0", fontSize: 14, fontWeight: 600 }}>
-          Generate
-        </div>
-        {app.props.aiEnabled !== false && <TTDDialogTriggerTunnel.Out />}
-        <DropdownMenu.Item
-          onSelect={() => app.setOpenDialog({ name: "ttd", tab: "mermaid" })}
-          icon={mermaidLogoIcon}
-          data-testid="toolbar-embeddable"
-        >
-          {t("toolBar.mermaidToExcalidraw")}
-        </DropdownMenu.Item>
+        {/* Polimake: con aiEnabled={false} la cabecera «Generate» y Mermaid
+            salían igual; solo se quitaban los disparadores de IA. */}
+        {app.props.aiEnabled !== false && (
+          <>
+            <div style={{ margin: "6px 0", fontSize: 14, fontWeight: 600 }}>
+              Generate
+            </div>
+            <TTDDialogTriggerTunnel.Out />
+            <DropdownMenu.Item
+              onSelect={() =>
+                app.setOpenDialog({ name: "ttd", tab: "mermaid" })
+              }
+              icon={mermaidLogoIcon}
+              data-testid="toolbar-embeddable"
+            >
+              {t("toolBar.mermaidToExcalidraw")}
+            </DropdownMenu.Item>
+          </>
+        )}
         {app.props.aiEnabled !== false && app.plugins.diagramToCode && (
           <DropdownMenu.Item
             onSelect={() => app.onMagicframeToolSelect()}
@@ -252,12 +260,14 @@ export const Toolbar = ({
       })}
       data-viewport-ui="top"
     >
-      <HintViewer
-        appState={appState}
-        isMobile={editorInterface.formFactor === "phone"}
-        editorInterface={editorInterface}
-        app={app}
-      />
+      {app.isUIControlEnabled("hints") && (
+        <HintViewer
+          appState={appState}
+          isMobile={editorInterface.formFactor === "phone"}
+          editorInterface={editorInterface}
+          app={app}
+        />
+      )}
       {heading}
       <Stack.Row gap={isCompactStylesPanel ? 0.5 : 1}>
         {/* in compact UI the pen mode button is rendered as a separate

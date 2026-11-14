@@ -839,6 +839,26 @@ export type UIConfig =
          * @default false
          */
         minimap?: boolean;
+        /**
+         * Polimake: el botón de Ayuda de abajo a la derecha.
+         *
+         * @default false
+         */
+        helpButton?: boolean;
+        /**
+         * Polimake: la franja de pistas bajo la barra de herramientas
+         * (`HintViewer`).
+         *
+         * @default false
+         */
+        hints?: boolean;
+        /**
+         * Polimake: el botón que abre la barra lateral por defecto (la
+         * Biblioteca). La barra sigue: el buscador del menú se abre en ella.
+         *
+         * @default false
+         */
+        defaultSidebarTrigger?: boolean;
       };
     };
 

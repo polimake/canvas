@@ -439,6 +439,7 @@ const LayerUI = ({
               appState,
             )}
             {!appState.viewModeEnabled &&
+              app.isUIControlEnabled("defaultSidebarTrigger") &&
               appState.openDialog?.name !== "elementLinkSelector" &&
               // hide button when sidebar docked
               (!isSidebarDocked ||

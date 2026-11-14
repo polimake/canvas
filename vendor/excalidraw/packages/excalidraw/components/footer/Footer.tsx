@@ -87,7 +87,7 @@ const Footer = ({
         >
           <div style={{ position: "relative" }}>
             {renderWelcomeScreen && <WelcomeScreenHelpHintTunnel.Out />}
-            {defaultUIEnabled && (
+            {defaultUIEnabled && app.isUIControlEnabled("helpButton") && (
               <HelpButton
                 onClick={() => actionManager.executeAction(actionShortcuts)}
               />

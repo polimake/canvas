@@ -82,7 +82,9 @@ export const MobileMenu = ({
                   penDetected={appState.penDetected}
                 />
               )}
-              <DefaultSidebarTriggerTunnel.Out />
+              {app.isUIControlEnabled("defaultSidebarTrigger") && (
+                <DefaultSidebarTriggerTunnel.Out />
+              )}
             </>
           ))}
         {defaultUIEnabled &&
