@@ -57,13 +57,14 @@ import {
 } from '@excalidraw/excalidraw';
 
 // ─── Canonical derived aliases (single source for the whole package) ──────────
+/** One element as returned by the live scene (no borrados). */
+export type SceneElement = ReturnType<ExcalidrawImperativeAPI['getSceneElements']>[number];
 /**
- * Un elemento de la escena, borrado o no (`getSceneElementsIncludingDeleted`).
- * Upstream estrechó `getSceneElements` a los no borrados (`NonDeleted<…>`); el
- * paquete mueve arrays de los dos tipos por las mismas funciones, así que el
- * alias es el ancho.
+ * Un elemento con los borrados incluidos (`getSceneElementsIncludingDeleted`).
+ * Upstream estrechó `getSceneElements` a `NonDeleted<…>`; lo que trabaja sobre
+ * la escena entera, borrados incluidos, usa este.
  */
-export type SceneElement = ReturnType<ExcalidrawImperativeAPI['getSceneElementsIncludingDeleted']>[number];
+export type AnySceneElement = ReturnType<ExcalidrawImperativeAPI['getSceneElementsIncludingDeleted']>[number];
 /** The elements array accepted by `updateScene`. */
 export type SceneElements = Parameters<ExcalidrawImperativeAPI['updateScene']>[0]['elements'];
 /** El estado de la escena (appState) tal como lo devuelve el API en vivo. */
