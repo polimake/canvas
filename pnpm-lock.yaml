@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@excalidraw/excalidraw':
-        specifier: https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g82d5847e.polimake.4/excalidraw-excalidraw-0.18.0-g82d5847e.polimake.4.tgz
-        version: https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g82d5847e.polimake.4/excalidraw-excalidraw-0.18.0-g82d5847e.polimake.4.tgz(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+        specifier: https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g01dc5ec6.polimake.1/excalidraw-excalidraw-0.18.0-g01dc5ec6.polimake.1.tgz
+        version: https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g01dc5ec6.polimake.1/excalidraw-excalidraw-0.18.0-g01dc5ec6.polimake.1.tgz(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       ag-psd:
         specifier: ^31.0.2
         version: 31.0.2
@@ -335,24 +335,24 @@ packages:
     resolution: {integrity: sha512-43/qtrDUokr7LJqoF2c3+RInu/t4zfrpYdoSDfYyhg52rwLV6TnOvdG4fXm7IkSB3wErkcmJS9iEhjVtOSEjjA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-  '@excalidraw/common@https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g82d5847e.polimake.4/excalidraw-common-0.18.0-g82d5847e.polimake.4.tgz':
-    resolution: {integrity: sha512-6f80RwntiHZIdeBt/gwYw2SI2+gtSDsPjdsey3hMSFQT8JSP9TTXqmQFDJAvH1x/grGLki6KQyZJ/uzE4sjSvw==, tarball: https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g82d5847e.polimake.4/excalidraw-common-0.18.0-g82d5847e.polimake.4.tgz}
-    version: 0.18.0-g82d5847e.polimake.4
+  '@excalidraw/common@https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g01dc5ec6.polimake.1/excalidraw-common-0.18.0-g01dc5ec6.polimake.1.tgz':
+    resolution: {integrity: sha512-k5vCQFeHgL7uyG/R1XzAQIpNm7wsGotwmWWaDYVetwUzRMLV1JWovPsmy2q+9q7Uw4AHLTFQip4X8YTuJ8mVTg==, tarball: https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g01dc5ec6.polimake.1/excalidraw-common-0.18.0-g01dc5ec6.polimake.1.tgz}
+    version: 0.18.0-g01dc5ec6.polimake.1
 
-  '@excalidraw/element@https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g82d5847e.polimake.4/excalidraw-element-0.18.0-g82d5847e.polimake.4.tgz':
-    resolution: {integrity: sha512-sKg2JxKZD4gzzseIwx9Rul0rmoMoZ970BISxhtEGP1zeG+tscIgLA6rcYhZ4ZDjPYA8xvOPhQ7GMYayd2a4DNA==, tarball: https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g82d5847e.polimake.4/excalidraw-element-0.18.0-g82d5847e.polimake.4.tgz}
-    version: 0.18.0-g82d5847e.polimake.4
+  '@excalidraw/element@https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g01dc5ec6.polimake.1/excalidraw-element-0.18.0-g01dc5ec6.polimake.1.tgz':
+    resolution: {integrity: sha512-3Mj2OsjXunIMz1TSqxIDioYkoEEQZBR/+43eA8DO4VpLrEpKvwglmP2/wpYdvtnvFvJs8O5WtG9gz19CXRvoyw==, tarball: https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g01dc5ec6.polimake.1/excalidraw-element-0.18.0-g01dc5ec6.polimake.1.tgz}
+    version: 0.18.0-g01dc5ec6.polimake.1
 
-  '@excalidraw/excalidraw@https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g82d5847e.polimake.4/excalidraw-excalidraw-0.18.0-g82d5847e.polimake.4.tgz':
-    resolution: {integrity: sha512-85m9jbalLpUzPksi/ySUlgwUQhvbePFb7U+eCmij2/4Sjz0sZOy46/1E0HKadIIFqYdl3PxpgFr3RXpYregXKA==, tarball: https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g82d5847e.polimake.4/excalidraw-excalidraw-0.18.0-g82d5847e.polimake.4.tgz}
-    version: 0.18.0-g82d5847e.polimake.4
+  '@excalidraw/excalidraw@https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g01dc5ec6.polimake.1/excalidraw-excalidraw-0.18.0-g01dc5ec6.polimake.1.tgz':
+    resolution: {integrity: sha512-eOCieyksPXWpHZdt4cohuEREzo3lcfvfX+74lir6ZYs72kZWndtweOgBsV6ICh04qTZ+So+nnHZTPYpRBGI17g==, tarball: https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g01dc5ec6.polimake.1/excalidraw-excalidraw-0.18.0-g01dc5ec6.polimake.1.tgz}
+    version: 0.18.0-g01dc5ec6.polimake.1
     peerDependencies:
       react: ^17.0.2 || ^18.2.0 || ^19.0.0
       react-dom: ^17.0.2 || ^18.2.0 || ^19.0.0
 
-  '@excalidraw/fractional-indexing@https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g82d5847e.polimake.4/excalidraw-fractional-indexing-3.3.0-g82d5847e.polimake.4.tgz':
-    resolution: {integrity: sha512-3zepQdbyg/scsVppTRNBzOKNRdlS8I3yRbUZnCWD6jZ3NWPLoyDU5Pd6IK0+vPVzB0tdWEuXcJuXtEjwloS6Tg==, tarball: https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g82d5847e.polimake.4/excalidraw-fractional-indexing-3.3.0-g82d5847e.polimake.4.tgz}
-    version: 3.3.0-g82d5847e.polimake.4
+  '@excalidraw/fractional-indexing@https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g01dc5ec6.polimake.1/excalidraw-fractional-indexing-3.3.0-g01dc5ec6.polimake.1.tgz':
+    resolution: {integrity: sha512-Y1X0QAQGhpT+R+9WFr3T/3Pp4mEntvV2kFKCrKY85qXFs6iXrxxmlYKWP8EH6IS5ckXJfZtgsbH98OWAfzuCsw==, tarball: https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g01dc5ec6.polimake.1/excalidraw-fractional-indexing-3.3.0-g01dc5ec6.polimake.1.tgz}
+    version: 3.3.0-g01dc5ec6.polimake.1
     engines: {node: ^14.13.1 || >=16.0.0}
 
   '@excalidraw/laser-pointer@1.3.1':
@@ -361,9 +361,9 @@ packages:
   '@excalidraw/markdown-to-text@0.1.2':
     resolution: {integrity: sha512-1nDXBNAojfi3oSFwJswKREkFm5wrSjqay81QlyRv2pkITG/XYB5v+oChENVBQLcxQwX4IUATWvXM5BcaNhPiIg==}
 
-  '@excalidraw/math@https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g82d5847e.polimake.4/excalidraw-math-0.18.0-g82d5847e.polimake.4.tgz':
-    resolution: {integrity: sha512-giUvW18VI1bmq7mjn8ls2Ig3TGJzC7ys3qosQTh7GpwRJw5LSTZ6ZQvsN7+ei7dyf1AYDUVlWJAQ949gck77GA==, tarball: https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g82d5847e.polimake.4/excalidraw-math-0.18.0-g82d5847e.polimake.4.tgz}
-    version: 0.18.0-g82d5847e.polimake.4
+  '@excalidraw/math@https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g01dc5ec6.polimake.1/excalidraw-math-0.18.0-g01dc5ec6.polimake.1.tgz':
+    resolution: {integrity: sha512-1KmPi4pQKm+EUQE24ax7spW7+3zp/CKw6Scz5CF7Y5nfgN2GkIpxnVuT4AskFn0rDJ45eK2V7AOWfVtARTMLSw==, tarball: https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g01dc5ec6.polimake.1/excalidraw-math-0.18.0-g01dc5ec6.polimake.1.tgz}
+    version: 0.18.0-g01dc5ec6.polimake.1
 
   '@excalidraw/mermaid-to-excalidraw@3.6.0':
     resolution: {integrity: sha512-h21Mr9FxmfLDds78iw0iTRDzes+/CDRFJ5kndFAmH+EVQLG6PHoMyn4Lms1dHiYgDTal+MkBJnqKJC9Xj080uA==}
@@ -2649,27 +2649,27 @@ snapshots:
       '@eslint/core': 0.17.0
       levn: 0.4.1
 
-  '@excalidraw/common@https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g82d5847e.polimake.4/excalidraw-common-0.18.0-g82d5847e.polimake.4.tgz':
+  '@excalidraw/common@https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g01dc5ec6.polimake.1/excalidraw-common-0.18.0-g01dc5ec6.polimake.1.tgz':
     dependencies:
       tinycolor2: 1.6.0
 
-  '@excalidraw/element@https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g82d5847e.polimake.4/excalidraw-element-0.18.0-g82d5847e.polimake.4.tgz':
+  '@excalidraw/element@https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g01dc5ec6.polimake.1/excalidraw-element-0.18.0-g01dc5ec6.polimake.1.tgz':
     dependencies:
-      '@excalidraw/common': https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g82d5847e.polimake.4/excalidraw-common-0.18.0-g82d5847e.polimake.4.tgz
-      '@excalidraw/fractional-indexing': https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g82d5847e.polimake.4/excalidraw-fractional-indexing-3.3.0-g82d5847e.polimake.4.tgz
-      '@excalidraw/math': https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g82d5847e.polimake.4/excalidraw-math-0.18.0-g82d5847e.polimake.4.tgz
+      '@excalidraw/common': https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g01dc5ec6.polimake.1/excalidraw-common-0.18.0-g01dc5ec6.polimake.1.tgz
+      '@excalidraw/fractional-indexing': https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g01dc5ec6.polimake.1/excalidraw-fractional-indexing-3.3.0-g01dc5ec6.polimake.1.tgz
+      '@excalidraw/math': https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g01dc5ec6.polimake.1/excalidraw-math-0.18.0-g01dc5ec6.polimake.1.tgz
 
-  '@excalidraw/excalidraw@https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g82d5847e.polimake.4/excalidraw-excalidraw-0.18.0-g82d5847e.polimake.4.tgz(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
+  '@excalidraw/excalidraw@https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g01dc5ec6.polimake.1/excalidraw-excalidraw-0.18.0-g01dc5ec6.polimake.1.tgz(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
       '@braintree/sanitize-url': 6.0.2
       '@codemirror/commands': 6.11.1
       '@codemirror/language': 6.13.1
       '@codemirror/state': 6.7.6
       '@codemirror/view': 6.43.15
-      '@excalidraw/common': https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g82d5847e.polimake.4/excalidraw-common-0.18.0-g82d5847e.polimake.4.tgz
-      '@excalidraw/element': https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g82d5847e.polimake.4/excalidraw-element-0.18.0-g82d5847e.polimake.4.tgz
+      '@excalidraw/common': https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g01dc5ec6.polimake.1/excalidraw-common-0.18.0-g01dc5ec6.polimake.1.tgz
+      '@excalidraw/element': https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g01dc5ec6.polimake.1/excalidraw-element-0.18.0-g01dc5ec6.polimake.1.tgz
       '@excalidraw/laser-pointer': 1.3.1
-      '@excalidraw/math': https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g82d5847e.polimake.4/excalidraw-math-0.18.0-g82d5847e.polimake.4.tgz
+      '@excalidraw/math': https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g01dc5ec6.polimake.1/excalidraw-math-0.18.0-g01dc5ec6.polimake.1.tgz
       '@excalidraw/mermaid-to-excalidraw': 3.6.0
       '@excalidraw/random-username': 1.1.0
       '@lezer/highlight': 1.2.5
@@ -2704,15 +2704,15 @@ snapshots:
       - '@types/react-dom'
       - immer
 
-  '@excalidraw/fractional-indexing@https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g82d5847e.polimake.4/excalidraw-fractional-indexing-3.3.0-g82d5847e.polimake.4.tgz': {}
+  '@excalidraw/fractional-indexing@https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g01dc5ec6.polimake.1/excalidraw-fractional-indexing-3.3.0-g01dc5ec6.polimake.1.tgz': {}
 
   '@excalidraw/laser-pointer@1.3.1': {}
 
   '@excalidraw/markdown-to-text@0.1.2': {}
 
-  '@excalidraw/math@https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g82d5847e.polimake.4/excalidraw-math-0.18.0-g82d5847e.polimake.4.tgz':
+  '@excalidraw/math@https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g01dc5ec6.polimake.1/excalidraw-math-0.18.0-g01dc5ec6.polimake.1.tgz':
     dependencies:
-      '@excalidraw/common': https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g82d5847e.polimake.4/excalidraw-common-0.18.0-g82d5847e.polimake.4.tgz
+      '@excalidraw/common': https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g01dc5ec6.polimake.1/excalidraw-common-0.18.0-g01dc5ec6.polimake.1.tgz
 
   '@excalidraw/mermaid-to-excalidraw@3.6.0':
     dependencies:
