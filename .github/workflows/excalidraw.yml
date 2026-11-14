@@ -5,7 +5,7 @@ name: Excalidraw (Polimake)
 #   "@excalidraw/excalidraw": "https://github.com/polimake/canvas/releases/download/excalidraw-v<versión>/excalidraw-excalidraw-<versión>.tgz"
 #
 # Se dispara con una etiqueta excalidraw-v<versión>, que tiene que coincidir con
-# la versión que da scripts/excalidraw.mjs (0.18.1-polimake.N). Va aparte de
+# la versión que da scripts/excalidraw.mjs (<versión>-g<base>.polimake.N). Va aparte de
 # distribute.yml: sus etiquetas son v* y las de aquí no empiezan por v.
 
 on:
@@ -32,37 +32,33 @@ jobs:
           node-version: '22.20.0'
       - name: Compilar desde el fuente
         run: node scripts/excalidraw.mjs --instalar
-      - name: Empaquetar
+      - name: Comprobar la etiqueta
         id: paquete
         run: |
-          version=$(node -p "require('./vendor/excalidraw-dist/package.json').version")
+          read -r version etiqueta < <(node scripts/excalidraw.mjs --version)
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          if [ "$GITHUB_REF_TYPE" = tag ] && [ "$GITHUB_REF_NAME" != "excalidraw-v$version" ]; then
-            echo "La etiqueta $GITHUB_REF_NAME no coincide con la versión $version" >&2
+          echo "etiqueta=$etiqueta" >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_REF_TYPE" = tag ] && [ "$GITHUB_REF_NAME" != "$etiqueta" ]; then
+            echo "La etiqueta $GITHUB_REF_NAME no coincide con $etiqueta" >&2
             exit 1
           fi
-          mkdir -p artifacts
-          npm pack ./vendor/excalidraw-dist --pack-destination artifacts
-          (cd artifacts && sha256sum *.tgz > SHA256SUMS)
-          ls -l artifacts
+          cd vendor/excalidraw-dist && sha256sum *.tgz > SHA256SUMS && ls -l
       - name: Publicar el Release
         if: github.ref_type == 'tag'
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.paquete.outputs.version }}
         run: |
+          base=$(node -p "require('./vendor/excalidraw-dist/paquetes.json').base")
           {
-            echo "Excalidraw $VERSION, compilado desde \`vendor/excalidraw\` (el original de la etiqueta base más los parches de Polimake)."
+            echo "Excalidraw $VERSION: su rama principal (excalidraw/excalidraw@$base) con los parches de Polimake, compilado desde \`vendor/excalidraw\`."
             echo
-            echo "Instalar:"
+            echo "Para el lienzo basta \`@excalidraw/excalidraw\`; los demás paquetes los pide él por su URL:"
             echo
+            echo "\`\`\`json"
+            node -p "JSON.stringify(require('./vendor/excalidraw-dist/paquetes.json').paquetes, null, 2)"
             echo "\`\`\`"
-            echo "\"@excalidraw/excalidraw\": \"https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/excalidraw-excalidraw-${VERSION}.tgz\""
-            echo "\`\`\`"
             echo
-            echo "Licencia MIT, la del original (incluida en el paquete). Parches: \`vendor/EXCALIDRAW.md\`."
+            echo "Licencia MIT, la del original (incluida en cada paquete). Parches: \`vendor/EXCALIDRAW.md\`."
           } > notas.md
-          gh release create "$GITHUB_REF_NAME" artifacts/*.tgz artifacts/SHA256SUMS \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "Excalidraw $VERSION (Polimake)" \
-            --notes-file notas.md
+          gh release create "$GITHUB_REF_NAME" vendor/excalidraw-dist/*.tgz vendor/excalidraw-dist/SHA256SUMS vendor/excalidraw-dist/paquetes.json --repo "$GITHUB_REPOSITORY" --title "Excalidraw $VERSION (Polimake)" --notes-file notas.md

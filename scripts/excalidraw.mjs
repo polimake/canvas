@@ -1,109 +1,117 @@
 #!/usr/bin/env node
 /**
- * Compila Excalidraw desde su fuente (`vendor/excalidraw`) y deja el paquete
- * listo para consumir en `vendor/excalidraw-dist`.
+ * Compila Excalidraw desde su fuente (`vendor/excalidraw`: su rama principal +
+ * nuestros parches) y empaqueta sus paquetes para publicarlos como Release.
  *
- *   node scripts/excalidraw.mjs            compila y empaqueta
- *   node scripts/excalidraw.mjs --instalar instala antes sus dependencias (yarn 1)
+ *   node scripts/excalidraw.mjs             compila y empaqueta
+ *   node scripts/excalidraw.mjs --instalar  instala antes sus dependencias (yarn 1)
+ *   node scripts/excalidraw.mjs --version   solo imprime la versión y la etiqueta
  *
- * `vendor/excalidraw` es el fuente de Excalidraw (git subtree de la etiqueta
- * BASE del original) con nuestros parches encima, uno por commit. Se edita ahí
- * mismo. Ver vendor/EXCALIDRAW.md.
+ * Desde que separaron el código en paquetes, `@excalidraw/excalidraw` deja fuera
+ * de su bundle a `@excalidraw/common`, `element`, `math` y `fractional-indexing`
+ * y los pide como dependencias. Las de npm son de otra época, así que se
+ * publican los cinco con nuestra versión y se apuntan entre sí por la URL del
+ * mismo Release. Del resto (laser-pointer, mermaid…) vale npm.
  *
- * `vendor/excalidraw-dist` NO va en git: lo publica como Release del lienzo
- * la acción `.github/workflows/excalidraw.yml` al subir una etiqueta
- * `excalidraw-v<versión>`, y desktop y Studio lo instalan desde esa descarga.
- * En local sirve para probar antes de publicar.
- * Solo lleva la build de producción y los tipos: la de desarrollo pesaba 28 MB
- * más y el fuente está aquí para depurar. Por eso la condición `development`
- * de sus `exports` apunta también a `dist/prod`.
+ * Salida en `vendor/excalidraw-dist/` (no va en git): un `.tgz` por paquete,
+ * hecho con `npm pack` sobre su propio `package.json` (sus `exports` y `files`
+ * tal cual, con la licencia MIT del original); solo cambian la versión y las
+ * dependencias internas. Lo publica `.github/workflows/excalidraw.yml`.
+ * Ver vendor/EXCALIDRAW.md.
  */
 import { execFileSync } from 'node:child_process';
-import { cpSync, existsSync, readFileSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const raiz = join(dirname(fileURLToPath(import.meta.url)), '..');
 const fuente = join(raiz, 'vendor', 'excalidraw');
-const paquete = join(fuente, 'packages', 'excalidraw');
 const salida = join(raiz, 'vendor', 'excalidraw-dist');
 const enWindows = process.platform === 'win32';
 
-/** Sufijo de versión: 0.18.1 → 0.18.1-polimake.N. Se sube a mano al cambiar el fuente. */
-const SUFIJO = 'polimake.2';
-/** La etiqueta del original sobre la que van nuestros parches. */
-const BASE = 'v0.18.1';
+/** Commit del original que hay en vendor/excalidraw (lo sube quien lo actualiza). */
+export const BASE = '82d5847e';
+/** Nuestra revisión sobre esa base. Se sube a mano al cambiar un parche. */
+export const REVISION = 3;
+/** Donde se publican los Releases. */
+const REPO = process.env.GITHUB_REPOSITORY || 'polimake/canvas';
+
+/** Lo que se publica, en orden de dependencias. */
+const PUBLICAR = ['common', 'fractional-indexing', 'math', 'element', 'excalidraw'];
+
+const leer = (p) => JSON.parse(readFileSync(p, 'utf8'));
+const versionDe = (dir) => `${leer(join(fuente, 'packages', dir, 'package.json')).version}-g${BASE}.polimake.${REVISION}`;
+
+export const version = versionDe('excalidraw');
+export const etiqueta = `excalidraw-v${version}`;
+
+if (process.argv.includes('--version')) {
+  console.log(`${version} ${etiqueta}`);
+  process.exit(0);
+}
 
 function correr(cmd, args, cwd) {
   console.log(`> ${cmd} ${args.join(' ')}  (${cwd.slice(raiz.length + 1) || '.'})`);
   execFileSync(cmd, args, { cwd, stdio: 'inherit', shell: enWindows });
 }
 
+const yarn = (args) => correr('npx', ['--yes', 'yarn@1.22.22', ...args], fuente);
+
 if (process.argv.includes('--instalar') || !existsSync(join(fuente, 'node_modules'))) {
-  // Su monorepo es yarn 1. `--ignore-engines`: pide node ≤22 y aquí hay 24;
-  // `--ignore-scripts`: su `prepare` instala husky, que no queremos.
-  // La caché de yarn va junto al fuente y se borra al acabar: por defecto
-  // vive en C:\…\AppData y son ~3 GB (el 13/11 llenó el disco C: entero).
+  // La caché de yarn va junto al fuente y se borra al acabar: por defecto vive
+  // en C:\…\AppData y son ~3 GB (el 13/11 llenó el disco C: entero).
   const cache = join(raiz, 'vendor', '.yarn-cache');
   process.env.YARN_CACHE_FOLDER = cache;
   try {
-    correr('npx', ['--yes', 'yarn@1.22.22', 'install', '--frozen-lockfile',
-      '--ignore-scripts', '--ignore-engines', '--network-timeout', '600000'], fuente);
+    // `--ignore-scripts`: su `prepare` instala husky, que no queremos.
+    yarn(['install', '--frozen-lockfile', '--ignore-scripts', '--network-timeout', '600000']);
   } finally {
     rmSync(cache, { recursive: true, force: true });
   }
 }
 
-// Lo mismo que su `build:esm`, sin `rm -rf` (no existe en Windows).
-rmSync(join(paquete, 'dist'), { recursive: true, force: true });
-correr('node', ['../../scripts/buildPackage.js'], paquete);
-// `--newLine lf`: en Windows tsc escribe CRLF y los tipos dejarían de ser
-// idénticos a los de npm (con LF, lo son byte a byte).
-correr('node', [join(fuente, 'node_modules', 'typescript', 'bin', 'tsc'), '--newLine', 'lf'], paquete);
-
-const original = JSON.parse(readFileSync(join(paquete, 'package.json'), 'utf8'));
+// Sus paquetes en orden, con su propio guion (common → … → excalidraw).
+yarn(['build:packages']);
 
 rmSync(salida, { recursive: true, force: true });
-mkdirSync(join(salida, 'dist'), { recursive: true });
-cpSync(join(paquete, 'dist', 'prod'), join(salida, 'dist', 'prod'), { recursive: true });
-cpSync(join(paquete, 'dist', 'types'), join(salida, 'dist', 'types'), { recursive: true });
-cpSync(join(fuente, 'LICENSE'), join(salida, 'LICENSE'));
+mkdirSync(salida, { recursive: true });
 
-const pkg = {
-  name: original.name,
-  version: `${original.version}-${SUFIJO}`,
-  description: `${original.description} — compilado por Polimake desde vendor/excalidraw`,
-  license: original.license,
-  repository: 'https://github.com/polimake/canvas',
-  type: original.type,
-  types: original.types,
-  main: original.main,
-  module: original.module,
-  exports: {
-    './*': { types: './dist/types/excalidraw/*.d.ts' },
-    './index.css': {
-      development: './dist/prod/index.css',
-      production: './dist/prod/index.css',
-      default: './dist/prod/index.css',
-    },
-    '.': {
-      types: './dist/types/excalidraw/index.d.ts',
-      development: './dist/prod/index.js',
-      production: './dist/prod/index.js',
-      default: './dist/prod/index.js',
-    },
-  },
-  dependencies: original.dependencies,
-  peerDependencies: original.peerDependencies,
-};
-writeFileSync(join(salida, 'package.json'), JSON.stringify(pkg, null, 2) + '\n');
-writeFileSync(join(salida, 'ORIGEN.json'), JSON.stringify({
-  fuente: 'vendor/excalidraw',
-  releases: 'https://github.com/polimake/canvas/releases',
-  upstream: 'https://github.com/excalidraw/excalidraw',
-  version: pkg.version,
-  base: BASE,
-}, null, 2) + '\n');
+const ficheroDe = (nombre, ver) => `${nombre.replace(/^@/, '').replace('/', '-')}-${ver}.tgz`;
+const nuestros = new Map(
+  PUBLICAR.map((dir) => {
+    const { name } = leer(join(fuente, 'packages', dir, 'package.json'));
+    const ver = versionDe(dir);
+    return [name, { dir, ver, url: `https://github.com/${REPO}/releases/download/${etiqueta}/${ficheroDe(name, ver)}` }];
+  }),
+);
 
-console.log(`\nListo: vendor/excalidraw-dist (${pkg.version}).`);
-console.log('Después: `pnpm install` aquí, y en desktop/Studio su install, para que cojan la copia nueva.');
+const apuntar = (deps) =>
+  deps && Object.fromEntries(Object.entries(deps).map(([k, v]) => [k, nuestros.get(k)?.url ?? v]));
+
+for (const [name, { dir, ver }] of nuestros) {
+  const origen = join(fuente, 'packages', dir);
+  const destino = join(salida, dir);
+  mkdirSync(destino, { recursive: true });
+  cpSync(join(origen, 'dist'), join(destino, 'dist'), { recursive: true });
+  for (const f of ['README.md', 'CHANGELOG.md']) {
+    if (existsSync(join(origen, f))) cpSync(join(origen, f), join(destino, f));
+  }
+  cpSync(join(fuente, 'LICENSE'), join(destino, 'LICENSE'));
+  const pkg = leer(join(origen, 'package.json'));
+  delete pkg.devDependencies;
+  delete pkg.scripts;
+  pkg.version = ver;
+  pkg.dependencies = apuntar(pkg.dependencies);
+  pkg.peerDependencies = apuntar(pkg.peerDependencies);
+  pkg.description = `${pkg.description ?? name} — compilado por Polimake desde excalidraw/excalidraw@${BASE} con sus parches`;
+  pkg.repository = `https://github.com/${REPO}`;
+  writeFileSync(join(destino, 'package.json'), JSON.stringify(pkg, null, 2) + '\n');
+  correr('npm', ['pack', destino, '--pack-destination', salida], raiz);
+}
+
+writeFileSync(
+  join(salida, 'paquetes.json'),
+  JSON.stringify({ version, etiqueta, base: BASE, paquetes: Object.fromEntries([...nuestros].map(([k, v]) => [k, v.url])) }, null, 2) + '\n',
+);
+console.log(`\nListo: ${etiqueta}`);
+for (const [name, { url }] of nuestros) console.log(`  ${name}: ${url}`);
