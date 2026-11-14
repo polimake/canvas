@@ -1057,14 +1057,13 @@ export function Canvas2Editor({
         UIOptions={{
           canvasActions: { saveAsImage: nativeImageExport },
           dockedSidebarBreakpoint,
-          // Opciones del parche de vendor/excalidraw. Antes se escondían con CSS:
-          // la Ayuda, las pistas de lienzo infinito («mantenga la rueda…») y el
-          // botón de su Biblioteca (la nuestra es otra; la barra lateral se queda
-          // porque el buscador del menú se abre en ella).
-          helpButton: false,
-          hints: false,
-          defaultSidebarTrigger: false,
         }}
+        // Piezas de su interfaz que no van en un editor de páginas (antes se
+        // escondían con CSS): la Ayuda, las pistas de lienzo infinito
+        // («mantenga la rueda…») y el botón de su Biblioteca (la nuestra es
+        // otra; la barra lateral se queda porque el buscador del menú se abre
+        // en ella). Las tres son del parche de vendor/excalidraw.
+        ui={{ disabled: { helpButton: true, hints: true, defaultSidebarTrigger: true } }}
         {...(sceneTheme ? { theme: sceneTheme } : {})}
         // Seleccionar no es un paso de deshacer, como en Canva (parche de
         // vendor/excalidraw; Mayúsculas+flecha a 10 px va en el mismo).
