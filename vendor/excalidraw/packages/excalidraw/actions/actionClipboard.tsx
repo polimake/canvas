@@ -1,5 +1,10 @@
-import { CODES, KEYS } from "../keys";
-import { register } from "./register";
+import { isTextElement } from "@excalidraw/element";
+import { getTextFromElements } from "@excalidraw/element";
+
+import { CODES, KEYS, isFirefox } from "@excalidraw/common";
+
+import { CaptureUpdateAction } from "@excalidraw/element";
+
 import {
   copyTextToSystemClipboard,
   copyToClipboard,
@@ -8,20 +13,19 @@ import {
   probablySupportsClipboardWriteText,
   readSystemClipboard,
 } from "../clipboard";
-import { actionDeleteSelected } from "./actionDeleteSelected";
-import { exportCanvas, prepareElementsForExport } from "../data/index";
-import { getTextFromElements, isTextElement } from "../element";
-import { t } from "../i18n";
-import { isFirefox } from "../constants";
 import { DuplicateIcon, cutIcon, pngIcon, svgIcon } from "../components/icons";
-import { CaptureUpdateAction } from "../store";
+import { exportCanvas, prepareElementsForExport } from "../data/index";
+import { t } from "../i18n";
 
-export const actionCopy = register({
+import { actionDeleteSelected } from "./actionDeleteSelected";
+import { register } from "./register";
+
+export const actionCopy = register<ClipboardEvent | null>({
   name: "copy",
   label: "labels.copy",
   icon: DuplicateIcon,
   trackEvent: { category: "element" },
-  perform: async (elements, appState, event: ClipboardEvent | null, app) => {
+  perform: async (elements, appState, event, app) => {
     const elementsToCopy = app.scene.getSelectedElements({
       selectedElementIds: appState.selectedElementIds,
       includeBoundTextElement: true,
@@ -85,7 +89,7 @@ export const actionPaste = register({
     }
 
     try {
-      app.pasteFromClipboard(createPasteEvent({ types }));
+      app.clipboard.pasteFromClipboard(createPasteEvent({ types }));
     } catch (error: any) {
       console.error(error);
       return {
@@ -105,14 +109,20 @@ export const actionPaste = register({
   keyTest: undefined,
 });
 
-export const actionCut = register({
+export const actionCut = register<ClipboardEvent | null>({
   name: "cut",
   label: "labels.cut",
   icon: cutIcon,
   trackEvent: { category: "element" },
-  perform: (elements, appState, event: ClipboardEvent | null, app) => {
+  perform: (elements, appState, event, app) => {
     actionCopy.perform(elements, appState, event, app);
-    return actionDeleteSelected.perform(elements, appState, null, app);
+    // the cut frame's children are on the clipboard with it, so go with it
+    return actionDeleteSelected.perform(
+      elements,
+      appState,
+      { withFrameChildren: true },
+      app,
+    );
   },
   keyTest: (event) => event[KEYS.CTRL_OR_CMD] && event.key === KEYS.X,
 });
@@ -142,9 +152,9 @@ export const actionCopyAsSvg = register({
         appState,
         app.files,
         {
-          ...appState,
           exportingFrame,
           name: app.getName(),
+          renderEnvironment: app.renderEnvironment,
         },
       );
 
@@ -209,9 +219,9 @@ export const actionCopyAsPng = register({
     );
     try {
       await exportCanvas("clipboard", exportedElements, appState, app.files, {
-        ...appState,
         exportingFrame,
         name: app.getName(),
+        renderEnvironment: app.renderEnvironment,
       });
       return {
         appState: {

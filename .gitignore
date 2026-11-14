@@ -13,3 +13,6 @@ artifacts/
 
 # Caché de yarn de scripts/excalidraw.mjs (se borra sola al acabar)
 vendor/.yarn-cache/
+
+# Excalidraw compilado: se publica como Release (.github/workflows/excalidraw.yml), no va en git
+vendor/excalidraw-dist/

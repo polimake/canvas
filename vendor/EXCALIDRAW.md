@@ -1,70 +1,86 @@
 # Excalidraw, desde el fuente
 
-El lienzo no usa el `@excalidraw/excalidraw` de npm: lo compila desde aquí.
-Así podemos parchearlo y traer sus cambios cuando queramos, sin esperar a que
-publiquen (npm se quedó en la 0.18.1 de abril; su rama principal va cientos de
-commits por delante).
+El lienzo no usa el `@excalidraw/excalidraw` de npm (que se quedó en la 0.18.1
+de abril): usa **su rama principal con nuestros parches encima**, compilada por
+nosotros y publicada como Release público de este repo. Así lo que antes se
+rodeaba desde fuera se arregla en su código, y vamos siempre con lo último.
 
 | Carpeta | Qué es | En git |
 |---|---|---|
-| `excalidraw/` | Su monorepo entero, como `git subtree` del fork | sí |
-| `excalidraw-dist/` | El paquete compilado que consumen desktop y Studio | sí, como nuestro `dist/` |
+| `excalidraw/` | Su monorepo (`git subtree` de `excalidraw/excalidraw@master`) con nuestros parches | sí |
+| `excalidraw-dist/` | Los paquetes compilados en local o en CI | no |
 | `excalidraw/node_modules` | Sus dependencias de compilación (yarn 1) | no |
 
-## El fork
+## Cómo llega a desktop y Studio
 
-`github.com/polimake/excalidraw`, público, MIT como el original.
+Desde que upstream separó el código en paquetes, `@excalidraw/excalidraw` pide
+`@excalidraw/common`, `element`, `math` y `fractional-indexing` por fuera, y
+los de npm son de otra época. `scripts/excalidraw.mjs` compila con su
+`build:packages` y empaqueta los cinco con `npm pack` sobre su propio
+`package.json` (sus `exports` y `files` tal cual, con la licencia MIT): solo
+cambian la versión y las dependencias internas, que apuntan a la URL del mismo
+Release. Versión: `<su versión>-g<commit base>.polimake.<revisión>`.
 
-- `master` sigue al original tal cual. No se toca.
-- `polimake` es la que usamos: el original más nuestros parches, **un commit
-  por parche**, con su porqué en el mensaje.
+El lienzo depende solo de `@excalidraw/excalidraw` por su URL; él trae el resto:
 
-## Compilar
-
-```sh
-node scripts/excalidraw.mjs        # compila y deja excalidraw-dist/
-pnpm install                        # el lienzo coge la copia nueva
+```json
+"@excalidraw/excalidraw": "https://github.com/polimake/canvas/releases/download/excalidraw-v<versión>/excalidraw-excalidraw-<versión>.tgz"
 ```
 
-La primera vez instala sus dependencias con yarn 1 (tarda: trae también las de
-su app web). Después, `pnpm build` del lienzo como siempre, y en desktop o
-Studio su install para que se enteren.
+## Al día, solo
 
-Solo va la build de producción y los tipos. La condición `development` apunta
-también a producción: la de desarrollo eran 28 MB más, y para depurar está el
-fuente.
+`.github/workflows/excalidraw-al-dia.yml` (en `main`, porque las programadas
+solo corren desde la rama por defecto) cada día a las 4:17 UTC:
+
+1. Mira si `excalidraw/excalidraw@master` tiene commits nuevos.
+2. Los trae con `git subtree pull --squash`. Si chocan con un parche nuestro,
+   **abre un issue** con los ficheros y se para.
+3. Compila y publica el Release como prerelease.
+4. Apunta el lienzo a la versión nueva y pasa typecheck, lint, pruebas, build
+   (rehace `dist/`) y `verify:build`.
+5. Si todo pasa, lo sube a `lienzo/unido` y marca el Release como estable. Si
+   falla, **abre un issue** y no toca la rama.
+
+Desktop y Studio fijan el lienzo por commit: lo cogen al subir su puntero.
+
+A mano: «Run workflow» con `forzar` recompila aunque no haya commits nuevos
+(sube la revisión).
 
 ## Parchear
 
-1. Editar en `excalidraw/packages/…`.
-2. Subir `SUFIJO` en `scripts/excalidraw.mjs` (`polimake.0` → `polimake.1`).
-3. `node scripts/excalidraw.mjs`, probar, commit en el lienzo.
-4. Llevarlo al fork:
-   `git subtree push --prefix=vendor/excalidraw https://github.com/polimake/excalidraw.git polimake`
+1. Editar en `excalidraw/packages/…`. Un commit por parche, solo con ficheros
+   de `vendor/excalidraw` («Excalidraw: …», con el porqué). Lo que cambia en el
+   lienzo por ese parche, en otro commit («Lienzo: …»).
+2. Subir `REVISION` en `scripts/excalidraw.mjs`.
+3. Publicar: `git tag excalidraw-v<versión> && git push origin excalidraw-v<versión>`
+   (`node scripts/excalidraw.mjs --version` dice cuál). Lo compila
+   `.github/workflows/excalidraw.yml`.
+4. Cambiar la URL de la dependencia, `pnpm install`, commit. El CI del lienzo
+   pasa typecheck y pruebas con ella.
 
 Lo que no sea solo nuestro se les manda también como PR al original: cuanto
-menos nos separemos, menos cuesta ponerse al día.
+menos nos separemos, menos choques al traer lo suyo.
 
-## Traer lo suyo
+## Parches (sobre master `82d5847e`)
 
-1. En el fork, `master` al día con el original y mezclado en `polimake`.
-   Antes, leer sus commits nuevos y quedarse con lo que interesa.
-2. `git subtree pull --prefix=vendor/excalidraw https://github.com/polimake/excalidraw.git polimake --squash`
-3. Compilar, `pnpm typecheck` y pruebas. Lo que rompa su API se arregla en
-   `src/core/excal.ts`, que sigue siendo el único fichero que lo importa.
-
-## Parches
-
-La base es la 0.18.1 tal cual (`polimake.0`), que sale idéntica byte a byte a
-la de npm. Encima:
-
-| Versión | Parche | Dónde |
+| Parche | Dónde | Qué deja de hacer el lienzo |
 |---|---|---|
-| `polimake.1` | Marco con esquinas rectas (`FRAME_STYLE.radius` 8 → 0): un marco es una página. Studio lo parcheaba sobre el dist de npm. | `packages/excalidraw/constants.ts` |
+| Marco con esquinas rectas (`FRAME_STYLE.radius` 8 → 0) y Mayúsculas+flecha a 10 px | `common/src/constants.ts` | El `pnpm patch` de Studio y la acción Mayúsculas+flecha propia. |
+| `historyIgnoresSelection`: seleccionar no es un paso de deshacer; deshacer no se queda a medio paso con un texto vacío | `excalidraw/history.ts` | `core/gestures.ts` y `ui/editor/canvaGestures.tsx` (~540 líneas). |
+| `ui.disabled.helpButton`, `.hints`, `.defaultSidebarTrigger`; «Generate» y Mermaid siguen a `aiEnabled`; «Marco» y «Buscar en el lienzo» en es-ES | `types.ts`, `Toolbar`, `Footer`, `LayerUI`, `MobileMenu`, `es-ES.json` | ~55 líneas de CSS con `!important` y los rótulos pintados con `::after`. |
+| `renderToolbarExtra`: un hueco al final de la barra de herramientas | `Toolbar.tsx` | `ToolbarSlot.tsx` (portal con MutationObserver). |
 
-Candidatos, de más a menos código que nos ahorran:
+Ya resuelto en upstream: el Ctrl+D que dejaba a la copia el índice del original
+(fuera `core/duplicate.ts`), y el aviso de escena cargada (`onInitialize`).
 
-- Sacar su historial por la API (hoy `src/core/gestures.ts` sustituye deshacer y rehacer).
-- Poder borrar entradas del mapa de ficheros (`src/core/media.ts`).
-- Medidas reales de nuestras fuentes y nuestras familias en su selector (`src/core/fonts.ts`).
-- Vídeo como elemento propio (`src/core/video.ts`).
+Pendientes, para hacer con pruebas en la app:
+
+- Arranque de páginas con `onInitialize` (upstream) en lugar del sondeo. Ojo:
+  si falla, se crea una página en blanco que el autoguardado persiste.
+- Modo oscuro sin invertir el diseño (hoy `sceneTheme` + ~85 líneas de CSS).
+- Fuentes de marca: registro público con métricas reales.
+- `pickElement` (qué coge un clic) y Escape que cancela un arrastre.
+
+Descartados: `deleteFiles` (deshacer puede volver al id viejo y la foto
+desaparecería) y lo que es producto, no limitación: páginas y orden,
+conversores, `pick.ts`, el menú, el vídeo como imagen.

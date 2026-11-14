@@ -30,7 +30,7 @@
  * medias, y deshacer el arrastre dejaría lo movido a medio camino.
  */
 import { flushSync } from 'react-dom';
-import { CaptureUpdateAction, type ExcalidrawImperativeAPI, type SceneElement } from '../../core/excal';
+import { CaptureUpdateAction, type AnySceneElement, type ExcalidrawImperativeAPI, type SceneElement } from '../../core/excal';
 import { commitElements, patchElement } from '../../core/mutate';
 
 /** Ancho, en px de pantalla, de la franja del borde que desplaza la vista. */
@@ -77,7 +77,7 @@ function sameElement(a: Record<string, unknown>, b: Record<string, unknown>): bo
 }
 
 /** Copia de la escena que sobrevive a `mutateElement`, que cambia los elementos en el sitio. */
-export function snapshotElements(elements: readonly SceneElement[]): El[] {
+export function snapshotElements(elements: readonly AnySceneElement[]): El[] {
   return elements.map((e) => {
     const copy = { ...(e as El) };
     const points = (e as { points?: unknown }).points;
@@ -92,7 +92,7 @@ export function snapshotElements(elements: readonly SceneElement[]): El[] {
  * en el gesto (Alt+arrastrar duplica) se va. Lo que no cambió se queda tal cual,
  * mismo objeto. Devuelve null si no hay nada que devolver.
  */
-export function restoreElements(current: readonly SceneElement[], snapshot: readonly El[]): SceneElement[] | null {
+export function restoreElements(current: readonly AnySceneElement[], snapshot: readonly El[]): SceneElement[] | null {
   const now = new Map(current.map((e) => [e.id, e as El]));
   let changed = current.length !== snapshot.length;
   const next = snapshot.map((before) => {
@@ -108,7 +108,7 @@ export function restoreElements(current: readonly SceneElement[], snapshot: read
   });
   if (!changed) {
     // Mismos ids y en el mismo orden, y ninguno cambió.
-    for (let i = 0; i < next.length; i++) if (next[i] !== current[i]) return next;
+    for (let i = 0; i < next.length; i++) if (next[i] !== (current[i] as unknown)) return next;
     return null;
   }
   return next;
@@ -151,7 +151,7 @@ interface Gesture {
   edgeSince: number | null;
 }
 
-function contentBounds(elements: readonly SceneElement[], skip: Record<string, true>) {
+function contentBounds(elements: readonly AnySceneElement[], skip: Record<string, true>) {
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;

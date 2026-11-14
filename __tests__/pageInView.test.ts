@@ -12,7 +12,7 @@ const H = 1350;
 const page = (i: number) => ({ id: `p${i + 1}`, type: 'frame', x: i * (W + PAGE_GAP), y: 0, width: W, height: H });
 
 /**
- * Lo que deja a la vista `goToPage` (`scrollToContent` con `fitToViewport` al
+ * Lo que deja a la vista `goToPage` (`setViewport` con `fit: 'contain'` al
  * 72 %) en un lienzo de `vw` × `vh` px: la página centrada y su alto al 72 %.
  */
 function boundsAfterGoTo(p: { x: number; y: number; width: number; height: number }, vw: number, vh: number) {

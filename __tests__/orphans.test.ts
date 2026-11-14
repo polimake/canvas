@@ -131,17 +131,17 @@ describe('fitAllPages', () => {
       frame('p2', 20, 0, 10, 10),
       member('x', 'p1', 0, 0, 5, 5),
     ]);
-    api.scrollToContent = vi.fn();
+    api.setViewport = vi.fn();
     fitAllPages(api);
-    const [target, opts] = api.scrollToContent.mock.calls[0];
-    expect(target.map((f: { id: string }) => f.id)).toEqual(['p1', 'p2']);
-    expect(opts.fitToViewport).toBe(true);
+    const [opts] = api.setViewport.mock.calls[0];
+    expect(opts.target.map((f: { id: string }) => f.id)).toEqual(['p1', 'p2']);
+    expect(opts.fit).toBe('contain');
   });
 
   it('sin páginas no hace nada', () => {
     const { api } = fakeApi([]);
-    api.scrollToContent = vi.fn();
+    api.setViewport = vi.fn();
     fitAllPages(api);
-    expect(api.scrollToContent).not.toHaveBeenCalled();
+    expect(api.setViewport).not.toHaveBeenCalled();
   });
 });

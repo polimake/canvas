@@ -26,11 +26,9 @@ import { WorkspaceLayout } from '../workspaces/WorkspaceLayout';
 import type { CanvasWorkspace, WorkspacePanel } from '../workspaces/types';
 import { readWorkspace, saveWorkspace } from '../workspaces/preference';
 import { useIsNarrow } from '../hooks/narrow';
-import { ToolbarSlot } from './ToolbarSlot';
 import type { FilesMap } from '../hooks/pageThumbnails';
 import { addPage, createBlankScene, goToPage, listPages, pageInView, relayoutPages, type PageSize } from '../../core/pages';
 import { commitElements } from '../../core/mutate';
-import { indexDuplicates } from '../../core/duplicate';
 import { ensurePagePapers, hasRaisedPaper } from '../../core/background';
 import { resolveBrandKit, type BrandKitInput, type Canvas2Brand } from '../../core/brand';
 import { buildFontFaceCss, dedupeFontFaces, type CustomFontFace } from '../../core/fonts';
@@ -39,7 +37,6 @@ import { mergeLabels, type PartialLabels } from '../shared/labels';
 import { copyDropEffect } from '../shared/dropEffect';
 import { imageAtScenePoint, type ImageHit } from '../../core/media';
 import { palette } from '../shared/theme';
-import { installCanvaGestures } from './canvaGestures';
 import { installKeyRouting } from './keyRouting';
 import { installCanvaPick } from './canvaPick';
 import { installCanvaDrag } from './canvaDrag';
@@ -751,12 +748,6 @@ export function Canvas2Editor({
     // el salto.
   }, [openingPageId]);
 
-  // Deshacer sin pasos de selección y Mayúsculas+flecha a 10 px, como Canva.
-  // En un efecto y no en `excalidrawAPI`: ver installCanvaGestures.
-  useEffect(() => {
-    if (api) installCanvaGestures(api);
-  }, [api]);
-
   // Pulsar coge lo que se ve bajo el puntero, como en Canva: lo de encima
   // aunque haya otra cosa seleccionada debajo, lo de debajo si lo de encima
   // solo lo roza, lo pegado al borde de una página y no la página (ver
@@ -934,6 +925,29 @@ export function Canvas2Editor({
     })),
     ...(workspace === 'excalidraw' && !viewMode ? toolbarActions ?? [] : []),
   ];
+  // Al final de la píldora de herramientas de Excalidraw (`renderToolbarExtra`,
+  // parche de vendor/excalidraw). La función solo cambia cuando cambia lo que
+  // se ve: Excalidraw es un `memo` y una función nueva en cada render lo
+  // repintaría entero. Los clics leen la acción viva por su id.
+  const pillActionsRef = useRef(pillActions);
+  pillActionsRef.current = pillActions;
+  const pillKey = narrow ? '' : JSON.stringify(pillActions.map(a => [a.id, a.label, a.pressed ?? null]));
+  const renderToolbarExtra = useCallback(() => {
+    const actions = pillKey && pillKey !== '[]' ? pillActionsRef.current : [];
+    if (!actions.length) return null;
+    return (
+      <>
+        <span className="canvas2-toolbar-divider" aria-hidden="true" />
+        {actions.map(action => (
+          <button key={action.id} type="button" className="canvas2-toolbar-text"
+            aria-pressed={action.pressed ?? undefined}
+            onClick={() => pillActionsRef.current.find(a => a.id === action.id)?.onSelect()}>
+            {action.label}
+          </button>
+        ))}
+      </>
+    );
+  }, [pillKey]);
 
   return (
     <WorkspaceLayout className={className} workspace={workspace}
@@ -950,11 +964,7 @@ export function Canvas2Editor({
       data-canvas2-narrow={narrow ? '' : undefined}
       // Al mirar o comentar no hay menú arriba a la izquierda: solo al editar.
       data-canvas2-readonly={viewMode ? '' : undefined}
-      // `--c2-frame-tool` y `--c2-find-on-canvas`: los rótulos de dos entradas de
-      // los menús de Excalidraw que su español no traduce; los pinta canvas2.css.
-      style={{ position: 'relative', width: '100%', height: '100%',
-        ['--c2-frame-tool' as string]: JSON.stringify(L.workspace.frameTool),
-        ['--c2-find-on-canvas' as string]: JSON.stringify(L.workspace.findOnCanvas) }}
+      style={{ position: 'relative', width: '100%', height: '100%' }}
       // Soltar desde la biblioteca. Se escucha en el envoltorio y no dentro de
       // Excalidraw porque su lienzo ya tiene su propio manejador de drop (para
       // ficheros del sistema) y no admite tipos ajenos.
@@ -1048,12 +1058,20 @@ export function Canvas2Editor({
           canvasActions: { saveAsImage: nativeImageExport },
           dockedSidebarBreakpoint,
         }}
+        // Piezas de su interfaz que no van en un editor de páginas (antes se
+        // escondían con CSS): la Ayuda, las pistas de lienzo infinito
+        // («mantenga la rueda…») y el botón de su Biblioteca (la nuestra es
+        // otra; la barra lateral se queda porque el buscador del menú se abre
+        // en ella). Las tres son del parche de vendor/excalidraw.
+        ui={{ disabled: { helpButton: true, hints: true, defaultSidebarTrigger: true } }}
         {...(sceneTheme ? { theme: sceneTheme } : {})}
-        // El Ctrl+D de Excalidraw deja a la copia el índice del original; en la
-        // build de desarrollo eso lanza y el duplicado se pierde (ver
-        // `core/duplicate.ts`).
-        onDuplicate={(next, prev) => indexDuplicates(next, prev)}
-        excalidrawAPI={(instance) => {
+        // Seleccionar no es un paso de deshacer, como en Canva (parche de
+        // vendor/excalidraw; Mayúsculas+flecha a 10 px va en el mismo).
+        historyIgnoresSelection
+        renderToolbarExtra={renderToolbarExtra}
+        // Upstream lo llama también con `null` al desmontar.
+        onExcalidrawAPI={(instance) => {
+          if (!instance) return;
           apiRef.current = instance;
           setApi(instance);
           onReady?.(instance, { flushSceneChange: emitScene.flush });
@@ -1196,17 +1214,6 @@ export function Canvas2Editor({
           labels={labels}
         />
       )}
-      {pillActions.length > 0 && !narrow ? (
-        <ToolbarSlot root={rootRef}>
-          <span className="canvas2-toolbar-divider" aria-hidden="true" />
-          {pillActions.map(action => (
-            <button key={action.id} type="button" className="canvas2-toolbar-text"
-              aria-pressed={action.pressed ?? undefined} onClick={action.onSelect}>
-              {action.label}
-            </button>
-          ))}
-        </ToolbarSlot>
-      ) : null}
       {rightEdge && !narrow ? (
         <div
           data-canvas2-right-edge=""

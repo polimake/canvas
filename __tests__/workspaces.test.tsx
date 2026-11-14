@@ -18,10 +18,10 @@ vi.mock('../src/core/excal', () => ({
     Separator: () => null,
     DefaultItems: Object.fromEntries(['LoadScene', 'SaveToActiveFile', 'Export', 'SaveAsImage', 'ClearCanvas', 'SearchMenu', 'ToggleTheme', 'Help'].map(name => [name, () => null])),
   }),
-  Excalidraw: function Engine({ excalidrawAPI, children, gridModeEnabled, theme }: { excalidrawAPI: (api: unknown) => void; children: ReactNode; gridModeEnabled?: boolean; theme?: string }) {
+  Excalidraw: function Engine({ onExcalidrawAPI, children, gridModeEnabled, theme }: { onExcalidrawAPI: (api: unknown) => void; children: ReactNode; gridModeEnabled?: boolean; theme?: string }) {
     useEffect(() => {
       mounted();
-      excalidrawAPI(engine.api);
+      onExcalidrawAPI(engine.api);
       return unmounted;
     }, []);
     return <div data-testid="engine" data-grid={gridModeEnabled} data-theme={theme}>{children}</div>;
@@ -97,19 +97,6 @@ describe('workspace switching', () => {
     expect(screen.getByRole('complementary')).toBeTruthy();
   });
 
-  // Excalidraw's Spanish has no string for its frame tool, so the menu entry read
-  // "Frame tool" in a Spanish editor. The stylesheet paints the editor's own label
-  // over it, and reads it from this custom property.
-  it('hands the frame tool label to the stylesheet in the editor language', () => {
-    const { container, rerender } = render(<Canvas2Editor />);
-    const root = () => container.querySelector('[data-canvas2]') as HTMLElement;
-    expect(root().style.getPropertyValue('--c2-frame-tool')).toBe('"Marco"');
-    expect(root().style.getPropertyValue('--c2-find-on-canvas')).toBe('"Buscar en el lienzo"');
-    rerender(<Canvas2Editor labels={{ workspace: { frameTool: 'Frame tool', findOnCanvas: 'Find on canvas' } }} />);
-    expect(root().style.getPropertyValue('--c2-frame-tool')).toBe('"Frame tool"');
-    expect(root().style.getPropertyValue('--c2-find-on-canvas')).toBe('"Find on canvas"');
-  });
-
   it('keeps workspace choices and host insertion slots out of read-only previews', () => {
     render(<Canvas2Editor viewMode library={<div>Assets</div>} componentsPanel={<div>Components</div>}
       agentPanel={<div>Agent conversation</div>} />);
@@ -163,13 +150,13 @@ describe('workspace switching', () => {
 it('waits for hydration and opens the page selected in the preview', () => {
   const frames = [frame('p1', 0, 0, 300, 400), frame('p2', 420, 0, 300, 400), frame('p3', 840, 0, 300, 400)];
   engine = fakeApi([]);
-  const scroll = vi.spyOn(engine.api, 'scrollToContent');
+  const scroll = vi.spyOn(engine.api, 'setViewport');
   const active = vi.fn();
   render(<Canvas2Editor pages initialScene={{ elements: frames as never }} initialPageIndex={2} onActivePageChange={active} />);
   expect(scroll).not.toHaveBeenCalled();
   expect(engine.get()).toEqual([]);
   act(() => { engine.api.updateScene({ elements: frames }); });
-  expect(scroll).toHaveBeenCalledWith(expect.objectContaining({ id: 'p3' }), expect.anything());
+  expect(scroll).toHaveBeenCalledWith(expect.objectContaining({ target: expect.objectContaining({ id: 'p3' }) }));
   expect(active).toHaveBeenLastCalledWith('p3');
   expect(engine.get().filter((element) => element.type === 'frame')).toHaveLength(3);
 });

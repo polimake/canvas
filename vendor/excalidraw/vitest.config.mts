@@ -6,6 +6,22 @@ export default defineConfig({
   resolve: {
     alias: [
       {
+        find: /^@excalidraw\/common$/,
+        replacement: path.resolve(__dirname, "./packages/common/src/index.ts"),
+      },
+      {
+        find: /^@excalidraw\/common\/(.*?)/,
+        replacement: path.resolve(__dirname, "./packages/common/src/$1"),
+      },
+      {
+        find: /^@excalidraw\/element$/,
+        replacement: path.resolve(__dirname, "./packages/element/src/index.ts"),
+      },
+      {
+        find: /^@excalidraw\/element\/(.*?)/,
+        replacement: path.resolve(__dirname, "./packages/element/src/$1"),
+      },
+      {
         find: /^@excalidraw\/excalidraw$/,
         replacement: path.resolve(__dirname, "./packages/excalidraw/index.tsx"),
       },
@@ -14,20 +30,45 @@ export default defineConfig({
         replacement: path.resolve(__dirname, "./packages/excalidraw/$1"),
       },
       {
-        find: /^@excalidraw\/utils$/,
-        replacement: path.resolve(__dirname, "./packages/utils/index.ts"),
-      },
-      {
-        find: /^@excalidraw\/utils\/(.*?)/,
-        replacement: path.resolve(__dirname, "./packages/utils/$1"),
-      },
-      {
         find: /^@excalidraw\/math$/,
-        replacement: path.resolve(__dirname, "./packages/math/index.ts"),
+        replacement: path.resolve(__dirname, "./packages/math/src/index.ts"),
       },
       {
         find: /^@excalidraw\/math\/(.*?)/,
-        replacement: path.resolve(__dirname, "./packages/math/$1"),
+        replacement: path.resolve(__dirname, "./packages/math/src/$1"),
+      },
+      {
+        find: /^@excalidraw\/utils$/,
+        replacement: path.resolve(__dirname, "./packages/utils/src/index.ts"),
+      },
+      {
+        find: /^@excalidraw\/utils\/(.*?)/,
+        replacement: path.resolve(__dirname, "./packages/utils/src/$1"),
+      },
+      {
+        find: /^@excalidraw\/fractional-indexing$/,
+        replacement: path.resolve(
+          __dirname,
+          "./packages/fractional-indexing/src/index.ts",
+        ),
+      },
+      {
+        find: /^@excalidraw\/fractional-indexing\/(.*?)/,
+        replacement: path.resolve(
+          __dirname,
+          "./packages/fractional-indexing/src/$1",
+        ),
+      },
+      {
+        find: /^@excalidraw\/laser-pointer$/,
+        replacement: path.resolve(
+          __dirname,
+          "./packages/laser-pointer/src/index.ts",
+        ),
+      },
+      {
+        find: /^@excalidraw\/laser-pointer\/(.*?)/,
+        replacement: path.resolve(__dirname, "./packages/laser-pointer/src/$1"),
       },
     ],
   },
@@ -41,6 +82,8 @@ export default defineConfig({
     setupFiles: ["./setupTests.ts"],
     globals: true,
     environment: "jsdom",
+    // don't list skipped tests in the failure tree — keeps output readable
+    hideSkippedTests: true,
     coverage: {
       reporter: ["text", "json-summary", "json", "html", "lcovonly"],
       // Since v2, it ignores empty lines by default and we need to disable it as it affects the coverage

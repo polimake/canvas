@@ -1,6 +1,7 @@
 import {
   CaptureUpdateAction,
   newElementWith,
+  type AnySceneElement,
   type ExcalidrawImperativeAPI,
   type SceneElement,
   type SceneElements,
@@ -73,7 +74,7 @@ export function asSceneElements(elements: readonly SceneElement[]): SceneElement
  * `'never'`— en el commit que toca.
  */
 export function detachMoved(
-  current: readonly SceneElement[],
+  current: readonly AnySceneElement[],
   next: readonly SceneElement[],
 ): readonly SceneElement[] {
   // El tramo que cambia de orden: lo que está en las dos listas, comparado en
@@ -88,7 +89,7 @@ export function detachMoved(
   let hi = after.length - 1;
   while (hi > lo && after[hi] === before[hi]) hi--;
   const moved = new Set(lo < after.length ? after.slice(lo, hi + 1) : []);
-  const live = new Set(current);
+  const live = new Set<unknown>(current);
   let out: SceneElement[] | null = null;
   for (let i = 0; i < next.length; i++) {
     const el = next[i];

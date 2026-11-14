@@ -24,14 +24,14 @@ vi.mock('../src/core/excal', () => ({
    *    → `onCancel`). Ese `setState` es el que React no admite a mitad de un
    *    render.
    */
-  Excalidraw: class Engine extends Component<{ excalidrawAPI: (api: unknown) => void }> {
+  Excalidraw: class Engine extends Component<{ onExcalidrawAPI: (api: unknown) => void }> {
     state = { hidratado: false, canceladas: 0 };
     cancelar: (() => void) | null = null;
     api = {
       ...engine.api,
-      scrollToContent: (destino: { id: string }) => {
+      setViewport: ({ target }: { target: { id: string } }) => {
         this.cancelar?.();
-        saltos.push(destino.id);
+        saltos.push(target.id);
         this.cancelar = () => {
           this.cancelar = null;
           this.setState({ canceladas: this.state.canceladas + 1 });
@@ -40,7 +40,7 @@ vi.mock('../src/core/excal', () => ({
     };
     componentDidMount() {
       hidratar = () => this.setState({ hidratado: true });
-      this.props.excalidrawAPI(this.api);
+      this.props.onExcalidrawAPI(this.api);
     }
     componentDidUpdate(_: unknown, antes: { hidratado: boolean }) {
       if (this.state.hidratado && !antes.hidratado) engine.notify();

@@ -33,10 +33,15 @@ export interface Canvas2Labels {
     panels: string;
     showPanels: string;
     hidePanels: string;
-    /** La herramienta de marcos de «Más herramientas»: Excalidraw no la trae en español. */
-    frameTool: string;
-    /** «Find on canvas» del menú principal: tampoco la trae. */
-    findOnCanvas: string;
+    /**
+     * Sin uso: Excalidraw ya trae «Marco» y «Buscar en el lienzo» en español
+     * (parche de vendor/excalidraw). Se quedan solo para que los hosts que aún
+     * los pasan (el desktop) no dejen de compilar; se quitarán con ellos.
+     * @deprecated
+     */
+    frameTool?: string;
+    /** @deprecated Ver `frameTool`. */
+    findOnCanvas?: string;
     /** El tema del lienzo en el menú (`themeChoice`): el grupo y sus tres opciones. */
     theme: string;
     themeApp: string;

@@ -79,8 +79,11 @@ export const EXCALIDRAW_BUILTIN_FAMILIES: readonly string[] = [
   'Lilita One',
   'Comic Shanns',
   'Liberation Sans',
-  // FONT_FAMILY_FALLBACKS
+  'Assistant',
+  // FONT_FAMILY_FALLBACKS (con los genéricos que upstream añadió delante del emoji)
   'Xiaolai',
+  'sans-serif',
+  'monospace',
   'Segoe UI Emoji',
 ];
 

@@ -215,7 +215,7 @@ export function CanvasMenu({
         </>}
         {themeItems}
       <MainMenu.DefaultItems.SearchMenu />
-        <MainMenu.DefaultItems.ToggleTheme />
+        <MainMenu.DefaultItems.ToggleTheme allowSystemTheme={false} />
         <MainMenu.DefaultItems.Help />
       </MainMenu>
     );
@@ -286,7 +286,7 @@ export function CanvasMenu({
       <MainMenu.Separator />
       {themeItems}
       <MainMenu.DefaultItems.SearchMenu />
-      <MainMenu.DefaultItems.ToggleTheme />
+      <MainMenu.DefaultItems.ToggleTheme allowSystemTheme={false} />
       <MainMenu.DefaultItems.Help />
     </MainMenu>
   );

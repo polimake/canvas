@@ -25,15 +25,7 @@ export {
   MainMenu,
   CaptureUpdateAction,
   convertToExcalidrawElements,
-  exportToBlob,
-  exportToCanvas,
-  exportToSvg,
   serializeAsJSON,
-  // Escena GUARDADA → escena válida: rellena lo que un fichero puede no traer
-  // (índices fraccionarios, alturas de línea, defaults de appState). El editor
-  // lo hace solo con `initialData`; quien renderiza una escena sin montar el
-  // editor —las miniaturas de la galería— tiene que llamarlo a mano.
-  restore,
   // Excalidraw's own immutable element patch — bumps version/versionNonce so
   // the history store actually records the change (see src/mutate.ts).
   newElementWith,
@@ -47,9 +39,6 @@ export {
   // secuestra para la marca pero no puede resolver su id sin importar
   // Excalidraw, así que la traducción ocurre aquí y en un solo sitio.
   FONT_FAMILY,
-  // Textos de Excalidraw en su idioma: los botones de deshacer que el lienzo
-  // repone (ui/editor/canvaGestures.tsx) usan sus mismas etiquetas.
-  useI18n,
 } from '@excalidraw/excalidraw';
 
 // ─── Types (public entry) ─────────────────────────────────────────────────────
@@ -58,14 +47,127 @@ export type {
   ExcalidrawInitialDataState,
 } from '@excalidraw/excalidraw/types';
 
-import type { ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
+import type { BinaryFiles, ExcalidrawImperativeAPI } from '@excalidraw/excalidraw/types';
+import {
+  exportScene,
+  restoreAppState,
+  restoreElements,
+  type ExportSceneConfig,
+  type ExportSceneData,
+} from '@excalidraw/excalidraw';
 
 // ─── Canonical derived aliases (single source for the whole package) ──────────
-/** One element as returned by the live scene. */
+/** One element as returned by the live scene (no borrados). */
 export type SceneElement = ReturnType<ExcalidrawImperativeAPI['getSceneElements']>[number];
+/**
+ * Un elemento con los borrados incluidos (`getSceneElementsIncludingDeleted`).
+ * Upstream estrechó `getSceneElements` a `NonDeleted<…>`; lo que trabaja sobre
+ * la escena entera, borrados incluidos, usa este.
+ */
+export type AnySceneElement = ReturnType<ExcalidrawImperativeAPI['getSceneElementsIncludingDeleted']>[number];
 /** The elements array accepted by `updateScene`. */
 export type SceneElements = Parameters<ExcalidrawImperativeAPI['updateScene']>[0]['elements'];
 /** El estado de la escena (appState) tal como lo devuelve el API en vivo. */
 export type SceneAppState = ReturnType<ExcalidrawImperativeAPI['getAppState']>;
 /** A frame element (our "page"). */
 export type FrameElement = Extract<SceneElement, { type: 'frame' }>;
+
+// ─── Exportar y restaurar, con la forma de antes ──────────────────────────────
+//
+// Upstream juntó `exportToBlob`, `exportToCanvas` y `exportToSvg` en
+// `exportScene({ type, data, config })`, y partió `restore` en
+// `restoreElements` y `restoreAppState`. Aquí se conservan las cuatro con la
+// firma que usa el resto del paquete: el cambio se absorbe en este fichero.
+
+/** Lo que el paquete le pasa a una exportación (la forma de la 0.18). */
+export interface ExportInput {
+  elements: readonly SceneElement[];
+  appState?: {
+    exportBackground?: boolean;
+    exportWithDarkMode?: boolean;
+    viewBackgroundColor?: string;
+    exportPadding?: number;
+  };
+  files?: BinaryFiles | null;
+  exportingFrame?: FrameElement | null;
+  maxWidthOrHeight?: number;
+  /** Solo se usa la escala que devuelve. */
+  getDimensions?: (width: number, height: number) => { width: number; height: number; scale?: number };
+  mimeType?: string;
+  /** 0–1, para JPEG y WebP. */
+  quality?: number;
+}
+
+function exportData(input: ExportInput): ExportSceneData {
+  return {
+    elements: input.elements.filter((el) => !el.isDeleted) as ExportSceneData['elements'],
+    appState: (input.appState?.viewBackgroundColor
+      ? { viewBackgroundColor: input.appState.viewBackgroundColor }
+      : {}) as ExportSceneData['appState'],
+    files: input.files ?? null,
+  };
+}
+
+function exportConfig(input: ExportInput): ExportSceneConfig {
+  const scale = input.getDimensions;
+  return {
+    theme: input.appState?.exportWithDarkMode ? 'dark' : 'light',
+    ...(input.appState?.exportBackground === false ? { canvasBackgroundColor: false as const } : {}),
+    exportingFrame: input.exportingFrame ?? null,
+    ...(input.appState?.exportPadding !== undefined ? { padding: input.appState.exportPadding } : {}),
+    ...(input.maxWidthOrHeight
+      ? { maxWidthOrHeight: input.maxWidthOrHeight }
+      : scale
+        ? { scale: (w: number, h: number) => scale(w, h).scale ?? 1 }
+        : {}),
+  } as ExportSceneConfig;
+}
+
+export function exportToCanvas(input: ExportInput): Promise<HTMLCanvasElement> {
+  return exportScene({ type: 'canvas', data: exportData(input), config: exportConfig(input) });
+}
+
+export function exportToSvg(input: ExportInput): Promise<SVGSVGElement> {
+  return exportScene({ type: 'svg', data: exportData(input), config: exportConfig(input) });
+}
+
+/**
+ * PNG, JPEG o WebP. `exportScene` solo hace PNG y JPEG; el WebP de las
+ * miniaturas de página sale del canvas, como lo hacía la 0.18 por dentro.
+ */
+export async function exportToBlob(input: ExportInput): Promise<Blob> {
+  const mime = input.mimeType ?? 'image/png';
+  if (mime === 'image/png') {
+    return exportScene({ type: 'png', data: exportData(input), config: exportConfig(input) });
+  }
+  if (mime === 'image/jpeg') {
+    return exportScene({
+      type: 'jpeg',
+      data: exportData(input),
+      config: { ...exportConfig(input), ...(input.quality !== undefined ? { quality: input.quality } : {}) },
+    });
+  }
+  const canvas = await exportToCanvas(input);
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error(`exportToBlob: el navegador no hizo ${mime}`))), mime, input.quality);
+  });
+}
+
+/**
+ * Escena GUARDADA → escena válida: rellena lo que un fichero puede no traer
+ * (índices fraccionarios, alturas de línea, defaults de appState). El editor lo
+ * hace solo con `initialData`; quien renderiza una escena sin montar el editor
+ * —las miniaturas de la galería— tiene que llamarlo a mano.
+ */
+export function restore(
+  data: { elements?: readonly unknown[] | null; appState?: object | null; files?: BinaryFiles | null },
+  localAppState: null,
+  localElements: null,
+  opts?: { refreshDimensions?: boolean; repairBindings?: boolean },
+): { elements: SceneElement[]; appState: SceneAppState; files: BinaryFiles } {
+  return {
+    elements: restoreElements(data.elements as never, localElements, opts) as unknown as SceneElement[],
+    appState: restoreAppState(data.appState as never, localAppState) as unknown as SceneAppState,
+    files: data.files ?? {},
+  };
+}
