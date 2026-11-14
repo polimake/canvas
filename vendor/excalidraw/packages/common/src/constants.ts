@@ -31,7 +31,8 @@ export const TEXT_MAX_WRAP_WIDTH = 800; // px
 export const DRAGGING_THRESHOLD = 10; // px
 export const MINIMUM_ARROW_SIZE = 20; // px
 export const LINE_CONFIRM_THRESHOLD = 8; // px
-export const ELEMENT_SHIFT_TRANSLATE_AMOUNT = 5;
+// Polimake: Mayúsculas+flecha mueve 10 px, como en Canva (de serie, 5).
+export const ELEMENT_SHIFT_TRANSLATE_AMOUNT = 10;
 export const ELEMENT_TRANSLATE_AMOUNT = 1;
 export const TEXT_TO_CENTER_SNAP_THRESHOLD = 30;
 export const SHIFT_LOCKING_ANGLE = Math.PI / 12;
@@ -214,7 +215,9 @@ export const FRAME_STYLE = {
   roughness: 0 as ExcalidrawElement["roughness"],
   roundness: null as ExcalidrawElement["roundness"],
   backgroundColor: "transparent" as ExcalidrawElement["backgroundColor"],
-  radius: 8,
+  // Polimake: un marco es una página (un post, una story), y una página tiene
+  // las esquinas rectas. Con 8 el borde y el recorte salían redondeados.
+  radius: 0,
   nameOffsetY: 3,
   nameColorLightTheme: "#999999",
   nameColorDarkTheme: "#7a7a7a",
