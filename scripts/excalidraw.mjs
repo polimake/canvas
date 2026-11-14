@@ -32,7 +32,7 @@ const enWindows = process.platform === 'win32';
 /** Commit del original que hay en vendor/excalidraw (lo sube quien lo actualiza). */
 export const BASE = '82d5847e';
 /** Nuestra revisión sobre esa base. Se sube a mano al cambiar un parche. */
-export const REVISION = 3;
+export const REVISION = 4;
 /** Donde se publican los Releases. */
 const REPO = process.env.GITHUB_REPOSITORY || 'polimake/canvas';
 
