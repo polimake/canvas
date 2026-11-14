@@ -1,11 +1,60 @@
 import { jsxs, jsx, Fragment as Fragment$1 } from "react/jsx-runtime";
-import { useState, useRef, useEffect, Fragment, useMemo, useCallback, useId, useReducer } from "react";
+import { useState, useRef, useEffect, Fragment, useMemo, useCallback, useId } from "react";
 import "@excalidraw/excalidraw/index.css";
-import { newElementWith, CaptureUpdateAction, convertToExcalidrawElements, serializeAsJSON, restore, exportToBlob, exportToCanvas, exportToSvg, MainMenu, FONT_FAMILY, useI18n, viewportCoordsToSceneCoords, getVisibleSceneBounds, Excalidraw, getNonDeletedElements } from "@excalidraw/excalidraw";
+import { exportScene, restoreAppState, restoreElements as restoreElements$1, CaptureUpdateAction, newElementWith, convertToExcalidrawElements, serializeAsJSON, MainMenu, FONT_FAMILY, viewportCoordsToSceneCoords, getVisibleSceneBounds, Excalidraw, getNonDeletedElements } from "@excalidraw/excalidraw";
 import { cloneSceneElements } from "../components.js";
 import { P as PAGE_GAP } from "./layout-BEpoNps2.js";
 import { fontFormatHint, buildFontFaceCss, fontFamilyAlias, normalizeFontSrc, customFontFamilyId, dedupeFontFaces } from "../fonts.js";
 import { createPortal, flushSync } from "react-dom";
+function exportData(input) {
+  var _a;
+  return {
+    elements: input.elements.filter((el) => !el.isDeleted),
+    appState: ((_a = input.appState) == null ? void 0 : _a.viewBackgroundColor) ? { viewBackgroundColor: input.appState.viewBackgroundColor } : {},
+    files: input.files ?? null
+  };
+}
+function exportConfig(input) {
+  var _a, _b, _c;
+  const scale = input.getDimensions;
+  return {
+    theme: ((_a = input.appState) == null ? void 0 : _a.exportWithDarkMode) ? "dark" : "light",
+    ...((_b = input.appState) == null ? void 0 : _b.exportBackground) === false ? { canvasBackgroundColor: false } : {},
+    exportingFrame: input.exportingFrame ?? null,
+    ...((_c = input.appState) == null ? void 0 : _c.exportPadding) !== void 0 ? { padding: input.appState.exportPadding } : {},
+    ...input.maxWidthOrHeight ? { maxWidthOrHeight: input.maxWidthOrHeight } : scale ? { scale: (w, h) => scale(w, h).scale ?? 1 } : {}
+  };
+}
+function exportToCanvas(input) {
+  return exportScene({ type: "canvas", data: exportData(input), config: exportConfig(input) });
+}
+function exportToSvg(input) {
+  return exportScene({ type: "svg", data: exportData(input), config: exportConfig(input) });
+}
+async function exportToBlob(input) {
+  const mime = input.mimeType ?? "image/png";
+  if (mime === "image/png") {
+    return exportScene({ type: "png", data: exportData(input), config: exportConfig(input) });
+  }
+  if (mime === "image/jpeg") {
+    return exportScene({
+      type: "jpeg",
+      data: exportData(input),
+      config: { ...exportConfig(input), ...input.quality !== void 0 ? { quality: input.quality } : {} }
+    });
+  }
+  const canvas = await exportToCanvas(input);
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error(`exportToBlob: el navegador no hizo ${mime}`)), mime, input.quality);
+  });
+}
+function restore(data, localAppState, localElements, opts) {
+  return {
+    elements: restoreElements$1(data.elements, localElements, opts),
+    appState: restoreAppState(data.appState, localAppState),
+    files: data.files ?? {}
+  };
+}
 const CAPTURE = {
   // One undo entry, immediately.
   undoable: CaptureUpdateAction.IMMEDIATELY,
@@ -281,6 +330,17 @@ function renumberedPageName(name, n) {
   const match = DEFAULT_NAME_RE.exec(name ?? "");
   return match ? `${match[1]} ${n}` : null;
 }
+function encuadrar(api, target, coverage) {
+  const { width, height } = api.getAppState();
+  const x = width * (1 - coverage) / 2;
+  const y = height * (1 - coverage) / 2;
+  api.setViewport({
+    target,
+    fit: "contain",
+    animation: { duration: 300 },
+    offsets: { top: y, bottom: y, left: x, right: x }
+  });
+}
 const DEFAULT_PAGE_SIZE = { width: 1080, height: 1350 };
 const PAGE_SIZE_PRESETS = [
   { key: "ig-post", label: "Post 4:5", width: 1080, height: 1350 },
@@ -496,24 +556,14 @@ const PAGE_VIEWPORT_COVERAGE = 0.72;
 function goToPage(api, pageId, opts) {
   const frame = api.getSceneElements().find((e) => e.id === pageId);
   if (!frame) return;
-  api.scrollToContent(frame, {
-    fitToViewport: true,
-    viewportZoomFactor: Math.min(1, Math.max(0.1, (opts == null ? void 0 : opts.coverage) ?? PAGE_VIEWPORT_COVERAGE)),
-    animate: true,
-    duration: 300
-  });
+  encuadrar(api, frame, Math.min(1, Math.max(0.1, (opts == null ? void 0 : opts.coverage) ?? PAGE_VIEWPORT_COVERAGE)));
 }
 function focusLayer(api, layerId, opts) {
   const elements = api.getSceneElements();
   const el = elements.find((e) => e.id === layerId && !e.isDeleted);
   if (!el) return false;
   commitElements(api, elements, "never", { selectedElementIds: { [layerId]: true } });
-  api.scrollToContent(el, {
-    fitToViewport: true,
-    viewportZoomFactor: Math.min(1, Math.max(0.1, (opts == null ? void 0 : opts.coverage) ?? PAGE_VIEWPORT_COVERAGE)),
-    animate: true,
-    duration: 300
-  });
+  encuadrar(api, el, Math.min(1, Math.max(0.1, (opts == null ? void 0 : opts.coverage) ?? PAGE_VIEWPORT_COVERAGE)));
   return true;
 }
 function renamePage(api, pageId, name) {
@@ -525,12 +575,7 @@ function renamePage(api, pageId, name) {
 function fitAllPages(api, opts) {
   const marcos = framesInArray(api.getSceneElements());
   if (!marcos.length) return;
-  api.scrollToContent(marcos, {
-    fitToViewport: true,
-    viewportZoomFactor: Math.min(1, Math.max(0.1, (opts == null ? void 0 : opts.coverage) ?? 0.9)),
-    animate: true,
-    duration: 300
-  });
+  encuadrar(api, marcos, Math.min(1, Math.max(0.1, (opts == null ? void 0 : opts.coverage) ?? 0.9)));
 }
 function deletePage(api, pageId) {
   const elements = api.getSceneElements();
@@ -2973,7 +3018,7 @@ function CanvasMenu({
       ] }),
       themeItems,
       /* @__PURE__ */ jsx(MainMenu.DefaultItems.SearchMenu, {}),
-      /* @__PURE__ */ jsx(MainMenu.DefaultItems.ToggleTheme, {}),
+      /* @__PURE__ */ jsx(MainMenu.DefaultItems.ToggleTheme, { allowSystemTheme: false }),
       /* @__PURE__ */ jsx(MainMenu.DefaultItems.Help, {})
     ] });
   }
@@ -3017,7 +3062,7 @@ function CanvasMenu({
     /* @__PURE__ */ jsx(MainMenu.Separator, {}),
     themeItems,
     /* @__PURE__ */ jsx(MainMenu.DefaultItems.SearchMenu, {}),
-    /* @__PURE__ */ jsx(MainMenu.DefaultItems.ToggleTheme, {}),
+    /* @__PURE__ */ jsx(MainMenu.DefaultItems.ToggleTheme, { allowSystemTheme: false }),
     /* @__PURE__ */ jsx(MainMenu.DefaultItems.Help, {})
   ] });
 }
@@ -4601,234 +4646,8 @@ function useIsNarrow(ref) {
   }, [ref]);
   return narrow;
 }
-const TOOLBAR_ROW = ".App-toolbar > .Stack_horizontal";
-function ToolbarSlot({ root, children }) {
-  const [row, setRow] = useState(null);
-  useEffect(() => {
-    const host = root.current;
-    if (!host) return;
-    const find = () => setRow(host.querySelector(TOOLBAR_ROW));
-    find();
-    const observer = new MutationObserver(find);
-    observer.observe(host, { childList: true, subtree: true });
-    return () => observer.disconnect();
-  }, [root]);
-  return row ? createPortal(children, row) : null;
-}
-function indexDuplicates(next, prev) {
-  var _a, _b;
-  const before = new Set(prev.map((el) => el.id));
-  const out = next.slice();
-  for (let i = 0; i < out.length; i++) {
-    const el = out[i];
-    if (before.has(el.id)) continue;
-    const lower = ((_a = out[i - 1]) == null ? void 0 : _a.index) ?? null;
-    if (lower === null) continue;
-    let j = i + 1;
-    while (j < out.length && !before.has(out[j].id)) j++;
-    const following = ((_b = out[j]) == null ? void 0 : _b.index) ?? null;
-    const upper = following !== null && following > lower ? following : null;
-    const index = el.index;
-    if (index && lower < index && (upper === null || index < upper)) continue;
-    out[i] = { ...el, index: keyAfter(lower, upper) };
-  }
-  return out;
-}
-const DIGITS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-function keyAfter(lower, upper) {
-  const tail = upper !== null && upper.startsWith(lower) ? upper.slice(lower.length) : null;
-  return lower + midpoint("", tail);
-}
-function midpoint(a, b) {
-  const zero = DIGITS[0];
-  if (b !== null) {
-    let n = 0;
-    while ((a[n] ?? zero) === b[n]) n++;
-    if (n > 0) return b.slice(0, n) + midpoint(a.slice(n), b.slice(n));
-  }
-  const digitA = a ? DIGITS.indexOf(a[0]) : 0;
-  const digitB = b !== null ? DIGITS.indexOf(b[0]) : DIGITS.length;
-  if (digitB - digitA > 1) return DIGITS[Math.round(0.5 * (digitA + digitB))];
-  if (b !== null && b.length > 1) return b.slice(0, 1);
-  return DIGITS[digitA] + midpoint(a.slice(1), null);
-}
 function copyDropEffect(effectAllowed) {
   return effectAllowed === "move" || effectAllowed === "linkMove" ? "move" : "copy";
-}
-const SELECTION_KEYS = /* @__PURE__ */ new Set([
-  "selectedElementIds",
-  "selectedGroupIds",
-  "editingGroupId",
-  "selectedLinearElementId",
-  "editingLinearElementId",
-  "croppingElementId"
-]);
-function isSelectionOnlyEntry(entry) {
-  var _a, _b, _c;
-  if (!((_b = (_a = entry.elementsChange) == null ? void 0 : _a.isEmpty) == null ? void 0 : _b.call(_a))) return false;
-  const delta = (_c = entry.appStateChange) == null ? void 0 : _c.delta;
-  if (!delta) return false;
-  const keys = [...Object.keys(delta.deleted ?? {}), ...Object.keys(delta.inserted ?? {})];
-  return keys.every((key) => SELECTION_KEYS.has(key));
-}
-function dropSelectionOnlyTail(stack) {
-  let dropped = 0;
-  while (stack.length && isSelectionOnlyEntry(stack[stack.length - 1])) {
-    stack.pop();
-    dropped++;
-  }
-  return dropped;
-}
-function hasRealEntry(stack) {
-  return !!(stack == null ? void 0 : stack.some((entry) => !isSelectionOnlyEntry(entry)));
-}
-function historyIsBusy(appState, app) {
-  var _a;
-  return !!(appState.multiElement || appState.resizingElement || appState.editingTextElement || appState.newElement || appState.selectedElementsAreBeingDragged || appState.selectionElement || ((_a = app == null ? void 0 : app.flowChartCreator) == null ? void 0 : _a.isCreatingChart));
-}
-function performHistory(direction, elements, appState, app) {
-  const history = app == null ? void 0 : app.history;
-  const store = app == null ? void 0 : app.store;
-  if (!history || !store || historyIsBusy(appState, app)) return null;
-  const stack = direction === "undo" ? history.undoStack : history.redoStack;
-  let map = new Map(elements.map((el) => [el.id, el]));
-  let state = appState;
-  let applied = false;
-  for (let guard = 0; guard < 4; guard++) {
-    dropSelectionOnlyTail(stack);
-    const result = history[direction](map, state, store.snapshot);
-    if (!result) break;
-    applied = true;
-    const before = map;
-    [map, state] = result;
-    if (!leavesNewEmptyText(before, map) || !hasRealEntry(stack)) break;
-  }
-  if (!applied) return null;
-  return { elements: Array.from(map.values()), appState: state };
-}
-const isEmptyLiveText = (el) => !!el && el.type === "text" && !el.isDeleted && el.text === "";
-function leavesNewEmptyText(before, after) {
-  for (const [id, el] of after) {
-    if (isEmptyLiveText(el) && !isEmptyLiveText(before.get(id))) return true;
-  }
-  return false;
-}
-const SHIFT_NUDGE_PX = 10;
-const ARROW_OFFSETS = {
-  ArrowLeft: [-1, 0],
-  ArrowRight: [1, 0],
-  ArrowUp: [0, -1],
-  ArrowDown: [0, 1]
-};
-function nudgeSelection(elements, selectedElementIds, dx, dy) {
-  const selected = new Set(
-    elements.filter((el) => !el.isDeleted && selectedElementIds[el.id]).map((el) => el.id)
-  );
-  if (!selected.size) return null;
-  const frames2 = new Set(
-    elements.filter((el) => selected.has(el.id) && (el.type === "frame" || el.type === "magicframe")).map((el) => el.id)
-  );
-  const moves = (el) => {
-    if (el.isDeleted) return false;
-    if (selected.has(el.id)) return true;
-    const containerId = el.containerId;
-    if (containerId && selected.has(containerId)) return true;
-    return !!el.frameId && frames2.has(el.frameId);
-  };
-  return elements.map((el) => moves(el) ? newElementWith(el, { x: el.x + dx, y: el.y + dy }) : el);
-}
-const isMac = typeof navigator !== "undefined" && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
-const ctrlOrCmd = (e) => isMac ? e.metaKey : e.ctrlKey;
-const matchLetter = (e, letter) => e.key.toLowerCase() === letter || !/^[a-z]$/i.test(e.key) && e.code === `Key${letter.toUpperCase()}`;
-const isUndoKey = (e) => ctrlOrCmd(e) && !e.shiftKey && !e.altKey && matchLetter(e, "z");
-const isRedoKey = (e) => ctrlOrCmd(e) && e.shiftKey && !e.altKey && matchLetter(e, "z") || !isMac && e.ctrlKey && !e.shiftKey && !e.altKey && matchLetter(e, "y");
-const ICON_PATH = {
-  undo: "M7.5 10.833 4.167 7.5 7.5 4.167M4.167 7.5h9.166a3.333 3.333 0 0 1 0 6.667H12.5",
-  redo: "M12.5 10.833 15.833 7.5 12.5 4.167M15.833 7.5H6.667a3.333 3.333 0 1 0 0 6.667H7.5"
-};
-function HistoryButton({ direction, app, updateData, size }) {
-  var _a, _b;
-  const [, rerender] = useReducer((n) => n + 1, 0);
-  const { t } = useI18n();
-  useEffect(() => {
-    var _a2, _b2;
-    return (_b2 = (_a2 = app == null ? void 0 : app.history) == null ? void 0 : _a2.onHistoryChangedEmitter) == null ? void 0 : _b2.on(rerender);
-  }, [app]);
-  const stack = direction === "undo" ? (_a = app == null ? void 0 : app.history) == null ? void 0 : _a.undoStack : (_b = app == null ? void 0 : app.history) == null ? void 0 : _b.redoStack;
-  const disabled = !hasRealEntry(stack);
-  const label = t(direction === "undo" ? "buttons.undo" : "buttons.redo");
-  return /* @__PURE__ */ jsx(
-    "button",
-    {
-      type: "button",
-      className: `ToolIcon_type_button ToolIcon_size_${size ?? "medium"} ToolIcon_type_button--show ToolIcon`,
-      "aria-label": label,
-      title: label,
-      "data-testid": `button-${direction}`,
-      disabled,
-      onClick: () => updateData(),
-      children: /* @__PURE__ */ jsx("div", { className: "ToolIcon__icon", "aria-hidden": "true", "aria-disabled": disabled, children: /* @__PURE__ */ jsx(
-        "svg",
-        {
-          "aria-hidden": "true",
-          focusable: "false",
-          role: "img",
-          viewBox: "0 0 20 20",
-          width: "20",
-          height: "20",
-          fill: "none",
-          stroke: "currentColor",
-          strokeLinecap: "round",
-          strokeLinejoin: "round",
-          children: /* @__PURE__ */ jsx("path", { d: ICON_PATH[direction], strokeWidth: "1.25" })
-        }
-      ) })
-    }
-  );
-}
-function historyAction(direction) {
-  return {
-    name: direction,
-    label: direction === "undo" ? "buttons.undo" : "buttons.redo",
-    viewMode: false,
-    trackEvent: false,
-    keyTest: (event) => direction === "undo" ? isUndoKey(event) : isRedoKey(event),
-    perform: (elements, appState, _value, app) => {
-      const result = performHistory(direction, elements, appState, app);
-      if (!result) return { captureUpdate: CaptureUpdateAction.EVENTUALLY };
-      return { ...result, captureUpdate: CaptureUpdateAction.NEVER };
-    },
-    PanelComponent: ({ updateData, data, app }) => /* @__PURE__ */ jsx(HistoryButton, { direction, app, updateData, size: data == null ? void 0 : data.size })
-  };
-}
-function shiftNudgeAction(key) {
-  const [ux, uy] = ARROW_OFFSETS[key];
-  return {
-    name: `canvas2:shiftNudge${key}`,
-    label: "Mover 10 px",
-    viewMode: false,
-    trackEvent: false,
-    keyTest: (event, appState, _elements, app) => {
-      var _a;
-      return event.key === key && event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey && // Con la cuadrícula puesta manda su paso: eso lo sigue haciendo Excalidraw.
-      !((_a = app == null ? void 0 : app.getEffectiveGridSize) == null ? void 0 : _a.call(app)) && !appState.editingLinearElement && !appState.editingTextElement && Object.values(appState.selectedElementIds ?? {}).some(Boolean);
-    },
-    perform: (elements, appState) => {
-      const next = nudgeSelection(elements, appState.selectedElementIds ?? {}, ux * SHIFT_NUDGE_PX, uy * SHIFT_NUDGE_PX);
-      if (!next) return { captureUpdate: CaptureUpdateAction.EVENTUALLY };
-      return { elements: next, captureUpdate: CaptureUpdateAction.IMMEDIATELY };
-    }
-  };
-}
-function canvaGestureActions() {
-  return [
-    historyAction("undo"),
-    historyAction("redo"),
-    ...Object.keys(ARROW_OFFSETS).map(shiftNudgeAction)
-  ];
-}
-function installCanvaGestures(api) {
-  for (const action of canvaGestureActions()) api.registerAction(action);
 }
 const CONTROL_KEYS = /* @__PURE__ */ new Set([
   "Enter",
@@ -5725,9 +5544,6 @@ ${css}` : css;
     goToPage(live, openingPageId);
   }, [openingPageId]);
   useEffect(() => {
-    if (api) installCanvaGestures(api);
-  }, [api]);
-  useEffect(() => {
     const root = rootRef.current;
     if (!api || viewMode || !root) return;
     return installCanvaPick(root, api);
@@ -5870,6 +5686,30 @@ ${css}` : css;
     })),
     ...workspace === "excalidraw" && !viewMode ? toolbarActions ?? [] : []
   ];
+  const pillActionsRef = useRef(pillActions);
+  pillActionsRef.current = pillActions;
+  const pillKey = narrow ? "" : JSON.stringify(pillActions.map((a) => [a.id, a.label, a.pressed ?? null]));
+  const renderToolbarExtra = useCallback(() => {
+    const actions = pillKey && pillKey !== "[]" ? pillActionsRef.current : [];
+    if (!actions.length) return null;
+    return /* @__PURE__ */ jsxs(Fragment$1, { children: [
+      /* @__PURE__ */ jsx("span", { className: "canvas2-toolbar-divider", "aria-hidden": "true" }),
+      actions.map((action) => /* @__PURE__ */ jsx(
+        "button",
+        {
+          type: "button",
+          className: "canvas2-toolbar-text",
+          "aria-pressed": action.pressed ?? void 0,
+          onClick: () => {
+            var _a2;
+            return (_a2 = pillActionsRef.current.find((a) => a.id === action.id)) == null ? void 0 : _a2.onSelect();
+          },
+          children: action.label
+        },
+        action.id
+      ))
+    ] });
+  }, [pillKey]);
   return /* @__PURE__ */ jsx(
     WorkspaceLayout,
     {
@@ -5890,13 +5730,7 @@ ${css}` : css;
           "data-canvas2-theme": theme,
           "data-canvas2-narrow": narrow ? "" : void 0,
           "data-canvas2-readonly": viewMode ? "" : void 0,
-          style: {
-            position: "relative",
-            width: "100%",
-            height: "100%",
-            ["--c2-frame-tool"]: JSON.stringify(L.workspace.frameTool),
-            ["--c2-find-on-canvas"]: JSON.stringify(L.workspace.findOnCanvas)
-          },
+          style: { position: "relative", width: "100%", height: "100%" },
           onDragOverCapture: (e) => {
             if (!onFilesDrop || viewMode) return;
             if (!Array.from(e.dataTransfer.types ?? []).includes("Files")) return;
@@ -5960,9 +5794,12 @@ ${css}` : css;
                   canvasActions: { saveAsImage: nativeImageExport },
                   dockedSidebarBreakpoint
                 },
+                ui: { disabled: { helpButton: true, hints: true, defaultSidebarTrigger: true } },
                 ...sceneTheme ? { theme: sceneTheme } : {},
-                onDuplicate: (next, prev) => indexDuplicates(next, prev),
-                excalidrawAPI: (instance) => {
+                historyIgnoresSelection: true,
+                renderToolbarExtra,
+                onExcalidrawAPI: (instance) => {
+                  if (!instance) return;
                   apiRef.current = instance;
                   setApi(instance);
                   onReady == null ? void 0 : onReady(instance, { flushSceneChange: emitScene.flush });
@@ -6078,20 +5915,6 @@ ${css}` : css;
                 labels
               }
             ),
-            pillActions.length > 0 && !narrow ? /* @__PURE__ */ jsxs(ToolbarSlot, { root: rootRef, children: [
-              /* @__PURE__ */ jsx("span", { className: "canvas2-toolbar-divider", "aria-hidden": "true" }),
-              pillActions.map((action) => /* @__PURE__ */ jsx(
-                "button",
-                {
-                  type: "button",
-                  className: "canvas2-toolbar-text",
-                  "aria-pressed": action.pressed ?? void 0,
-                  onClick: action.onSelect,
-                  children: action.label
-                },
-                action.id
-              ))
-            ] }) : null,
             rightEdge && !narrow ? /* @__PURE__ */ jsx(
               "div",
               {
@@ -6243,103 +6066,103 @@ function LibraryPanel({
   );
 }
 export {
-  reorderPageMembers as $,
-  duplicatePage as A,
+  fitAllPages as $,
+  clusterLooseElements as A,
   BrandGallery as B,
   Canvas2 as C,
-  DesignPanel as D,
-  resizePage as E,
-  relayoutPages as F,
-  adoptStrayFramesInArray as G,
-  movePage as H,
-  movePageTo as I,
-  isPageLocked as J,
-  setPageLocked as K,
+  DEFAULT_LABELS as D,
+  EMPTY_BRAND as E,
+  contrastTextColor as F,
+  convertToPages as G,
+  createBlankScene as H,
+  ImageLoadError as I,
+  dataUrlToBlob as J,
+  deletePage as K,
   LayersPanel as L,
   ModeSwitch as M,
-  focusLayer as N,
-  convertToPages as O,
-  PageNavigator as P,
-  adoptLooseIntoPage as Q,
-  paginateSceneInArray as R,
-  clusterLooseElements as S,
-  looseElements as T,
-  patchElement as U,
+  downloadBlob as N,
+  duplicatePage as O,
+  PANEL_FONT as P,
+  ensurePagePapers as Q,
+  exportScenePdf as R,
+  exportScenePng as S,
+  TEXT_PRESETS as T,
+  exportSceneSvg as U,
   VideoFramePicker as V,
-  usePageThumbnails as W,
-  PAGE_ALIGNMENTS as X,
-  alignToPage as Y,
-  setAsBackground as Z,
-  extendToPage as _,
+  exportStoredScenePng as W,
+  exportStoredSceneSvg as X,
+  extendToPage as Y,
+  externalizeInlineImages as Z,
+  findInlineImageIds as _,
   Canvas2Editor as a,
-  sendMemberToBack as a0,
-  resolveBrandKit as a1,
-  EMPTY_BRAND as a2,
-  registerCustomFont as a3,
-  registerCustomFonts as a4,
-  fontFamilyId as a5,
-  serializeScene as a6,
-  parseScene as a7,
-  restoreScene as a8,
-  exportScenePng as a9,
-  fitPagePapersInArray as aA,
-  isPageBackground as aB,
-  insertVideo as aC,
-  setVideoPoster as aD,
-  isVideoElement as aE,
-  getVideoMeta as aF,
-  getSelectedVideo as aG,
-  VIDEO_MARKER as aH,
-  exportSceneSvg as aa,
-  exportScenePdf as ab,
-  captureThumbnail as ac,
-  downloadBlob as ad,
-  exportStoredSceneSvg as ae,
-  exportStoredScenePng as af,
-  storedScenePageCount as ag,
-  insertImageFromBlob as ah,
-  insertImageFromUrl as ai,
-  insertImageWithPreview as aj,
-  replaceImageFromUrl as ak,
-  resolveInsertPageId as al,
-  cascadePoints as am,
-  imageAtScenePoint as an,
-  externalizeInlineImages as ao,
-  hasUploadsInFlight as ap,
-  findInlineImageIds as aq,
-  isInlineDataUrl as ar,
-  dataUrlToBlob as as,
-  ImageLoadError as at,
-  TEXT_PRESETS as au,
-  insertTextPreset as av,
-  contrastTextColor as aw,
-  getPageBackground as ax,
-  setPageBackgroundColor as ay,
-  ensurePagePapers as az,
+  fitPagePapersInArray as a0,
+  focusLayer as a1,
+  fontFamilyId as a2,
+  getPageBackground as a3,
+  getPageSize as a4,
+  getSelectedVideo as a5,
+  getVideoMeta as a6,
+  hasUploadsInFlight as a7,
+  hideNativeDragImage as a8,
+  imageAtScenePoint as a9,
+  sendMemberToBack as aA,
+  serializeScene as aB,
+  setAsBackground as aC,
+  setPageBackgroundColor as aD,
+  setPageLocked as aE,
+  setVideoPoster as aF,
+  storedScenePageCount as aG,
+  usePageThumbnails as aH,
+  insertImageFromBlob as aa,
+  insertImageFromUrl as ab,
+  insertImageWithPreview as ac,
+  insertTextPreset as ad,
+  insertVideo as ae,
+  isInlineDataUrl as af,
+  isPageBackground as ag,
+  isPageLocked as ah,
+  isVideoElement as ai,
+  listPages as aj,
+  looseElements as ak,
+  movePage as al,
+  movePageTo as am,
+  paginateSceneInArray as an,
+  parseScene as ao,
+  patchElement as ap,
+  registerCustomFont as aq,
+  registerCustomFonts as ar,
+  relayoutPages as as,
+  renamePage as at,
+  reorderPageMembers as au,
+  replaceImageFromUrl as av,
+  resizePage as aw,
+  resolveBrandKit as ax,
+  resolveInsertPageId as ay,
+  restoreScene as az,
   CanvasMenu as b,
-  LibraryPanel as c,
-  PageActions as d,
-  DragPreview as e,
-  DEFAULT_LABELS as f,
-  PANEL_FONT as g,
-  packPagesInArray as h,
-  commitElements as i,
-  goToPage as j,
-  pageElementsInOrder as k,
-  buildPersistableFiles as l,
+  DesignPanel as c,
+  DragPreview as d,
+  LibraryPanel as e,
+  PageActions as f,
+  PageNavigator as g,
+  pageElementsInOrder as h,
+  buildPersistableFiles as i,
+  packPagesInArray as j,
+  commitElements as k,
+  goToPage as l,
   mergeLabels as m,
-  MEDIA_DROP_TYPE as n,
-  hideNativeDragImage as o,
+  DEFAULT_PAGE_SIZE as n,
+  MEDIA_DROP_TYPE as o,
   palette as p,
-  DEFAULT_PAGE_SIZE as q,
+  PAGE_ALIGNMENTS as q,
   renumberPagesInArray as r,
   PAGE_SIZE_PRESETS as s,
-  createBlankScene as t,
-  listPages as u,
-  getPageSize as v,
-  addPage as w,
-  deletePage as x,
-  fitAllPages as y,
-  renamePage as z
+  VIDEO_MARKER as t,
+  addPage as u,
+  adoptLooseIntoPage as v,
+  adoptStrayFramesInArray as w,
+  alignToPage as x,
+  captureThumbnail as y,
+  cascadePoints as z
 };
-//# sourceMappingURL=LibraryPanel-CzqBh7nk.js.map
+//# sourceMappingURL=LibraryPanel-BoFZoOu2.js.map

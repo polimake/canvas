@@ -1,4 +1,4 @@
-import { type ExcalidrawImperativeAPI, type SceneElement, type SceneElements } from './excal';
+import { type AnySceneElement, type ExcalidrawImperativeAPI, type SceneElement, type SceneElements } from './excal';
 /**
  * THE single write funnel for scene elements.
  *
@@ -45,7 +45,7 @@ export declare function asSceneElements(elements: readonly SceneElement[]): Scen
  * el `store` ve el cambio entero, y lo graba —o lo da por bueno, con
  * `'never'`— en el commit que toca.
  */
-export declare function detachMoved(current: readonly SceneElement[], next: readonly SceneElement[]): readonly SceneElement[];
+export declare function detachMoved(current: readonly AnySceneElement[], next: readonly SceneElement[]): readonly SceneElement[];
 /** Commit an elements array (optionally with appState) to the scene. */
 export declare function commitElements(api: ExcalidrawImperativeAPI, elements: readonly SceneElement[], capture?: CaptureMode, appState?: Record<string, unknown>): void;
 //# sourceMappingURL=mutate.d.ts.map

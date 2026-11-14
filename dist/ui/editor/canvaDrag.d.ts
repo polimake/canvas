@@ -1,4 +1,4 @@
-import { type ExcalidrawImperativeAPI, type SceneElement } from '../../core/excal';
+import { type AnySceneElement, type ExcalidrawImperativeAPI, type SceneElement } from '../../core/excal';
 /** Ancho, en px de pantalla, de la franja del borde que desplaza la vista. */
 export declare const EDGE_ZONE_PX = 48;
 /** Velocidad en el mismo borde (o fuera), en px de pantalla por ms: ~15 por fotograma. */
@@ -30,14 +30,14 @@ export interface DragState {
 type Api = ExcalidrawImperativeAPI;
 type El = SceneElement & Record<string, unknown>;
 /** Copia de la escena que sobrevive a `mutateElement`, que cambia los elementos en el sitio. */
-export declare function snapshotElements(elements: readonly SceneElement[]): El[];
+export declare function snapshotElements(elements: readonly AnySceneElement[]): El[];
 /**
  * La escena de `snapshot` sobre la de ahora: lo que cambió vuelve como estaba
  * (con la versión por delante, para que nadie lo tome por viejo) y lo que nació
  * en el gesto (Alt+arrastrar duplica) se va. Lo que no cambió se queda tal cual,
  * mismo objeto. Devuelve null si no hay nada que devolver.
  */
-export declare function restoreElements(current: readonly SceneElement[], snapshot: readonly El[]): SceneElement[] | null;
+export declare function restoreElements(current: readonly AnySceneElement[], snapshot: readonly El[]): SceneElement[] | null;
 /**
  * Velocidad de desplazamiento para un puntero en `p` dentro de la vista `box`,
  * en px de pantalla por ms, en cada eje (positivo: hacia la derecha o abajo).

@@ -62,7 +62,7 @@
     "excalidraw": "node scripts/excalidraw.mjs"
   },
   "dependencies": {
-    "@excalidraw/excalidraw": "https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g82d5847e.polimake.3/excalidraw-excalidraw-0.18.0-g82d5847e.polimake.3.tgz",
+    "@excalidraw/excalidraw": "https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.0-g82d5847e.polimake.4/excalidraw-excalidraw-0.18.0-g82d5847e.polimake.4.tgz",
     "ag-psd": "^31.0.2",
     "fast-xml-parser": "^5.11.1",
     "fflate": "^0.8.3",
@@ -85,7 +85,9 @@
     "vitest": "4.1.11"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   },
   "files": [
     "dist",

@@ -1,19 +1,6 @@
 import { type ExcalidrawImperativeAPI, type SceneElement, type SceneElements } from './excal';
 import { type CaptureMode } from './mutate';
 import { type PageNames } from './pageNames';
-/**
- * "Pages" / artboards on top of Excalidraw's infinite canvas.
- *
- * A design is a fixed-size, multi-page document; Excalidraw is an infinite
- * plane. We emulate pages with native Excalidraw **frames** laid out left to
- * right: each frame is a fixed-size artboard, content placed inside it belongs
- * to that page, and a frame clips + exports to its own bounds. This is a *soft*
- * boundary — the canvas stays pannable.
- *
- * Every compound operation here commits EXACTLY ONE scene update (one undo
- * entry) via mutate.ts — building the final array with pure helpers
- * (packPagesInArray / renumberPagesInArray) instead of chaining updates.
- */
 export interface PageSize {
     width: number;
     height: number;
@@ -191,8 +178,8 @@ export declare function renamePage(api: ExcalidrawImperativeAPI, pageId: string,
  *
  * El editor legacy apilaba las páginas en vertical y verlas todas era el estado
  * por defecto; aquí van en fila y `goToPage` encuadra solo una, así que sin esto
- * la única forma de ver el conjunto era alejar el zoom a mano. `scrollToContent`
- * sin elemento concreto ajusta a la escena entera.
+ * la única forma de ver el conjunto era alejar el zoom a mano. Esto encuadra
+ * todas las páginas a la vez.
  */
 export declare function fitAllPages(api: ExcalidrawImperativeAPI, opts?: {
     coverage?: number;
