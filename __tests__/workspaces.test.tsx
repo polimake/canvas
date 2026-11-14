@@ -18,10 +18,10 @@ vi.mock('../src/core/excal', () => ({
     Separator: () => null,
     DefaultItems: Object.fromEntries(['LoadScene', 'SaveToActiveFile', 'Export', 'SaveAsImage', 'ClearCanvas', 'SearchMenu', 'ToggleTheme', 'Help'].map(name => [name, () => null])),
   }),
-  Excalidraw: function Engine({ excalidrawAPI, children, gridModeEnabled, theme }: { excalidrawAPI: (api: unknown) => void; children: ReactNode; gridModeEnabled?: boolean; theme?: string }) {
+  Excalidraw: function Engine({ onExcalidrawAPI, children, gridModeEnabled, theme }: { onExcalidrawAPI: (api: unknown) => void; children: ReactNode; gridModeEnabled?: boolean; theme?: string }) {
     useEffect(() => {
       mounted();
-      excalidrawAPI(engine.api);
+      onExcalidrawAPI(engine.api);
       return unmounted;
     }, []);
     return <div data-testid="engine" data-grid={gridModeEnabled} data-theme={theme}>{children}</div>;
@@ -150,13 +150,13 @@ describe('workspace switching', () => {
 it('waits for hydration and opens the page selected in the preview', () => {
   const frames = [frame('p1', 0, 0, 300, 400), frame('p2', 420, 0, 300, 400), frame('p3', 840, 0, 300, 400)];
   engine = fakeApi([]);
-  const scroll = vi.spyOn(engine.api, 'scrollToContent');
+  const scroll = vi.spyOn(engine.api, 'setViewport');
   const active = vi.fn();
   render(<Canvas2Editor pages initialScene={{ elements: frames as never }} initialPageIndex={2} onActivePageChange={active} />);
   expect(scroll).not.toHaveBeenCalled();
   expect(engine.get()).toEqual([]);
   act(() => { engine.api.updateScene({ elements: frames }); });
-  expect(scroll).toHaveBeenCalledWith(expect.objectContaining({ id: 'p3' }), expect.anything());
+  expect(scroll).toHaveBeenCalledWith(expect.objectContaining({ target: expect.objectContaining({ id: 'p3' }) }));
   expect(active).toHaveBeenLastCalledWith('p3');
   expect(engine.get().filter((element) => element.type === 'frame')).toHaveLength(3);
 });

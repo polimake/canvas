@@ -384,7 +384,7 @@ describe('single-undo + ordering guarantees', () => {
         frame('p1', 0, 0, 500, 500),
         member('m1', 'p1', 20, 20, 50, 50),
       ]);
-      const scroll = vi.spyOn(api, 'scrollToContent');
+      const scroll = vi.spyOn(api, 'setViewport');
 
       expect(focusLayer(api as any, 'm1')).toBe(true);
       expect(api.getAppState().selectedElementIds).toEqual({ m1: true });
@@ -392,12 +392,12 @@ describe('single-undo + ordering guarantees', () => {
       // cambio REAL, no este salto de vista.
       expect(commits.at(-1)?.captureUpdate).toBe('NEVER');
       expect(scroll).toHaveBeenCalledTimes(1);
-      expect(scroll.mock.calls[0][0]).toMatchObject({ id: 'm1' });
+      expect(scroll.mock.calls[0][0]).toMatchObject({ target: { id: 'm1' } });
     });
 
     it('no toca la escena cuando la capa ya no existe', () => {
       const { api, commits } = fakeApi([frame('p1', 0, 0, 500, 500)]);
-      const scroll = vi.spyOn(api, 'scrollToContent');
+      const scroll = vi.spyOn(api, 'setViewport');
 
       expect(focusLayer(api as any, 'fantasma')).toBe(false);
       expect(commits).toHaveLength(0);

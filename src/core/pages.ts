@@ -24,6 +24,31 @@ import { renumberedPageName, resolvePageNames, type PageNames } from './pageName
  * (packPagesInArray / renumberPagesInArray) instead of chaining updates.
  */
 
+
+/**
+ * Lleva la vista a `target` (un elemento o varios) de modo que ocupe la
+ * fracción `coverage` de la vista, con animación.
+ *
+ * Es lo que hacía `scrollToContent(target, { fitToViewport, viewportZoomFactor })`
+ * hasta que upstream lo sustituyó por `setViewport`, que no tiene factor de
+ * zoom sino márgenes: la cobertura se convierte en un margen por lado.
+ */
+function encuadrar(
+  api: ExcalidrawImperativeAPI,
+  target: SceneElement | readonly SceneElement[],
+  coverage: number,
+): void {
+  const { width, height } = api.getAppState();
+  const x = (width * (1 - coverage)) / 2;
+  const y = (height * (1 - coverage)) / 2;
+  api.setViewport({
+    target,
+    fit: 'contain',
+    animation: { duration: 300 },
+    offsets: { top: y, bottom: y, left: x, right: x },
+  });
+}
+
 export interface PageSize {
   width: number;
   height: number;
@@ -505,12 +530,7 @@ export function goToPage(
 ): void {
   const frame = api.getSceneElements().find((e) => e.id === pageId);
   if (!frame) return;
-  api.scrollToContent(frame, {
-    fitToViewport: true,
-    viewportZoomFactor: Math.min(1, Math.max(0.1, opts?.coverage ?? PAGE_VIEWPORT_COVERAGE)),
-    animate: true,
-    duration: 300,
-  });
+  encuadrar(api, frame, Math.min(1, Math.max(0.1, opts?.coverage ?? PAGE_VIEWPORT_COVERAGE)));
 }
 
 /**
@@ -537,12 +557,7 @@ export function focusLayer(
   // `commitElements` con los MISMOS elementos: no toca nada del contenido, solo
   // adjunta el appState por el embudo de escritura del paquete.
   commitElements(api, elements, 'never', { selectedElementIds: { [layerId]: true } });
-  api.scrollToContent(el, {
-    fitToViewport: true,
-    viewportZoomFactor: Math.min(1, Math.max(0.1, opts?.coverage ?? PAGE_VIEWPORT_COVERAGE)),
-    animate: true,
-    duration: 300,
-  });
+  encuadrar(api, el, Math.min(1, Math.max(0.1, opts?.coverage ?? PAGE_VIEWPORT_COVERAGE)));
   return true;
 }
 
@@ -571,18 +586,13 @@ export function renamePage(
  *
  * El editor legacy apilaba las páginas en vertical y verlas todas era el estado
  * por defecto; aquí van en fila y `goToPage` encuadra solo una, así que sin esto
- * la única forma de ver el conjunto era alejar el zoom a mano. `scrollToContent`
- * sin elemento concreto ajusta a la escena entera.
+ * la única forma de ver el conjunto era alejar el zoom a mano. Esto encuadra
+ * todas las páginas a la vez.
  */
 export function fitAllPages(api: ExcalidrawImperativeAPI, opts?: { coverage?: number }): void {
   const marcos = framesInArray(api.getSceneElements());
   if (!marcos.length) return;
-  api.scrollToContent(marcos, {
-    fitToViewport: true,
-    viewportZoomFactor: Math.min(1, Math.max(0.1, opts?.coverage ?? 0.9)),
-    animate: true,
-    duration: 300,
-  });
+  encuadrar(api, marcos, Math.min(1, Math.max(0.1, opts?.coverage ?? 0.9)));
 }
 
 /**

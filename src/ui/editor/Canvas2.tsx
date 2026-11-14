@@ -1069,7 +1069,9 @@ export function Canvas2Editor({
         // vendor/excalidraw; Mayúsculas+flecha a 10 px va en el mismo).
         historyIgnoresSelection
         renderToolbarExtra={renderToolbarExtra}
-        excalidrawAPI={(instance) => {
+        // Upstream lo llama también con `null` al desmontar.
+        onExcalidrawAPI={(instance) => {
+          if (!instance) return;
           apiRef.current = instance;
           setApi(instance);
           onReady?.(instance, { flushSceneChange: emitScene.flush });

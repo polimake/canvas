@@ -96,7 +96,7 @@ export function fakeApi(initial: any[], initialFiles: Record<string, any> = {}):
     onScrollChange: () => () => {},
     // Arrastrar como en Canva (canvaDrag.ts) se cuelga del pulsar de Excalidraw.
     onPointerDown: () => () => {},
-    scrollToContent: () => {},
+    setViewport: () => {},
   };
   return {
     api,

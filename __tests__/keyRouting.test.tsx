@@ -17,8 +17,8 @@ let oido: string[] = [];
 
 vi.mock('../src/core/excal', () => ({
   ...excalMock,
-  Excalidraw: ({ excalidrawAPI }: { excalidrawAPI: (api: unknown) => void }) => {
-    excalidrawAPI(engine.api);
+  Excalidraw: ({ onExcalidrawAPI }: { onExcalidrawAPI: (api: unknown) => void }) => {
+    onExcalidrawAPI(engine.api);
     return (
       <div
         className="excalidraw excalidraw-container"
