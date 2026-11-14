@@ -111,7 +111,11 @@ jobs:
             echo
             echo "Licencia MIT, la del original (incluida en cada paquete). Parches: \`vendor/EXCALIDRAW.md\`."
           } > notas.md
-          gh release create "$ETIQUETA" vendor/excalidraw-dist/*.tgz vendor/excalidraw-dist/SHA256SUMS vendor/excalidraw-dist/paquetes.json --target "$(git rev-parse HEAD)" --prerelease --title "Excalidraw $VERSION (Polimake)" --notes-file notas.md
+          # La etiqueta primero: el Release no puede apuntar a un commit que
+          # GitHub aún no tiene. (Subida con GITHUB_TOKEN no dispara excalidraw.yml.)
+          git tag "$ETIQUETA"
+          git push origin "refs/tags/$ETIQUETA"
+          gh release create "$ETIQUETA" vendor/excalidraw-dist/*.tgz vendor/excalidraw-dist/SHA256SUMS vendor/excalidraw-dist/paquetes.json --verify-tag --prerelease --title "Excalidraw $VERSION (Polimake)" --notes-file notas.md
 
       - name: El lienzo con la versión nueva
         if: steps.mirar.outputs.nada != '1'
