@@ -1100,6 +1100,11 @@ export interface ExcalidrawProps {
   ) => JSX.Element | null;
   aiEnabled?: boolean;
   showDeprecatedFonts?: boolean;
+  /**
+   * Polimake: seleccionar no es un paso de deshacer (como en Canva). Ver
+   * `HistoryOptions.ignoreSelectionOnly` en history.ts.
+   */
+  historyIgnoresSelection?: boolean;
   renderScrollbars?: boolean;
   viewportStatusFrame?: ViewportStatusFrame | null;
   /**

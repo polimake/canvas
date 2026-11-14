@@ -12,7 +12,10 @@ import type {
   Store,
 } from "@excalidraw/element";
 
-import type { SceneElementsMap } from "@excalidraw/element/types";
+import type {
+  ExcalidrawElement,
+  SceneElementsMap,
+} from "@excalidraw/element/types";
 
 import type { AppState } from "./types";
 
@@ -87,6 +90,62 @@ export class HistoryDelta extends StoreDelta {
   }
 }
 
+/**
+ * Polimake: opciones de la historia.
+ *
+ * `ignoreSelectionOnly`: como en Canva, seleccionar no es un paso. Sin esto
+ * cada clic que selecciona deja su entrada y «seleccionar y Ctrl+Z» solo
+ * deselecciona. Con esto no se graba un cambio que no toca elementos y solo
+ * toca claves de selección; los que mezclan selección con un cambio de verdad
+ * se graban enteros. Tampoco se queda deshacer a medio paso con un texto vacío
+ * (ver `leavesNewEmptyText`).
+ */
+export type HistoryOptions = {
+  ignoreSelectionOnly?: boolean;
+};
+
+/** Claves de `ObservedElementsAppState` que son selección o modo de edición. */
+const SELECTION_KEYS = new Set<string>([
+  "selectedElementIds",
+  "selectedGroupIds",
+  "editingGroupId",
+  "selectedLinearElement",
+  "croppingElementId",
+  "activeLockedId",
+]);
+
+const isSelectionOnly = (delta: StoreDelta) =>
+  delta.elements.isEmpty() &&
+  [
+    ...Object.keys(delta.appState.delta.deleted),
+    ...Object.keys(delta.appState.delta.inserted),
+  ].every((key) => SELECTION_KEYS.has(key));
+
+const isEmptyLiveText = (element: ExcalidrawElement | undefined) =>
+  !!element &&
+  element.type === "text" &&
+  !element.isDeleted &&
+  element.text === "";
+
+/**
+ * Un texto nuevo puede ocupar DOS entradas: si había algo seleccionado, el
+ * `pointerup` del clic con la herramienta de texto graba la escena con el
+ * texto ya puesto y aún vacío, y al cerrar el editor llega la segunda con lo
+ * escrito. Deshacer la segunda deja vivo un texto "", cosa que Excalidraw
+ * nunca deja por sí solo: es medio paso.
+ */
+const leavesNewEmptyText = (
+  before: SceneElementsMap,
+  after: SceneElementsMap,
+) => {
+  for (const [id, element] of after) {
+    if (isEmptyLiveText(element) && !isEmptyLiveText(before.get(id))) {
+      return true;
+    }
+  }
+  return false;
+};
+
 export class HistoryChangedEvent {
   constructor(
     public readonly isUndoStackEmpty: boolean = true,
@@ -110,7 +169,10 @@ export class History {
     return this.redoStack.length === 0;
   }
 
-  constructor(private readonly store: Store) {}
+  constructor(
+    private readonly store: Store,
+    private readonly options: HistoryOptions = {},
+  ) {}
 
   public clear() {
     this.undoStack.length = 0;
@@ -123,6 +185,10 @@ export class History {
    */
   public record(delta: StoreDelta) {
     if (delta.isEmpty() || delta instanceof HistoryDelta) {
+      return;
+    }
+
+    if (this.options.ignoreSelectionOnly && isSelectionOnly(delta)) {
       return;
     }
 
@@ -197,6 +263,7 @@ export class History {
 
       // iterate through the history entries in case they result in no visible changes
       while (historyDelta) {
+        const elementsBefore = nextElements;
         try {
           [nextElements, nextAppState, containsVisibleChange] =
             historyDelta.applyTo(
@@ -236,7 +303,13 @@ export class History {
           push(historyDelta);
         }
 
-        if (containsVisibleChange) {
+        if (
+          containsVisibleChange &&
+          !(
+            this.options.ignoreSelectionOnly &&
+            leavesNewEmptyText(elementsBefore, nextElements)
+          )
+        ) {
           break;
         }
 

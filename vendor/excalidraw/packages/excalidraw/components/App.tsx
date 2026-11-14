@@ -909,7 +909,9 @@ class App extends React.Component<AppProps, AppState> {
     this.visibleElements = [];
 
     this.store = new Store(this);
-    this.history = new History(this.store);
+    this.history = new History(this.store, {
+      ignoreSelectionOnly: props.historyIgnoresSelection,
+    });
 
     this.excalidrawContainerValue = {
       container: this.excalidrawContainerRef.current,
@@ -917,7 +919,9 @@ class App extends React.Component<AppProps, AppState> {
     };
 
     this.fonts = new Fonts(this.scene, this.ownerDocument);
-    this.history = new History(this.store);
+    this.history = new History(this.store, {
+      ignoreSelectionOnly: props.historyIgnoresSelection,
+    });
 
     this.actionManager.registerAll(actions);
     this.actionManager.registerAction(createUndoAction(this.history));
