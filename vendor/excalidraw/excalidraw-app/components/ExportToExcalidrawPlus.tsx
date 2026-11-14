@@ -1,31 +1,32 @@
 import React from "react";
+import { nanoid } from "nanoid";
+
+import { trackEvent } from "@excalidraw/excalidraw/analytics";
 import { Card } from "@excalidraw/excalidraw/components/Card";
-import { ToolButton } from "@excalidraw/excalidraw/components/ToolButton";
+import { ExcalidrawLogo } from "@excalidraw/excalidraw/components/ExcalidrawLogo";
+import { IconButton } from "@excalidraw/excalidraw/components/IconButton";
+import { MIME_TYPES, getFrame } from "@excalidraw/common";
+import {
+  encryptData,
+  generateEncryptionKey,
+} from "@excalidraw/excalidraw/data/encryption";
 import { serializeAsJSON } from "@excalidraw/excalidraw/data/json";
-import { loadFirebaseStorage, saveFilesToFirebase } from "../data/firebase";
+import { isInitializedImageElement } from "@excalidraw/element";
+import { useI18n } from "@excalidraw/excalidraw/i18n";
+
 import type {
   FileId,
   NonDeletedExcalidrawElement,
-} from "@excalidraw/excalidraw/element/types";
+} from "@excalidraw/element/types";
 import type {
   AppState,
   BinaryFileData,
   BinaryFiles,
 } from "@excalidraw/excalidraw/types";
-import { nanoid } from "nanoid";
-import { useI18n } from "@excalidraw/excalidraw/i18n";
-import {
-  encryptData,
-  generateEncryptionKey,
-} from "@excalidraw/excalidraw/data/encryption";
-import { isInitializedImageElement } from "@excalidraw/excalidraw/element/typeChecks";
+
 import { FILE_UPLOAD_MAX_BYTES } from "../app_constants";
 import { encodeFilesForUpload } from "../data/FileManager";
-import { uploadBytes, ref } from "firebase/storage";
-import { MIME_TYPES } from "@excalidraw/excalidraw/constants";
-import { trackEvent } from "@excalidraw/excalidraw/analytics";
-import { getFrame } from "@excalidraw/excalidraw/utils";
-import { ExcalidrawLogo } from "@excalidraw/excalidraw/components/ExcalidrawLogo";
+import { saveFilesToFirebase, uploadBytesToFirebase } from "../data/firebase";
 
 export const exportToExcalidrawPlus = async (
   elements: readonly NonDeletedExcalidrawElement[],
@@ -33,8 +34,6 @@ export const exportToExcalidrawPlus = async (
   files: BinaryFiles,
   name: string,
 ) => {
-  const storage = await loadFirebaseStorage();
-
   const id = `${nanoid(12)}`;
 
   const encryptionKey = (await generateEncryptionKey())!;
@@ -50,8 +49,7 @@ export const exportToExcalidrawPlus = async (
     },
   );
 
-  const storageRef = ref(storage, `/migrations/scenes/${id}`);
-  await uploadBytes(storageRef, blob, {
+  await uploadBytesToFirebase(`/migrations/scenes/${id}`, blob, {
     customMetadata: {
       data: JSON.stringify({ version: 2, name }),
       created: Date.now().toString(),
@@ -109,7 +107,7 @@ export const ExportToExcalidrawPlus: React.FC<{
       <div className="Card-details">
         {t("exportDialog.excalidrawplus_description")}
       </div>
-      <ToolButton
+      <IconButton
         className="Card-button"
         type="button"
         title={t("exportDialog.excalidrawplus_button")}
