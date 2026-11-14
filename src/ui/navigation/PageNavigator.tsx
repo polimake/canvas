@@ -16,6 +16,7 @@ import { usePageThumbnails, type FilesMap } from '../hooks/pageThumbnails';
 import { PANEL_FONT, palette } from '../shared/theme';
 import { FitAllIcon, LockIcon, PlusIcon } from '../shared/icons';
 import { mergeLabels, type PartialLabels } from '../shared/labels';
+import { isComposing } from '../shared/composing';
 import { DragPreview, hideNativeDragImage, type DragGrab } from '../overlays/DragPreview';
 
 export interface PageNavigatorProps {
@@ -402,7 +403,7 @@ export function PageNavigator({
                 onChange={(e) => setRenaming({ id: page.id, value: e.target.value })}
                 onKeyDown={(e) => {
                   e.stopPropagation();
-                  if (e.key === 'Enter') commitRename();
+                  if (e.key === 'Enter' && !isComposing(e)) commitRename();
                   if (e.key === 'Escape') setRenaming(null);
                 }}
                 onBlur={commitRename}
