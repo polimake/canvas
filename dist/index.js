@@ -1,14 +1,14 @@
 "use client";
-import { h as pageElementsInOrder, i as buildPersistableFiles, j as packPagesInArray, r as renumberPagesInArray, k as commitElements, n as goToPage } from "./chunks/LibraryPanel-BzPgblje.js";
-import { B, C, a, b, D, o, c, d, q, E, I, L, e, s, t, u, P, f, g, T, v, w, x, y, z, A, F, G, H, J, K, N, a as a2, O, Q, R, S, U, W, X, Y, Z, _, $, a0, a1, a2 as a22, a3, a4, a5, a6, a7, a8, a9, aa, ab, ac, ad, ae, af, ag, ah, ai, aj, ak, al, am, an, ao, l, ap, aq, m, ar, as, at, p, au, av, aw, ax, ay, az, aA, aB, aC, aD, aE, aF, aG, aH, aI, aJ, aK, aL, aM, aN, aO, aP, aQ } from "./chunks/LibraryPanel-BzPgblje.js";
-import { P as P2 } from "./chunks/layout-L5bQ5REv.js";
+import { h as pageElementsInOrder, i as buildPersistableFiles, j as packPagesInArray, r as renumberPagesInArray, k as commitElements, n as goToPage } from "./chunks/LibraryPanel-BkLhA0Ee.js";
+import { B, C, a, b, D, o, c, d, q, E, I, L, e, s, t, u, P, f, g, T, v, w, x, y, z, A, F, G, H, J, K, N, a as a2, O, Q, R, S, U, W, X, Y, Z, _, $, a0, a1, a2 as a22, a3, a4, a5, a6, a7, a8, a9, aa, ab, ac, ad, ae, af, ag, ah, ai, aj, ak, al, am, an, ao, l, ap, aq, m, ar, as, at, p, au, av, aw, ax, ay, az, aA, aB, aC, aD, aE, aF, aG, aH, aI, aJ, aK, aL, aM, aN, aO, aP, aQ } from "./chunks/LibraryPanel-BkLhA0Ee.js";
+import { P as P2 } from "./chunks/layout-BEpoNps2.js";
 import "@excalidraw/excalidraw/index.css";
 import { convertToExcalidrawElements } from "@excalidraw/excalidraw";
-import { D as D2, P as P3, c as c2, f as f2, g as g2, l as l2, a as a10, p as p2, b as b2, d as d2, e as e2, h, s as s2 } from "./chunks/legacy-DAAEWkHb.js";
+import { D as D2, P as P3, c as c2, f as f2, g as g2, l as l2, a as a10, p as p2, b as b2, d as d2, e as e2, h, s as s2 } from "./chunks/legacy-BS2a1q37.js";
 import { EXCALIDRAW_BUILTIN_FAMILIES, buildFontFaceCss, customFontFamilyId, dedupeFontFaces, fontFamilyAlias, normalizeFontName } from "./fonts.js";
 import { instantiateComponent } from "./components.js";
 import { appendComponentToEditorConfig, cloneSceneElements, deriveComponentMeta, extractComponentFragment, fitImageInBox, listSlots, measureWrappedText } from "./components.js";
-import { i } from "./chunks/documentToPptx-CsrYYM5a.js";
+import { i } from "./chunks/documentToPptx-CMWe-xWo.js";
 async function blobToDataUrl(blob, fallbackMime) {
   const bytes = new Uint8Array(await blob.arrayBuffer());
   const CHUNK = 32768;

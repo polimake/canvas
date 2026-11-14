@@ -9,6 +9,7 @@ import {
 import { commitElements, patchElement } from '../../core/mutate';
 import { PANEL_FONT, palette } from '../shared/theme';
 import { mergeLabels, type Canvas2Labels, type PartialLabels } from '../shared/labels';
+import { isComposing } from '../shared/composing';
 import { reorderPageMembers } from '../../core/zorder';
 import { setAsBackground, extendToPage } from '../../core/imageOps';
 import { renamePage } from '../../core/pages';
@@ -645,7 +646,7 @@ export function LayersPanel({
             value={renamingPage}
             onChange={(e) => setRenamingPage(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') {
+              if (e.key === 'Enter' && !isComposing(e)) {
                 if (renamingPage.trim()) renamePage(api, activePageId, renamingPage.trim());
                 setRenamingPage(null);
               }
