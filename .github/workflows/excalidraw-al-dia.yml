@@ -1,0 +1,167 @@
+name: Excalidraw al día
+
+# Cada día trae la rama principal de excalidraw/excalidraw a vendor/excalidraw
+# (con nuestros parches encima), la compila y publica, y si el lienzo pasa
+# typecheck, lint, pruebas y build con ella, la deja en la rama del lienzo que
+# usan desktop y Studio. Si algo choca o falla, abre un issue y no toca nada.
+#
+# Todo va en un solo trabajo: lo que sube una acción con GITHUB_TOKEN no
+# dispara otras acciones, así que no se puede encadenar con excalidraw.yml.
+# Las programadas solo corren desde la rama por defecto: este fichero tiene
+# que estar en main, y trabaja sobre RAMA.
+
+on:
+  schedule:
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+    inputs:
+      forzar:
+        description: 'Recompilar y publicar aunque no haya commits nuevos (sube la revisión)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: excalidraw-al-dia
+  cancel-in-progress: false
+
+env:
+  RAMA: lienzo/unido
+  UPSTREAM: https://github.com/excalidraw/excalidraw.git
+
+jobs:
+  al-dia:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.RAMA }}
+          fetch-depth: 0
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22.20.0'
+
+      - name: ¿Hay commits nuevos?
+        id: mirar
+        run: |
+          git config user.name 'Polimake (Excalidraw al día)'
+          git config user.email 'excalidraw-al-dia@users.noreply.github.com'
+          git fetch --no-tags "$UPSTREAM" master
+          nueva=$(git rev-parse --short=8 FETCH_HEAD)
+          base=$(sed -n "s/^export const BASE = '\(.*\)';/\1/p" scripts/excalidraw.mjs)
+          echo "nueva=$nueva" >> "$GITHUB_OUTPUT"
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          if [ "$nueva" = "$base" ] && [ "${{ inputs.forzar }}" != "true" ]; then
+            echo "Al día: excalidraw/excalidraw@$base"
+            echo "nada=1" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Traer su rama principal
+        id: traer
+        if: steps.mirar.outputs.nada != '1'
+        env:
+          NUEVA: ${{ steps.mirar.outputs.nueva }}
+          BASE: ${{ steps.mirar.outputs.base }}
+        run: |
+          if [ "$NUEVA" != "$BASE" ]; then
+            if ! git subtree pull --prefix=vendor/excalidraw "$UPSTREAM" master --squash \
+                 -m "Excalidraw: su rama principal (master $NUEVA) en vendor/excalidraw"; then
+              git diff --name-only --diff-filter=U > conflictos.txt || true
+              echo "conflicto=1" >> "$GITHUB_OUTPUT"
+              exit 1
+            fi
+            sed -i "s/^export const BASE = '.*';/export const BASE = '$NUEVA';/; s/^export const REVISION = .*;/export const REVISION = 1;/" scripts/excalidraw.mjs
+          else
+            rev=$(sed -n 's/^export const REVISION = \(.*\);/\1/p' scripts/excalidraw.mjs)
+            sed -i "s/^export const REVISION = .*;/export const REVISION = $((rev + 1));/" scripts/excalidraw.mjs
+          fi
+          read -r version etiqueta < <(node scripts/excalidraw.mjs --version)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "etiqueta=$etiqueta" >> "$GITHUB_OUTPUT"
+          git commit -am "Excalidraw: $etiqueta (base $NUEVA)"
+
+      - name: Compilar Excalidraw
+        if: steps.mirar.outputs.nada != '1'
+        run: node scripts/excalidraw.mjs --instalar
+
+      - name: Publicar el Release (prerelease hasta que el lienzo pase)
+        if: steps.mirar.outputs.nada != '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ETIQUETA: ${{ steps.traer.outputs.etiqueta }}
+          VERSION: ${{ steps.traer.outputs.version }}
+          NUEVA: ${{ steps.mirar.outputs.nueva }}
+        run: |
+          cd vendor/excalidraw-dist && sha256sum *.tgz > SHA256SUMS && cd -
+          {
+            echo "Excalidraw $VERSION: excalidraw/excalidraw@$NUEVA con los parches de Polimake, compilado desde \`vendor/excalidraw\` por la acción «Excalidraw al día»."
+            echo
+            echo "Para el lienzo basta \`@excalidraw/excalidraw\`; los demás paquetes los pide él por su URL:"
+            echo
+            echo '```json'
+            node -p "JSON.stringify(require('./vendor/excalidraw-dist/paquetes.json').paquetes, null, 2)"
+            echo '```'
+            echo
+            echo "Licencia MIT, la del original (incluida en cada paquete). Parches: \`vendor/EXCALIDRAW.md\`."
+          } > notas.md
+          gh release create "$ETIQUETA" vendor/excalidraw-dist/*.tgz vendor/excalidraw-dist/SHA256SUMS vendor/excalidraw-dist/paquetes.json --target "$(git rev-parse HEAD)" --prerelease --title "Excalidraw $VERSION (Polimake)" --notes-file notas.md
+
+      - name: El lienzo con la versión nueva
+        if: steps.mirar.outputs.nada != '1'
+        env:
+          ETIQUETA: ${{ steps.traer.outputs.etiqueta }}
+        run: |
+          url=$(node -p "require('./vendor/excalidraw-dist/paquetes.json').paquetes['@excalidraw/excalidraw']")
+          node -e "
+            const fs = require('fs');
+            const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            p.dependencies['@excalidraw/excalidraw'] = process.argv[1];
+            fs.writeFileSync('package.json', JSON.stringify(p, null, 2) + '\n');
+          " "$url"
+          pnpm install --no-frozen-lockfile
+          pnpm typecheck
+          pnpm lint
+          pnpm test
+          pnpm build
+          pnpm verify:build
+          git add package.json pnpm-lock.yaml dist
+          git commit -m "Lienzo: Excalidraw $ETIQUETA, con su dist/"
+
+      - name: Dejarlo en la rama y el Release como estable
+        if: steps.mirar.outputs.nada != '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ETIQUETA: ${{ steps.traer.outputs.etiqueta }}
+        run: |
+          git push origin "HEAD:$RAMA"
+          gh release edit "$ETIQUETA" --prerelease=false --latest=false
+
+      - name: Avisar si algo falló
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NUEVA: ${{ steps.mirar.outputs.nueva }}
+          CONFLICTO: ${{ steps.traer.outputs.conflicto }}
+        run: |
+          {
+            if [ "$CONFLICTO" = "1" ]; then
+              echo "La rama principal de Excalidraw (\`$NUEVA\`) choca con nuestros parches de \`vendor/excalidraw\` en:"
+              echo
+              sed 's/^/- `/; s/$/`/' conflictos.txt
+              echo
+              echo "Hay que reescribir esos parches sobre su código nuevo (ver \`vendor/EXCALIDRAW.md\`)."
+            else
+              echo "Excalidraw al día falló con \`$NUEVA\`: el lienzo no compila o sus pruebas no pasan con la versión nueva."
+              echo "El Release, si llegó a crearse, queda como prerelease y \`$RAMA\` no se ha tocado."
+            fi
+            echo
+            echo "Ejecución: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          } > issue.md
+          gh issue create --repo "$GITHUB_REPOSITORY" --title "Excalidraw al día: $NUEVA no entra" --body-file issue.md
