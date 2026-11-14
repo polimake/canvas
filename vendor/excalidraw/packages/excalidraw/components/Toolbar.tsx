@@ -330,6 +330,10 @@ export const Toolbar = ({
           setAppState={setAppState}
           UIOptions={UIOptions}
         />
+        {app.props.renderToolbarExtra?.(
+          editorInterface.formFactor === "phone",
+          appState,
+        )}
       </Stack.Row>
     </Island>
   );

@@ -115,6 +115,7 @@ const ExcalidrawBase = (props: ExcalidrawProps) => {
     aiEnabled,
     showDeprecatedFonts,
     historyIgnoresSelection,
+    renderToolbarExtra,
     renderScrollbars,
     viewportStatusFrame,
     currentUserControls,
@@ -259,6 +260,7 @@ const ExcalidrawBase = (props: ExcalidrawProps) => {
           aiEnabled={aiEnabled !== false}
           showDeprecatedFonts={showDeprecatedFonts}
           historyIgnoresSelection={historyIgnoresSelection}
+          renderToolbarExtra={renderToolbarExtra}
           renderScrollbars={renderScrollbars}
           viewportStatusFrame={viewportStatusFrame}
           currentUserControls={currentUserControls}
