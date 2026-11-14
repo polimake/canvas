@@ -1,86 +1,86 @@
 # Excalidraw, desde el fuente
 
-El lienzo no usa el `@excalidraw/excalidraw` de npm: lo compilamos desde aquí,
-con nuestros parches. Así arreglamos en su código lo que antes se rodeaba desde
-fuera, y traemos sus cambios cuando queramos sin esperar a que publiquen (npm
-se quedó en la 0.18.1 de abril; su rama principal va cientos de commits por
-delante).
+El lienzo no usa el `@excalidraw/excalidraw` de npm (que se quedó en la 0.18.1
+de abril): usa **su rama principal con nuestros parches encima**, compilada por
+nosotros y publicada como Release público de este repo. Así lo que antes se
+rodeaba desde fuera se arregla en su código, y vamos siempre con lo último.
 
 | Carpeta | Qué es | En git |
 |---|---|---|
-| `excalidraw/` | Su monorepo, como `git subtree` de la etiqueta base, con nuestros parches | sí |
-| `excalidraw-dist/` | El paquete compilado en local, para probar | no |
+| `excalidraw/` | Su monorepo (`git subtree` de `excalidraw/excalidraw@master`) con nuestros parches | sí |
+| `excalidraw-dist/` | Los paquetes compilados en local o en CI | no |
 | `excalidraw/node_modules` | Sus dependencias de compilación (yarn 1) | no |
 
 ## Cómo llega a desktop y Studio
 
-Cada versión se publica como **Release público** de este repo, con el `.tgz`
-descargable, y el lienzo depende de esa descarga:
+Desde que upstream separó el código en paquetes, `@excalidraw/excalidraw` pide
+`@excalidraw/common`, `element`, `math` y `fractional-indexing` por fuera, y
+los de npm son de otra época. `scripts/excalidraw.mjs` compila con su
+`build:packages` y empaqueta los cinco con `npm pack` sobre su propio
+`package.json` (sus `exports` y `files` tal cual, con la licencia MIT): solo
+cambian la versión y las dependencias internas, que apuntan a la URL del mismo
+Release. Versión: `<su versión>-g<commit base>.polimake.<revisión>`.
+
+El lienzo depende solo de `@excalidraw/excalidraw` por su URL; él trae el resto:
 
 ```json
-"@excalidraw/excalidraw": "https://github.com/polimake/canvas/releases/download/excalidraw-v0.18.1-polimake.2/excalidraw-excalidraw-0.18.1-polimake.2.tgz"
+"@excalidraw/excalidraw": "https://github.com/polimake/canvas/releases/download/excalidraw-v<versión>/excalidraw-excalidraw-<versión>.tgz"
 ```
 
-bun y pnpm lo instalan sin token y apuntan su hash en el lockfile. Lo publica
-`.github/workflows/excalidraw.yml` al subir la etiqueta `excalidraw-v<versión>`:
-compila en GitHub, empaqueta con `npm pack` (lleva la licencia MIT del
-original) y crea el Release con el `.tgz` y su `SHA256SUMS`.
+## Al día, solo
+
+`.github/workflows/excalidraw-al-dia.yml` (en `main`, porque las programadas
+solo corren desde la rama por defecto) cada día a las 4:17 UTC:
+
+1. Mira si `excalidraw/excalidraw@master` tiene commits nuevos.
+2. Los trae con `git subtree pull --squash`. Si chocan con un parche nuestro,
+   **abre un issue** con los ficheros y se para.
+3. Compila y publica el Release como prerelease.
+4. Apunta el lienzo a la versión nueva y pasa typecheck, lint, pruebas, build
+   (rehace `dist/`) y `verify:build`.
+5. Si todo pasa, lo sube a `lienzo/unido` y marca el Release como estable. Si
+   falla, **abre un issue** y no toca la rama.
+
+Desktop y Studio fijan el lienzo por commit: lo cogen al subir su puntero.
+
+A mano: «Run workflow» con `forzar` recompila aunque no haya commits nuevos
+(sube la revisión).
 
 ## Parchear
 
 1. Editar en `excalidraw/packages/…`. Un commit por parche, solo con ficheros
-   de `vendor/excalidraw`, y con el porqué en el mensaje («Excalidraw: …»). Lo
-   que cambia en el lienzo por ese parche, en un commit aparte («Lienzo: …»).
-2. Subir `SUFIJO` en `scripts/excalidraw.mjs` (`polimake.2` → `polimake.3`).
-3. `node scripts/excalidraw.mjs` (la primera vez con `--instalar`), y para
-   probarlo en el lienzo sin publicar, apuntar la dependencia a
-   `file:./vendor/excalidraw-dist` y `pnpm install`. Pruebas y typecheck.
-4. Publicar: `git tag excalidraw-v0.18.1-polimake.3 && git push origin excalidraw-v0.18.1-polimake.3`.
-5. Cambiar la URL de la dependencia a la del Release nuevo, install, commit.
+   de `vendor/excalidraw` («Excalidraw: …», con el porqué). Lo que cambia en el
+   lienzo por ese parche, en otro commit («Lienzo: …»).
+2. Subir `REVISION` en `scripts/excalidraw.mjs`.
+3. Publicar: `git tag excalidraw-v<versión> && git push origin excalidraw-v<versión>`
+   (`node scripts/excalidraw.mjs --version` dice cuál). Lo compila
+   `.github/workflows/excalidraw.yml`.
+4. Cambiar la URL de la dependencia, `pnpm install`, commit. El CI del lienzo
+   pasa typecheck y pruebas con ella.
 
 Lo que no sea solo nuestro se les manda también como PR al original: cuanto
-menos nos separemos, menos cuesta ponerse al día.
+menos nos separemos, menos choques al traer lo suyo.
 
-## Traer lo suyo
+## Parches (sobre master `82d5847e`)
 
-1. Leer sus commits nuevos desde la etiqueta base y quedarse con lo que interesa.
-2. `git subtree pull --prefix=vendor/excalidraw https://github.com/excalidraw/excalidraw.git <etiqueta o commit> --squash`
-   y resolver contra nuestros parches (los de upstream que ya traigamos como
-   backport desaparecen).
-3. Subir `BASE` en `scripts/excalidraw.mjs`, compilar, typecheck y pruebas. Lo
-   que rompa su API se arregla en `src/core/excal.ts`, que sigue siendo el único
-   fichero que lo importa.
-
-## Parches
-
-La base es la 0.18.1 tal cual (`polimake.0`), que sale idéntica byte a byte a
-la de npm.
-
-| Versión | Parche | Qué deja de hacer el lienzo |
+| Parche | Dónde | Qué deja de hacer el lienzo |
 |---|---|---|
-| `polimake.1` | Marco con esquinas rectas (`FRAME_STYLE.radius` 8 → 0): un marco es una página. | El `pnpm patch` de Studio sobre el dist. |
-| `polimake.2` | Ctrl+D da índice propio a las copias (backport de upstream, `syncMovedIndices`). | `core/duplicate.ts` y `onDuplicate`. |
-| `polimake.2` | `UIOptions.helpButton`, `.hints`, `.defaultSidebarTrigger`; «Generate» y Mermaid siguen a `aiEnabled`; «Marco» y «Buscar en el lienzo» en es-ES. | ~55 líneas de CSS con `!important` y los rótulos pintados con `::after`. |
-| `polimake.2` | `historyIgnoresSelection`: seleccionar no es un paso de deshacer, y deshacer no se queda a medio paso con un texto vacío. Mayúsculas+flecha mueve 10 px. | `core/gestures.ts` y `ui/editor/canvaGestures.tsx` (~540 líneas). |
-| `polimake.2` | `renderToolbarExtra`: un hueco al final de la barra de herramientas. | `ToolbarSlot.tsx` (portal con MutationObserver). |
+| Marco con esquinas rectas (`FRAME_STYLE.radius` 8 → 0) y Mayúsculas+flecha a 10 px | `common/src/constants.ts` | El `pnpm patch` de Studio y la acción Mayúsculas+flecha propia. |
+| `historyIgnoresSelection`: seleccionar no es un paso de deshacer; deshacer no se queda a medio paso con un texto vacío | `excalidraw/history.ts` | `core/gestures.ts` y `ui/editor/canvaGestures.tsx` (~540 líneas). |
+| `ui.disabled.helpButton`, `.hints`, `.defaultSidebarTrigger`; «Generate» y Mermaid siguen a `aiEnabled`; «Marco» y «Buscar en el lienzo» en es-ES | `types.ts`, `Toolbar`, `Footer`, `LayerUI`, `MobileMenu`, `es-ES.json` | ~55 líneas de CSS con `!important` y los rótulos pintados con `::after`. |
+| `renderToolbarExtra`: un hueco al final de la barra de herramientas | `Toolbar.tsx` | `ToolbarSlot.tsx` (portal con MutationObserver). |
 
-Pendientes, para hacer con pruebas en la app (tocan cosas delicadas):
+Ya resuelto en upstream: el Ctrl+D que dejaba a la copia el índice del original
+(fuera `core/duplicate.ts`), y el aviso de escena cargada (`onInitialize`).
 
-- Modo oscuro sin invertir el diseño (hoy `sceneTheme` + ~85 líneas de CSS que
-  copian sus variables).
-- Aviso de escena cargada (`onInitialize`) en lugar del sondeo del arranque de
-  páginas. Ojo: si falla, se crea una página en blanco que el autoguardado
-  persiste.
-- Fuentes de marca: `registerCustomFont` público, con métricas reales
-  (`svgFonts.ts`, el silenciador de `export.ts`, los casts de `FONT_FAMILY`).
-- `pickElement` para elegir qué coge un clic (`canvaPick.ts`).
-- Escape cancela un arrastre o un escalado (`canvaDrag.ts`).
+Pendientes, para hacer con pruebas en la app:
 
-Descartados:
+- Arranque de páginas con `onInitialize` (upstream) en lugar del sondeo. Ojo:
+  si falla, se crea una página en blanco que el autoguardado persiste.
+- Modo oscuro sin invertir el diseño (hoy `sceneTheme` + ~85 líneas de CSS).
+- Fuentes de marca: registro público con métricas reales.
+- `pickElement` (qué coge un clic) y Escape que cancela un arrastre.
 
-- `deleteFiles` en el API: el elemento se repunta al id nuevo sin pasar por la
-  historia, así que deshacer puede volver al id viejo; si su entrada se borra,
-  la foto desaparece.
-- Lo que es producto y no limitación: páginas y orden (`pages.ts`,
-  `paginate.ts`, `zorder.ts`), conversores, `pick.ts`, el menú (`CanvasMenu`
-  usa la API pública), el vídeo como imagen.
+Descartados: `deleteFiles` (deshacer puede volver al id viejo y la foto
+desaparecería) y lo que es producto, no limitación: páginas y orden,
+conversores, `pick.ts`, el menú, el vídeo como imagen.
