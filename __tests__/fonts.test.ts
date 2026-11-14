@@ -128,10 +128,15 @@ describe('la lista de familias de fábrica sigue al día', () => {
     // El paquete no publica `./package.json` en sus `exports`, así que se parte
     // del índice (que sí) y se sube hasta el árbol de tipos.
     const entrada = require.resolve('@excalidraw/excalidraw');
-    const constantes = path.resolve(
-      path.dirname(entrada),
+    // Desde que upstream separó `@excalidraw/common`, las constantes viven en
+    // sus tipos, que el paquete lleva en `types/common/src`; antes, en
+    // `types/excalidraw`.
+    const constantes = [
+      '../types/common/src/constants.d.ts',
       '../types/excalidraw/constants.d.ts',
-    );
+    ]
+      .map((rel) => path.resolve(path.dirname(entrada), rel))
+      .find((ruta) => fs.existsSync(ruta))!;
     const dts = fs.readFileSync(constantes, 'utf8');
 
     const bloque = (nombre: string) =>
