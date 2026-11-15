@@ -1400,6 +1400,9 @@ function mergeLabels(custom) {
   }
   return out;
 }
+function isComposing(e) {
+  return e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229;
+}
 let transparentDragImage = null;
 function hideNativeDragImage(e) {
   if (typeof document === "undefined") return;
@@ -1779,7 +1782,7 @@ function PageNavigator({
                             onChange: (e) => setRenaming({ id: page.id, value: e.target.value }),
                             onKeyDown: (e) => {
                               e.stopPropagation();
-                              if (e.key === "Enter") commitRename();
+                              if (e.key === "Enter" && !isComposing(e)) commitRename();
                               if (e.key === "Escape") setRenaming(null);
                             },
                             onBlur: commitRename,
@@ -4447,7 +4450,7 @@ function LayersPanel({
                   value: renamingPage,
                   onChange: (e) => setRenamingPage(e.target.value),
                   onKeyDown: (e) => {
-                    if (e.key === "Enter") {
+                    if (e.key === "Enter" && !isComposing(e)) {
                       if (renamingPage.trim()) renamePage(api, activePageId, renamingPage.trim());
                       setRenamingPage(null);
                     }
@@ -6165,4 +6168,4 @@ export {
   captureThumbnail as y,
   cascadePoints as z
 };
-//# sourceMappingURL=LibraryPanel-BoFZoOu2.js.map
+//# sourceMappingURL=LibraryPanel-DfOekXRu.js.map
