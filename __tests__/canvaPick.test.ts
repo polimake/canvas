@@ -126,3 +126,80 @@ describe('coger como Canva, con el gesto entero', () => {
     quitar();
   });
 });
+
+/**
+ * Nightly del 14/11/2026, lienzo azar, semilla 1132, paso 6: un texto con su
+ * duplicado 10 unidades encima (Ctrl+D), el original seleccionado y un doble
+ * clic en la franja que se ve de él. Excalidraw editaba lo seleccionado, y al
+ * soltar el primer clic había dejado el duplicado.
+ */
+describe('el doble clic edita el texto que se ve', () => {
+  const escenaTextos = () =>
+    [
+      { ...member('original', 'p', 200, 200, 300, 60), type: 'text', text: 'árbol café' },
+      { ...member('copia', 'p', 210, 210, 300, 60), type: 'text', text: 'árbol café' },
+      frame('p', 0, 0, 1080, 1350),
+    ] as any[];
+
+  function montarTextos(seleccion: Record<string, true>) {
+    const engine = fakeApi(escenaTextos());
+    engine.api.updateScene({
+      appState: {
+        selectedElementIds: seleccion,
+        selectedGroupIds: {},
+        activeTool: { type: 'selection' },
+        zoom: { value: ZOOM },
+        offsetLeft: 0,
+        offsetTop: 0,
+        scrollX: 0,
+        scrollY: 0,
+        editingTextElement: null,
+        croppingElementId: null,
+        selectedLinearElement: null,
+      },
+    });
+    const root = document.createElement('div');
+    const canvas = document.createElement('canvas');
+    canvas.className = 'excalidraw__canvas interactive';
+    root.appendChild(canvas);
+    document.body.appendChild(root);
+    // Lo que hace el Excalidraw de verdad con el doble clic: edita lo seleccionado si es un único texto.
+    let editado: string | null = null;
+    root.addEventListener('dblclick', () => {
+      const ids = Object.keys(engine.api.getAppState().selectedElementIds);
+      editado = ids.length === 1 ? ids[0] : null;
+    });
+    const quitar = installCanvaPick(root, engine.api);
+    const doble = (x: number, y: number, extra: MouseEventInit = {}) =>
+      canvas.dispatchEvent(new MouseEvent('dblclick', { bubbles: true, cancelable: true, button: 0, clientX: x * ZOOM, clientY: y * ZOOM, ...extra }));
+    return { doble, quitar, editado: () => editado };
+  }
+
+  it('con el duplicado seleccionado, doble clic en la franja del original edita el original', () => {
+    const { doble, editado, quitar } = montarTextos({ copia: true });
+    doble(204, 230);
+    expect(editado()).toBe('original');
+    quitar();
+  });
+
+  it('doble clic donde se ve la copia edita la copia', () => {
+    const { doble, editado, quitar } = montarTextos({ original: true });
+    doble(400, 240);
+    expect(editado()).toBe('copia');
+    quitar();
+  });
+
+  it('si ya está seleccionado lo que se ve, no se toca', () => {
+    const { doble, editado, quitar } = montarTextos({ original: true });
+    doble(204, 230);
+    expect(editado()).toBe('original');
+    quitar();
+  });
+
+  it('con Mayúsculas no se toca', () => {
+    const { doble, editado, quitar } = montarTextos({ copia: true });
+    doble(204, 230, { shiftKey: true });
+    expect(editado()).toBe('copia');
+    quitar();
+  });
+});
