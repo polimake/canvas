@@ -342,6 +342,33 @@ export function pickVisible(
 }
 
 /**
+ * Un doble clic edita el texto que se ve bajo el puntero, como en Canva.
+ *
+ * Excalidraw edita lo seleccionado si es un único texto, y si no, lo de más
+ * arriba con su margen. Con un texto y su duplicado encima (Ctrl+D lo deja 10
+ * unidades más abajo y a la derecha), lo que se ve del original es una franja
+ * que cae en la zona de asas de su selección: el clic no lo corregía y
+ * Excalidraw dejaba seleccionado el duplicado, que era lo que se editaba
+ * (nightly del 14/11/2026, lienzo azar, semilla 1132, paso 6: «reescribir»).
+ *
+ * Devuelve el id del texto que hay que dejar seleccionado antes de que
+ * Excalidraw vea el doble clic, o `null` si ya lo está o lo que se ve no es un
+ * texto. Un doble clic nunca es un asa, así que aquí no cuentan.
+ */
+export function textToEdit(
+  elements: readonly SceneElement[],
+  selectedElementIds: Readonly<Record<string, boolean>>,
+  point: { x: number; y: number },
+  zoom: number,
+): string | null {
+  const top = topAt(elements, point, zoom);
+  if (!top || top.type !== 'text') return null;
+  const selected = Object.keys(selectedElementIds).filter((k) => selectedElementIds[k]);
+  if (selected.length === 1 && selected[0] === top.id) return null;
+  return top.id;
+}
+
+/**
  * Pulsar un elemento pegado al borde de una página coge el elemento, no la
  * página.
  *
