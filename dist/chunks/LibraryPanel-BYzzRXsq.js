@@ -1,9 +1,9 @@
 import { jsxs, jsx, Fragment as Fragment$1 } from "react/jsx-runtime";
 import { useState, useRef, useEffect, Fragment, useMemo, useCallback, useId, useReducer } from "react";
 import "@excalidraw/excalidraw/index.css";
-import { newElementWith, CaptureUpdateAction, convertToExcalidrawElements, serializeAsJSON, restore, exportToBlob, exportToCanvas, exportToSvg, MainMenu, FONT_FAMILY, useI18n, viewportCoordsToSceneCoords, getVisibleSceneBounds, Excalidraw, getNonDeletedElements } from "@excalidraw/excalidraw";
+import { CaptureUpdateAction, newElementWith, convertToExcalidrawElements, restore, serializeAsJSON, exportToCanvas, exportToBlob, exportToSvg, MainMenu, FONT_FAMILY, useI18n, viewportCoordsToSceneCoords, getVisibleSceneBounds, Excalidraw, getNonDeletedElements } from "@excalidraw/excalidraw";
 import { cloneSceneElements } from "../components.js";
-import { P as PAGE_GAP } from "./layout-BEpoNps2.js";
+import { P as PAGE_GAP } from "./layout-L5bQ5REv.js";
 import { fontFormatHint, buildFontFaceCss, fontFamilyAlias, normalizeFontSrc, customFontFamilyId, dedupeFontFaces } from "../fonts.js";
 import { createPortal, flushSync } from "react-dom";
 const CAPTURE = {
@@ -42,10 +42,42 @@ function detachMoved(current, next) {
   }
   return out ?? next;
 }
+function keepDeleted(current, next) {
+  const inNext = new Set(next.map((el) => el.id));
+  const after = /* @__PURE__ */ new Map();
+  let prev = null;
+  let missing = false;
+  for (const el of current) {
+    if (el.isDeleted && !inNext.has(el.id)) {
+      const list = after.get(prev) ?? [];
+      list.push(el);
+      after.set(prev, list);
+      missing = true;
+      prev = el.id;
+    } else if (inNext.has(el.id)) {
+      prev = el.id;
+    }
+  }
+  if (!missing) return next;
+  const out = [];
+  const emit = (id) => {
+    for (const el of after.get(id) ?? []) {
+      out.push(el);
+      emit(el.id);
+    }
+  };
+  emit(null);
+  for (const el of next) {
+    out.push(el);
+    emit(el.id);
+  }
+  return out;
+}
 function commitElements(api, elements, capture = "undoable", appState) {
   var _a;
+  const current = ((_a = api.getSceneElementsIncludingDeleted) == null ? void 0 : _a.call(api)) ?? api.getSceneElements();
   api.updateScene({
-    elements: asSceneElements(detachMoved(((_a = api.getSceneElementsIncludingDeleted) == null ? void 0 : _a.call(api)) ?? api.getSceneElements(), elements)),
+    elements: asSceneElements(detachMoved(current, keepDeleted(current, elements))),
     ...appState ? { appState } : {},
     captureUpdate: CAPTURE[capture]
   });
@@ -5128,6 +5160,13 @@ function pickVisible(elements, state, point, zoom) {
   }
   return { id: top.id, selectedElementIds: { [top.id]: true }, selectedGroupIds: {} };
 }
+function textToEdit(elements, selectedElementIds, point, zoom) {
+  const top = topAt(elements, point, zoom);
+  if (!top || top.type !== "text") return null;
+  const selected = Object.keys(selectedElementIds).filter((k) => selectedElementIds[k]);
+  if (selected.length === 1 && selected[0] === top.id) return null;
+  return top.id;
+}
 function pickOverPageEdge(elements, selectedElementIds, point, zoom) {
   const zone = HANDLE_ZONE_PX / (zoom || 1);
   const nearEdge = elements.some((el) => {
@@ -5216,10 +5255,23 @@ function installCanvaPick(root, api, win = window) {
     select({ [edge]: true }, {}, edge);
     arm(ev, edge);
   };
+  const onDouble = (ev) => {
+    if (ev.button !== 0 || ev.shiftKey || ev.ctrlKey || ev.metaKey || ev.altKey) return;
+    const target = ev.target;
+    if (!(target instanceof HTMLCanvasElement) || !target.classList.contains("interactive")) return;
+    const s = api.getAppState();
+    if (s.activeTool.type !== "selection" || s.editingTextElement || s.croppingElementId) return;
+    const z = s.zoom.value;
+    const point = { x: (ev.clientX - s.offsetLeft) / z - s.scrollX, y: (ev.clientY - s.offsetTop) / z - s.scrollY };
+    const id = textToEdit(api.getSceneElements(), s.selectedElementIds, point, z);
+    if (id) select({ [id]: true }, {}, null);
+  };
   root.addEventListener("pointerdown", onDown, true);
+  root.addEventListener("dblclick", onDouble, true);
   return () => {
     drop();
     root.removeEventListener("pointerdown", onDown, true);
+    root.removeEventListener("dblclick", onDouble, true);
   };
 }
 const EDGE_ZONE_PX = 48;
@@ -6243,103 +6295,103 @@ function LibraryPanel({
   );
 }
 export {
-  reorderPageMembers as $,
-  duplicatePage as A,
+  fitAllPages as $,
+  clusterLooseElements as A,
   BrandGallery as B,
   Canvas2 as C,
-  DesignPanel as D,
-  resizePage as E,
-  relayoutPages as F,
-  adoptStrayFramesInArray as G,
-  movePage as H,
-  movePageTo as I,
-  isPageLocked as J,
-  setPageLocked as K,
+  DEFAULT_LABELS as D,
+  EMPTY_BRAND as E,
+  contrastTextColor as F,
+  convertToPages as G,
+  createBlankScene as H,
+  ImageLoadError as I,
+  dataUrlToBlob as J,
+  deletePage as K,
   LayersPanel as L,
   ModeSwitch as M,
-  focusLayer as N,
-  convertToPages as O,
-  PageNavigator as P,
-  adoptLooseIntoPage as Q,
-  paginateSceneInArray as R,
-  clusterLooseElements as S,
-  looseElements as T,
-  patchElement as U,
+  downloadBlob as N,
+  duplicatePage as O,
+  PANEL_FONT as P,
+  ensurePagePapers as Q,
+  exportScenePdf as R,
+  exportScenePng as S,
+  TEXT_PRESETS as T,
+  exportSceneSvg as U,
   VideoFramePicker as V,
-  usePageThumbnails as W,
-  PAGE_ALIGNMENTS as X,
-  alignToPage as Y,
-  setAsBackground as Z,
-  extendToPage as _,
+  exportStoredScenePng as W,
+  exportStoredSceneSvg as X,
+  extendToPage as Y,
+  externalizeInlineImages as Z,
+  findInlineImageIds as _,
   Canvas2Editor as a,
-  sendMemberToBack as a0,
-  resolveBrandKit as a1,
-  EMPTY_BRAND as a2,
-  registerCustomFont as a3,
-  registerCustomFonts as a4,
-  fontFamilyId as a5,
-  serializeScene as a6,
-  parseScene as a7,
-  restoreScene as a8,
-  exportScenePng as a9,
-  fitPagePapersInArray as aA,
-  isPageBackground as aB,
-  insertVideo as aC,
-  setVideoPoster as aD,
-  isVideoElement as aE,
-  getVideoMeta as aF,
-  getSelectedVideo as aG,
-  VIDEO_MARKER as aH,
-  exportSceneSvg as aa,
-  exportScenePdf as ab,
-  captureThumbnail as ac,
-  downloadBlob as ad,
-  exportStoredSceneSvg as ae,
-  exportStoredScenePng as af,
-  storedScenePageCount as ag,
-  insertImageFromBlob as ah,
-  insertImageFromUrl as ai,
-  insertImageWithPreview as aj,
-  replaceImageFromUrl as ak,
-  resolveInsertPageId as al,
-  cascadePoints as am,
-  imageAtScenePoint as an,
-  externalizeInlineImages as ao,
-  hasUploadsInFlight as ap,
-  findInlineImageIds as aq,
-  isInlineDataUrl as ar,
-  dataUrlToBlob as as,
-  ImageLoadError as at,
-  TEXT_PRESETS as au,
-  insertTextPreset as av,
-  contrastTextColor as aw,
-  getPageBackground as ax,
-  setPageBackgroundColor as ay,
-  ensurePagePapers as az,
+  fitPagePapersInArray as a0,
+  focusLayer as a1,
+  fontFamilyId as a2,
+  getPageBackground as a3,
+  getPageSize as a4,
+  getSelectedVideo as a5,
+  getVideoMeta as a6,
+  hasUploadsInFlight as a7,
+  hideNativeDragImage as a8,
+  imageAtScenePoint as a9,
+  sendMemberToBack as aA,
+  serializeScene as aB,
+  setAsBackground as aC,
+  setPageBackgroundColor as aD,
+  setPageLocked as aE,
+  setVideoPoster as aF,
+  storedScenePageCount as aG,
+  usePageThumbnails as aH,
+  insertImageFromBlob as aa,
+  insertImageFromUrl as ab,
+  insertImageWithPreview as ac,
+  insertTextPreset as ad,
+  insertVideo as ae,
+  isInlineDataUrl as af,
+  isPageBackground as ag,
+  isPageLocked as ah,
+  isVideoElement as ai,
+  listPages as aj,
+  looseElements as ak,
+  movePage as al,
+  movePageTo as am,
+  paginateSceneInArray as an,
+  parseScene as ao,
+  patchElement as ap,
+  registerCustomFont as aq,
+  registerCustomFonts as ar,
+  relayoutPages as as,
+  renamePage as at,
+  reorderPageMembers as au,
+  replaceImageFromUrl as av,
+  resizePage as aw,
+  resolveBrandKit as ax,
+  resolveInsertPageId as ay,
+  restoreScene as az,
   CanvasMenu as b,
-  LibraryPanel as c,
-  PageActions as d,
-  DragPreview as e,
-  DEFAULT_LABELS as f,
-  PANEL_FONT as g,
-  packPagesInArray as h,
-  commitElements as i,
-  goToPage as j,
-  pageElementsInOrder as k,
-  buildPersistableFiles as l,
+  DesignPanel as c,
+  DragPreview as d,
+  LibraryPanel as e,
+  PageActions as f,
+  PageNavigator as g,
+  pageElementsInOrder as h,
+  buildPersistableFiles as i,
+  packPagesInArray as j,
+  commitElements as k,
+  goToPage as l,
   mergeLabels as m,
-  MEDIA_DROP_TYPE as n,
-  hideNativeDragImage as o,
+  DEFAULT_PAGE_SIZE as n,
+  MEDIA_DROP_TYPE as o,
   palette as p,
-  DEFAULT_PAGE_SIZE as q,
+  PAGE_ALIGNMENTS as q,
   renumberPagesInArray as r,
   PAGE_SIZE_PRESETS as s,
-  createBlankScene as t,
-  listPages as u,
-  getPageSize as v,
-  addPage as w,
-  deletePage as x,
-  fitAllPages as y,
-  renamePage as z
+  VIDEO_MARKER as t,
+  addPage as u,
+  adoptLooseIntoPage as v,
+  adoptStrayFramesInArray as w,
+  alignToPage as x,
+  captureThumbnail as y,
+  cascadePoints as z
 };
-//# sourceMappingURL=LibraryPanel-CzqBh7nk.js.map
+//# sourceMappingURL=LibraryPanel-BYzzRXsq.js.map
