@@ -18,7 +18,7 @@
  */
 import { flushSync } from 'react-dom';
 import { CaptureUpdateAction, type ExcalidrawImperativeAPI } from '../../core/excal';
-import { pickOverPageEdge, pickOverSelection, pickVisible } from '../../core/pick';
+import { pickOverPageEdge, pickOverSelection, pickVisible, textToEdit } from '../../core/pick';
 
 type Ids = Record<string, true>;
 
@@ -107,9 +107,24 @@ export function installCanvaPick(root: HTMLElement, api: ExcalidrawImperativeAPI
     arm(ev, edge);
   };
 
+  /** El doble clic edita el texto que se ve, no el que tiene encima (core/pick.ts, `textToEdit`). */
+  const onDouble = (ev: MouseEvent) => {
+    if (ev.button !== 0 || ev.shiftKey || ev.ctrlKey || ev.metaKey || ev.altKey) return;
+    const target = ev.target;
+    if (!(target instanceof HTMLCanvasElement) || !target.classList.contains('interactive')) return;
+    const s = api.getAppState();
+    if (s.activeTool.type !== 'selection' || s.editingTextElement || s.croppingElementId) return;
+    const z = s.zoom.value;
+    const point = { x: (ev.clientX - s.offsetLeft) / z - s.scrollX, y: (ev.clientY - s.offsetTop) / z - s.scrollY };
+    const id = textToEdit(api.getSceneElements(), s.selectedElementIds, point, z);
+    if (id) select({ [id]: true }, {}, null);
+  };
+
   root.addEventListener('pointerdown', onDown, true);
+  root.addEventListener('dblclick', onDouble, true);
   return () => {
     drop();
     root.removeEventListener('pointerdown', onDown, true);
+    root.removeEventListener('dblclick', onDouble, true);
   };
 }
