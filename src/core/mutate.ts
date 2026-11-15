@@ -100,6 +100,53 @@ export function detachMoved(
   return out ?? next;
 }
 
+/**
+ * Lo borrado se queda en la escena, en su sitio.
+ *
+ * Las operaciones del lienzo arman la escena nueva desde `getSceneElements()`,
+ * que solo trae lo vivo. Sin lo borrado en la lista, `updateScene` lo quita de
+ * verdad, y al deshacer ese borrado Excalidraw lo saca de su copia y lo
+ * recoloca por índice: con dos que vuelven a la vez, el primero toma un índice
+ * nuevo y el segundo cae al otro lado (nightly del 14/11/2026,
+ * `lienzo/parte-8-deshacer`, cadena 5: «Ctrl+Z nº 4 no deja el paso 8 — mismos
+ * elementos en otro orden», tras duplicar una página y borrar dos textos).
+ *
+ * Cada borrado que falta vuelve detrás del que tenía delante en la escena; si
+ * no tenía nada delante, al principio. Es el mismo objeto: no cambia de
+ * versión ni de índice.
+ */
+export function keepDeleted(current: readonly SceneElement[], next: readonly SceneElement[]): readonly SceneElement[] {
+  const inNext = new Set(next.map((el) => el.id));
+  const after = new Map<string | null, SceneElement[]>();
+  let prev: string | null = null;
+  let missing = false;
+  for (const el of current) {
+    if (el.isDeleted && !inNext.has(el.id)) {
+      const list = after.get(prev) ?? [];
+      list.push(el);
+      after.set(prev, list);
+      missing = true;
+      prev = el.id;
+    } else if (inNext.has(el.id)) {
+      prev = el.id;
+    }
+  }
+  if (!missing) return next;
+  const out: SceneElement[] = [];
+  const emit = (id: string | null) => {
+    for (const el of after.get(id) ?? []) {
+      out.push(el);
+      emit(el.id);
+    }
+  };
+  emit(null);
+  for (const el of next) {
+    out.push(el);
+    emit(el.id);
+  }
+  return out;
+}
+
 /** Commit an elements array (optionally with appState) to the scene. */
 export function commitElements(
   api: ExcalidrawImperativeAPI,
@@ -107,8 +154,9 @@ export function commitElements(
   capture: CaptureMode = 'undoable',
   appState?: Record<string, unknown>,
 ): void {
+  const current = api.getSceneElementsIncludingDeleted?.() ?? api.getSceneElements();
   api.updateScene({
-    elements: asSceneElements(detachMoved(api.getSceneElementsIncludingDeleted?.() ?? api.getSceneElements(), elements)),
+    elements: asSceneElements(detachMoved(current, keepDeleted(current, elements))),
     ...(appState ? { appState: appState as UpdateScenePayload['appState'] } : {}),
     captureUpdate: CAPTURE[capture],
   });
