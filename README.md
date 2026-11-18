@@ -59,7 +59,7 @@ incrustan en el JSON del lienzo.
 | Formato | Soporte actual |
 | --- | --- |
 | `.psd`, `.psb` | Lectura binaria de estructura y canales comprimidos; conversión de capas, textos, formas y mesas de trabajo. Rasteres como referencias pendientes de decodificar/subir. |
-| `.pptx` | Lectura de diapositivas en su orden, texto directo, formas básicas, imágenes y notas. Conversión editable parcial con informe. |
+| `.pptx` | Diapositivas con su tema, patrón y diseño: textos, formas, contornos libres, conectores, tablas, imágenes y notas. Conversión editable con informe de lo que cambia. |
 | `.ppt` | Requiere conversión externa a `.pptx`; no es un ZIP OOXML. |
 | `.ai` compatible con PDF | Adaptador PDF: extracción de texto para búsqueda o páginas como imágenes mediante un renderizador del consumidor. |
 | `.ai` antiguo/PostScript | Requiere conversión externa; no se interpreta ni ejecuta PostScript. |

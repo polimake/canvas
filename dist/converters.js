@@ -1,6 +1,21 @@
 import { D, P, c, f, g, l, a, p, b, d, e, r, h, s } from "./chunks/legacy-DAAEWkHb.js";
 import { P as PAGE_GAP } from "./chunks/layout-L5bQ5REv.js";
 import { customFontFamilyId } from "./fonts.js";
+import { e as estimateTextHeight } from "./chunks/model-Jk--sAmK.js";
+const ROUNDNESS_ADAPTIVE = 3;
+const AVERAGE_GLYPH_WIDTH = 0.5;
+const MAX_ONE_LINE_OVERFLOW = 1.4;
+function textPlacement(source, fontSize, lineHeight) {
+  if (!source.inset && !source.verticalAlign) return { x: source.x, y: source.y, width: source.width, height: source.height, autoResize: false };
+  const inset = source.inset ?? { left: 0, top: 0, right: 0, bottom: 0 };
+  const width = Math.max(1, source.width - inset.left - inset.right), room = source.height - inset.top - inset.bottom;
+  const height = estimateTextHeight(source.text ?? "", fontSize, lineHeight, width);
+  const offset = source.verticalAlign === "middle" ? (room - height) / 2 : source.verticalAlign === "bottom" ? room - height : 0;
+  const paragraphs = (source.text ?? "").split("\n");
+  const fitsOneLine = Math.max(...paragraphs.map((line) => line.length)) * fontSize * AVERAGE_GLYPH_WIDTH <= width * MAX_ONE_LINE_OVERFLOW;
+  const autoResize = fitsOneLine && paragraphs.length >= Math.round(room / (fontSize * lineHeight));
+  return { x: source.x + inset.left, y: source.y + inset.top + offset, width, height, autoResize };
+}
 function documentToScene(document, options = {}) {
   var _a;
   const result = { elements: [], files: {}, fonts: options.fonts ?? [], warnings: [...document.warnings], pendingAssetIds: [] };
@@ -53,6 +68,10 @@ function documentToScene(document, options = {}) {
         height: source.height,
         frameId: frame.id,
         angle: (source.rotation ?? 0) * Math.PI / 180,
+        groupIds: source.groupIds ?? [],
+        opacity: source.opacity ?? 100,
+        strokeStyle: source.strokeStyle ?? "solid",
+        roundness: source.rounded ? { type: ROUNDNESS_ADAPTIVE } : null,
         backgroundColor: source.fill ?? "transparent",
         strokeColor: source.stroke ?? "transparent",
         strokeWidth: source.strokeWidth ?? 1,
@@ -61,26 +80,54 @@ function documentToScene(document, options = {}) {
       if (source.kind === "text") {
         const font = result.fonts.find((f2) => f2.family === source.fontFamily);
         if (source.fontFamily && !font) result.warnings.push({ code: "unresolved-font", message: `Font ${source.fontFamily} uses a fallback until supplied by the host.`, pageId: page.id, elementId: source.id });
+        const fontSize = source.fontSize ?? 24, lineHeight = source.lineHeight ?? 1.25;
+        const placed = textPlacement(source, fontSize, lineHeight);
+        const text = source.inset ? (source.text ?? "").trimEnd() : source.text ?? "";
         result.elements.push(base({
           ...common,
+          ...placed,
+          x: xOffset + placed.x,
           type: "text",
-          text: source.text ?? "",
-          originalText: source.text ?? "",
-          fontSize: source.fontSize ?? 24,
+          text,
+          originalText: text,
+          fontSize,
           fontFamily: font ? customFontFamilyId(font.family) : 2,
-          textAlign: "left",
+          textAlign: source.textAlign ?? "left",
           verticalAlign: "top",
           containerId: null,
-          autoResize: false,
-          lineHeight: 1.25,
+          lineHeight,
+          backgroundColor: "transparent",
           strokeColor: source.color ?? "#1a1a1a"
+        }));
+      } else if (source.kind === "line") {
+        const points = source.points ?? [[0, 0], [source.width, source.height]];
+        const [first, last] = [points[0], points[points.length - 1]];
+        result.elements.push(base({
+          ...common,
+          type: source.arrowStart || source.arrowEnd ? "arrow" : "line",
+          points,
+          polygon: points.length > 2 && first[0] === last[0] && first[1] === last[1],
+          lastCommittedPoint: null,
+          startBinding: null,
+          endBinding: null,
+          startArrowhead: source.arrowStart ? "arrow" : null,
+          endArrowhead: source.arrowEnd ? "arrow" : null
         }));
       } else if (source.kind === "image") {
         const asset = source.assetId ? (_a = options.assets) == null ? void 0 : _a[source.assetId] : void 0;
         if (asset && /^https?:\/\//i.test(asset.url)) {
           const fileId = `${prefix}-asset-${source.assetId}`;
           result.files[fileId] = { id: fileId, dataURL: asset.url, mimeType: asset.mimeType, created: 0 };
-          result.elements.push(base({ ...common, type: "image", fileId, status: "saved", scale: [1, 1], crop: null }));
+          const natural = document.assets.find((item) => item.id === source.assetId);
+          const crop = source.crop && (natural == null ? void 0 : natural.width) && natural.height ? {
+            x: source.crop.left * natural.width,
+            y: source.crop.top * natural.height,
+            width: natural.width * (1 - source.crop.left - source.crop.right),
+            height: natural.height * (1 - source.crop.top - source.crop.bottom),
+            naturalWidth: natural.width,
+            naturalHeight: natural.height
+          } : null;
+          result.elements.push(base({ ...common, type: "image", fileId, status: "saved", scale: [source.flipH ? -1 : 1, source.flipV ? -1 : 1], crop }));
         } else {
           if (source.assetId && !result.pendingAssetIds.includes(source.assetId)) result.pendingAssetIds.push(source.assetId);
           result.elements.push(base({

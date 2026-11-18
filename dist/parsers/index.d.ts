@@ -29,7 +29,7 @@ export declare const IMPORT_FORMATS: readonly [{
 }, {
     readonly extension: "pptx";
     readonly support: "partial";
-    readonly detail: "Direct text, shapes, images and notes; master/theme features are reported.";
+    readonly detail: "Slides with their theme and layouts: text, shapes, outlines, connectors, tables, images and notes.";
 }, {
     readonly extension: "ai";
     readonly support: "adapter";
