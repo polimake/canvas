@@ -30,7 +30,7 @@ const salida = join(raiz, 'vendor', 'excalidraw-dist');
 const enWindows = process.platform === 'win32';
 
 /** Commit del original que hay en vendor/excalidraw (lo sube quien lo actualiza). */
-export const BASE = 'c0a0ca34';
+export const BASE = '9fbeaed5';
 /** Nuestra revisión sobre esa base. Se sube a mano al cambiar un parche. */
 export const REVISION = 1;
 /** Donde se publican los Releases. */
