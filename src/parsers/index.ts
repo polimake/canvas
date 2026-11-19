@@ -20,7 +20,7 @@ export type ParsedFile = { format: 'psd' | 'psb'; document: PsdDocument } | { fo
 export const IMPORT_FORMATS = [
   { extension: 'psd', support: 'native', detail: 'Structure and compressed channels; raster assets require host decoding/upload.' },
   { extension: 'psb', support: 'native', detail: 'Large Photoshop structure subject to configured limits.' },
-  { extension: 'pptx', support: 'partial', detail: 'Direct text, shapes, images and notes; master/theme features are reported.' },
+  { extension: 'pptx', support: 'partial', detail: 'Slides with their theme and layouts: text, shapes, outlines, connectors, tables, images and notes.' },
   { extension: 'ai', support: 'adapter', detail: 'PDF-compatible AI via PDF adapter; native Illustrator editing is not preserved.' },
   { extension: 'ppt', support: 'external-conversion', detail: 'Convert binary PowerPoint to PPTX before parsing.' },
 ] as const;

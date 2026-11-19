@@ -10,7 +10,7 @@ export interface ImportNote {
 
 export interface DocumentElement {
   id: string;
-  kind: 'text' | 'rectangle' | 'ellipse' | 'image';
+  kind: 'text' | 'rectangle' | 'ellipse' | 'diamond' | 'image' | 'line';
   name?: string;
   x: number;
   y: number;
@@ -25,7 +25,26 @@ export interface DocumentElement {
   fill?: string;
   stroke?: string;
   strokeWidth?: number;
+  strokeStyle?: 'solid' | 'dashed' | 'dotted';
+  /** 0–100. */
+  opacity?: number;
+  rounded?: boolean;
+  /** Groups the element belongs to, innermost first. */
+  groupIds?: string[];
+  /** `line`: outline relative to x/y. Closed when the last point repeats the first. */
+  points?: [number, number][];
+  arrowStart?: boolean;
+  arrowEnd?: boolean;
+  /** Text: x/y/width/height are its box; these place the text inside it. */
+  textAlign?: 'left' | 'center' | 'right';
+  verticalAlign?: 'top' | 'middle' | 'bottom';
+  inset?: { left: number; top: number; right: number; bottom: number };
+  lineHeight?: number;
   assetId?: string;
+  /** Image: fractions of the source removed from each side. */
+  crop?: { left: number; top: number; right: number; bottom: number };
+  flipH?: boolean;
+  flipV?: boolean;
 }
 
 export interface DocumentPage {
@@ -46,6 +65,8 @@ export interface DocumentAsset {
   mimeType: string;
   /** Original bytes; upload separately. Never embedded into the scene JSON. */
   bytes: Uint8Array;
+  width?: number;
+  height?: number;
 }
 
 export interface ImportDocument {
@@ -53,6 +74,13 @@ export interface ImportDocument {
   pages: DocumentPage[];
   assets: DocumentAsset[];
   warnings: ImportNote[];
+}
+
+/** Height a text will take, from an average glyph width: no font metrics here. */
+export function estimateTextHeight(text: string, fontSize: number, lineHeight: number, width: number): number {
+  const perLine = Math.max(1, width / (fontSize * 0.5));
+  const lines = text.split('\n').reduce((total, paragraph) => total + Math.max(1, Math.ceil(paragraph.length / perLine)), 0);
+  return lines * fontSize * lineHeight;
 }
 
 export interface ParseLimits {

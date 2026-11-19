@@ -1,6 +1,6 @@
 import type { SceneElement } from '../core/excal';
 import { type CustomFontFace } from '../core/fonts';
-import type { ImportDocument, ImportNote } from '../documents/model';
+import { type ImportDocument, type ImportNote } from '../documents/model';
 export interface UploadedAsset {
     url: string;
     mimeType: string;
