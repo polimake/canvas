@@ -1,5 +1,5 @@
 import { readPsd } from "ag-psd";
-import { r as readBytes, D as DocumentImportError, e as estimateTextHeight } from "./chunks/model-Jk--sAmK.js";
+import { r as readBytes, D as DocumentImportError, e as estimateTextHeight } from "./chunks/model-Rq3yAvOe.js";
 import { unzipSync, strFromU8 } from "fflate";
 import { XMLValidator, XMLParser } from "fast-xml-parser";
 function parsePsd(input, limits = {}) {
@@ -310,6 +310,12 @@ function resolvePart(source, target) {
   }
   return result.join("/");
 }
+const NAMED_WEIGHT = /\b(thin|hairline|light|regular|book|medium|(semi|demi|extra|ultra)?\s?bold|black|heavy)$/i;
+function styledFamily(font, bold, italic) {
+  if (!font) return font;
+  const named = NAMED_WEIGHT.test(font.replace(/\s+italic$/i, ""));
+  return `${font}${bold && !named ? " Bold" : ""}${italic && !/italic$/i.test(font) ? " Italic" : ""}`;
+}
 const placeholderOf = (shape) => descendants(child(shape, "nvSpPr"), "ph")[0];
 const masterKind = (type) => type === "title" || type === "ctrTitle" ? "title" : !type || type === "subTitle" || type === "obj" || type === "body" ? "body" : type;
 const shapesOf = (root, tag) => children(child(child(root && child(root, tag), "cSld"), "spTree"), "sp");
@@ -393,14 +399,21 @@ function parsePptx(input, limits = {}) {
             })) ?? theme.minorFont,
             // The shape's style outranks the master's text styles, not the shape's own.
             color: firstOf([own, ...near.map((level) => child(level, "defRPr"))].map((n) => n && paint(child(n, "solidFill")))) ?? styleColor ?? firstOf(far.map((level) => paint(child(child(level, "defRPr"), "solidFill")))) ?? schemeColor("tx1"),
-            emphasis: pick((n) => n.attrs.b) === "1" || pick((n) => n.attrs.i) === "1"
+            bold: pick((n) => n.attrs.b) === "1",
+            italic: pick((n) => n.attrs.i) === "1"
           };
         };
         const style = styleOf(styled[0] ?? runs[0]);
+        let letters = 0, bold = 0, italic = 0;
         for (const run of styled) {
-          const other = styleOf(run);
-          if (other.emphasis || other.size !== style.size || other.font !== style.font || ((_a2 = other.color) == null ? void 0 : _a2.hex) !== ((_b2 = style.color) == null ? void 0 : _b2.hex)) simplified = true;
+          const other = styleOf(run), length = value(child(run, "t")).length;
+          letters += length;
+          if (other.bold) bold += length;
+          if (other.italic) italic += length;
+          if (other.size !== style.size || other.font !== style.font || ((_a2 = other.color) == null ? void 0 : _a2.hex) !== ((_b2 = style.color) == null ? void 0 : _b2.hex)) simplified = true;
         }
+        const isBold = letters ? bold * 2 > letters : style.bold, isItalic = letters ? italic * 2 > letters : style.italic;
+        if (styled.some((run) => styleOf(run).bold !== isBold || styleOf(run).italic !== isItalic)) simplified = true;
         const spacing = (name) => {
           var _a3, _b3;
           const node = paragraphValue((n) => child(n, name));
@@ -418,7 +431,7 @@ function parsePptx(input, limits = {}) {
         return {
           text: bullet && text.trim() ? `${bullet} ${text}` : text,
           fontSize: style.size,
-          fontFamily: style.font,
+          fontFamily: styledFamily(style.font, isBold, isItalic),
           color: ((_e = style.color) == null ? void 0 : _e.hex) ?? "#1a1a1a",
           textAlign: ALIGN[paragraphValue((n) => n.attrs.algn) ?? "l"] ?? "left",
           lineHeight,

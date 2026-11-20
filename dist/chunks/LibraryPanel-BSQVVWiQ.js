@@ -3,7 +3,7 @@ import { useState, useRef, useEffect, Fragment, useMemo, useCallback, useId, use
 import "@excalidraw/excalidraw/index.css";
 import { CaptureUpdateAction, newElementWith, convertToExcalidrawElements, restore, serializeAsJSON, exportToCanvas, exportToBlob, exportToSvg, MainMenu, FONT_FAMILY, useI18n, viewportCoordsToSceneCoords, getVisibleSceneBounds, Excalidraw, getNonDeletedElements } from "@excalidraw/excalidraw";
 import { cloneSceneElements } from "../components.js";
-import { P as PAGE_GAP } from "./layout-L5bQ5REv.js";
+import { P as PAGE_GAP } from "./layout-BEpoNps2.js";
 import { fontFormatHint, buildFontFaceCss, fontFamilyAlias, normalizeFontSrc, customFontFamilyId, dedupeFontFaces } from "../fonts.js";
 import { createPortal, flushSync } from "react-dom";
 const CAPTURE = {
@@ -1548,7 +1548,7 @@ function PageNavigator({
         alignItems: "center",
         gap: 4,
         maxWidth: narrow ? void 0 : "min(920px, 94%)",
-        padding: 8,
+        padding: "4px 8px",
         // Isla como las de Excalidraw: sin borde, sombra suave.
         borderRadius: 16,
         background: c.bg,
@@ -1564,7 +1564,7 @@ function PageNavigator({
               display: "flex",
               alignItems: "center",
               // Sin hueco propio: la separación entre páginas la pone el insertor
-              // (10px) más el relleno de cada ficha. Con `gap` además, dos páginas
+              // (10px): las fichas no llevan relleno a los lados. Con `gap` además, dos páginas
               // acababan a 24px una de otra y la tira se leía como una lista suelta.
               gap: 0,
               minWidth: 0,
@@ -1694,7 +1694,7 @@ function PageNavigator({
                         alignItems: "center",
                         gap: 2,
                         cursor: draggingId === page.id ? "grabbing" : "pointer",
-                        padding: 4,
+                        padding: "4px 0",
                         borderRadius: 8,
                         fontSize: 11,
                         fontWeight: 600,
@@ -1717,7 +1717,8 @@ function PageNavigator({
                               position: "relative",
                               width: THUMB_W,
                               height: thumbH,
-                              borderRadius: 6,
+                              // El contenido nunca curvo: la miniatura es la pieza, va recta.
+                              borderRadius: 0,
                               background: c.hover,
                               overflow: "hidden",
                               flexShrink: 0
@@ -1797,7 +1798,7 @@ function PageNavigator({
                     flexDirection: "column",
                     alignItems: "center",
                     gap: 2,
-                    padding: 4,
+                    padding: "4px 0",
                     borderRadius: 8,
                     color: c.sub,
                     fontSize: 11,
@@ -1811,7 +1812,7 @@ function PageNavigator({
                         style: {
                           width: THUMB_W,
                           height: Math.round(THUMB_W * (ghostRatio.height / Math.max(1, ghostRatio.width))),
-                          borderRadius: 6,
+                          borderRadius: 0,
                           background: c.hover,
                           display: "grid",
                           placeContent: "center",
@@ -1913,7 +1914,7 @@ function PageNavigator({
                     style: {
                       width: THUMB_W,
                       height: Math.round(THUMB_W * (page.height / Math.max(1, page.width))),
-                      borderRadius: 3,
+                      borderRadius: 0,
                       border: `1px solid ${c.border}`,
                       background: c.hover,
                       overflow: "hidden"
@@ -2775,7 +2776,7 @@ function VideoFramePicker({
             },
             onTimeUpdate: (e) => setTiempo(e.currentTarget.currentTime),
             onError: () => setFallo(true),
-            style: { width: "100%", borderRadius: 6, background: "#000", display: "block" }
+            style: { width: "100%", borderRadius: 0, background: "#000", display: "block" }
           }
         ),
         src && /* @__PURE__ */ jsxs(Fragment$1, { children: [
@@ -3523,7 +3524,7 @@ function BrandGallery({
                           backgroundImage: "linear-gradient(45deg,rgba(128,128,128,.25) 25%,transparent 25%,transparent 75%,rgba(128,128,128,.25) 75%),linear-gradient(45deg,rgba(128,128,128,.25) 25%,transparent 25%,transparent 75%,rgba(128,128,128,.25) 75%)",
                           backgroundSize: "8px 8px",
                           backgroundPosition: "0 0, 4px 4px",
-                          borderRadius: embedded ? 8 : 4
+                          borderRadius: 0
                         },
                         children: /* @__PURE__ */ jsx(
                           "img",
@@ -4358,7 +4359,7 @@ function LayersPanel({
                   opacity: hidden ? 0.45 : 1
                 },
                 children: [
-                  /* @__PURE__ */ jsx("span", { style: { width: 32, height: 32, flexShrink: 0, display: "inline-grid", placeItems: "center", borderRadius: 8, overflow: "hidden", background: c.hover, color: c.sub }, children: thumb(el) ? /* @__PURE__ */ jsx(
+                  /* @__PURE__ */ jsx("span", { style: { width: 32, height: 32, flexShrink: 0, display: "inline-grid", placeItems: "center", borderRadius: 0, overflow: "hidden", background: c.hover, color: c.sub }, children: thumb(el) ? /* @__PURE__ */ jsx(
                     "img",
                     {
                       src: thumb(el),
@@ -6084,7 +6085,7 @@ ${css}` : css;
                     width: swapTarget.width * z,
                     height: swapTarget.height * z,
                     border: `2px solid ${acento}`,
-                    borderRadius: 4,
+                    borderRadius: 0,
                     background: `${acento}29`,
                     pointerEvents: "none",
                     zIndex: 90
@@ -6394,4 +6395,4 @@ export {
   captureThumbnail as y,
   cascadePoints as z
 };
-//# sourceMappingURL=LibraryPanel-BYzzRXsq.js.map
+//# sourceMappingURL=LibraryPanel-BSQVVWiQ.js.map
