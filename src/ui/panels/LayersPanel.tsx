@@ -392,7 +392,7 @@ export function LayersPanel({
                 opacity: hidden ? 0.45 : 1,
               }}
             >
-              <span style={{ width: 32, height: 32, flexShrink: 0, display: 'inline-grid', placeItems: 'center', borderRadius: 8, overflow: 'hidden', background: c.hover, color: c.sub }}>
+              <span style={{ width: 32, height: 32, flexShrink: 0, display: 'inline-grid', placeItems: 'center', borderRadius: 0, overflow: 'hidden', background: c.hover, color: c.sub }}>
                 {/* La miniatura de la propia imagen en vez del icono genérico:
                     en una escena con decenas de capas es lo único que permite
                     saber CUÁL es cuál sin ir pinchando una por una. */}

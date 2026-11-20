@@ -1151,7 +1151,7 @@ export function Canvas2Editor({
                 width: swapTarget.width * z,
                 height: swapTarget.height * z,
                 border: `2px solid ${acento}`,
-                borderRadius: 4,
+                borderRadius: 0,
                 background: `${acento}29`,
                 pointerEvents: 'none',
                 zIndex: 90,

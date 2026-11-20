@@ -190,7 +190,7 @@ export function PageNavigator({
         alignItems: 'center',
         gap: 4,
         maxWidth: narrow ? undefined : 'min(920px, 94%)',
-        padding: 8,
+        padding: '4px 8px',
         // Isla como las de Excalidraw: sin borde, sombra suave.
         borderRadius: 16,
         background: c.bg,
@@ -204,7 +204,7 @@ export function PageNavigator({
           display: 'flex',
           alignItems: 'center',
           // Sin hueco propio: la separación entre páginas la pone el insertor
-          // (10px) más el relleno de cada ficha. Con `gap` además, dos páginas
+          // (10px): las fichas no llevan relleno a los lados. Con `gap` además, dos páginas
           // acababan a 24px una de otra y la tira se leía como una lista suelta.
           gap: 0,
           minWidth: 0,
@@ -337,7 +337,7 @@ export function PageNavigator({
               alignItems: 'center',
               gap: 2,
               cursor: draggingId === page.id ? 'grabbing' : 'pointer',
-              padding: 4,
+              padding: '4px 0',
               borderRadius: 8,
               fontSize: 11,
               fontWeight: 600,
@@ -359,7 +359,8 @@ export function PageNavigator({
                 position: 'relative',
                 width: THUMB_W,
                 height: thumbH,
-                borderRadius: 6,
+                // El contenido nunca curvo: la miniatura es la pieza, va recta.
+                borderRadius: 0,
                 background: c.hover,
                 overflow: 'hidden',
                 flexShrink: 0,
@@ -443,7 +444,7 @@ export function PageNavigator({
             flexDirection: 'column',
             alignItems: 'center',
             gap: 2,
-            padding: 4,
+            padding: '4px 0',
             borderRadius: 8,
             color: c.sub,
             fontSize: 11,
@@ -455,7 +456,7 @@ export function PageNavigator({
             style={{
               width: THUMB_W,
               height: Math.round(THUMB_W * (ghostRatio.height / Math.max(1, ghostRatio.width))),
-              borderRadius: 6,
+              borderRadius: 0,
               background: c.hover,
               display: 'grid',
               placeContent: 'center',
@@ -567,7 +568,7 @@ export function PageNavigator({
                 style={{
                   width: THUMB_W,
                   height: Math.round(THUMB_W * (page.height / Math.max(1, page.width))),
-                  borderRadius: 3,
+                  borderRadius: 0,
                   border: `1px solid ${c.border}`,
                   background: c.hover,
                   overflow: 'hidden',

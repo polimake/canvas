@@ -211,7 +211,7 @@ export function VideoFramePicker({
             }}
             onTimeUpdate={(e) => setTiempo(e.currentTarget.currentTime)}
             onError={() => setFallo(true)}
-            style={{ width: '100%', borderRadius: 6, background: '#000', display: 'block' }}
+            style={{ width: '100%', borderRadius: 0, background: '#000', display: 'block' }}
           />
           )}
           {src && (
