@@ -59,6 +59,23 @@ describe('PPTX fidelity', () => {
     expect(elements.filter(e => e.kind === 'rectangle' && e.fill === '#3a39f5')).toHaveLength(1);
   });
 
+  it('keeps the bold and italic of a paragraph in its family, and warns when they are mixed', () => {
+    const run = (t: string, attrs = '', font = '') => `<a:r><a:rPr${attrs}>${font ? `<a:latin typeface="${font}"/>` : ''}</a:rPr><a:t>${t}</a:t></a:r>`;
+    const body = (...paragraphs: string[]) => `<p:txBody><a:bodyPr/>${paragraphs.map(p => `<a:p>${p}</a:p>`).join('')}</p:txBody>`;
+    const doc = deck(
+      sp(xfrm(0, 0, 300, 40) + '<a:noFill/>', body(run('Todo en negrita', ' b="1"'))) +
+      sp(xfrm(0, 50, 300, 40) + '<a:noFill/>', body(run('Una cursiva', ' i="1"', 'Newsreader'))) +
+      sp(xfrm(0, 100, 300, 40) + '<a:noFill/>', body(run('Ya pesa', ' b="1"', 'Funnel Sans SemiBold'))) +
+      sp(xfrm(0, 150, 300, 40) + '<a:noFill/>', body(run('Nadie quiere ') + run('navegar', ' i="1"') + run(' por su mar de archivos'))),
+    );
+    const family = (text: string) => doc.pages[0].elements.find(e => e.text === text)?.fontFamily;
+    expect(family('Todo en negrita')).toBe('Funnel Sans Bold');
+    expect(family('Una cursiva')).toBe('Newsreader Italic');
+    expect(family('Ya pesa')).toBe('Funnel Sans SemiBold');
+    expect(family('Nadie quiere navegar por su mar de archivos')).toBe('Funnel Sans');
+    expect(doc.warnings.map(w => w.code)).toContain('text-style');
+  });
+
   it('wraps a text far longer than a short box', () => {
     const long = 'Un texto que claramente ocupa varias líneas aunque su caja sea baja';
     const scene = documentToScene(deck(sp(xfrm(0, 0, 100, 30) + '<a:noFill/>', text(long)))).elements.find(e => (e as { type: string }).type === 'text') as unknown as { autoResize: boolean };

@@ -1,10 +1,10 @@
 "use client";
-import { h as pageElementsInOrder, i as buildPersistableFiles, j as packPagesInArray, r as renumberPagesInArray, k as commitElements, l as goToPage } from "./chunks/LibraryPanel-BYzzRXsq.js";
-import { B, C, a, b, D, n, c, d, E, I, L, e, o, q, s, P, f, g, T, t, u, v, w, x, y, z, A, F, G, H, J, a as a2, K, N, O, Q, R, S, U, W, X, Y, Z, _, $, a0, a1, a2 as a22, a3, a4, a5, a6, a7, a8, a9, aa, ab, ac, ad, ae, af, ag, ah, ai, aj, ak, m, al, am, an, p, ao, ap, aq, ar, as, at, au, av, aw, ax, ay, az, aA, aB, aC, aD, aE, aF, aG, aH } from "./chunks/LibraryPanel-BYzzRXsq.js";
-import { P as P2 } from "./chunks/layout-L5bQ5REv.js";
+import { h as pageElementsInOrder, i as buildPersistableFiles, j as packPagesInArray, r as renumberPagesInArray, k as commitElements, l as goToPage } from "./chunks/LibraryPanel-CXZYwM7D.js";
+import { B, C, a, b, D, n, c, d, E, I, L, e, o, q, s, P, f, g, T, t, u, v, w, x, y, z, A, F, G, H, J, a as a2, K, N, O, Q, R, S, U, W, X, Y, Z, _, $, a0, a1, a2 as a22, a3, a4, a5, a6, a7, a8, a9, aa, ab, ac, ad, ae, af, ag, ah, ai, aj, ak, m, al, am, an, p, ao, ap, aq, ar, as, at, au, av, aw, ax, ay, az, aA, aB, aC, aD, aE, aF, aG, aH } from "./chunks/LibraryPanel-CXZYwM7D.js";
+import { P as P2 } from "./chunks/layout-BEpoNps2.js";
 import "@excalidraw/excalidraw/index.css";
 import { convertToExcalidrawElements } from "@excalidraw/excalidraw";
-import { D as D2, P as P3, c as c2, f as f2, g as g2, l, a as a10, p as p2, b as b2, d as d2, e as e2, h, s as s2 } from "./chunks/legacy-DAAEWkHb.js";
+import { D as D2, P as P3, c as c2, f as f2, g as g2, l, a as a10, p as p2, b as b2, d as d2, e as e2, h, s as s2 } from "./chunks/legacy-BS2a1q37.js";
 import { EXCALIDRAW_BUILTIN_FAMILIES, buildFontFaceCss, customFontFamilyId, dedupeFontFaces, fontFamilyAlias, normalizeFontName } from "./fonts.js";
 import { instantiateComponent } from "./components.js";
 import { appendComponentToEditorConfig, cloneSceneElements, deriveComponentMeta, extractComponentFragment, fitImageInBox, listSlots, measureWrappedText } from "./components.js";

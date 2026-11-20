@@ -43,6 +43,19 @@ interface TextLevels { near: XmlNode[]; far: XmlNode[] }
 interface Placeholder { shapes: XmlNode[]; kind: string }
 interface TextBlock { text: string; fontSize: number; fontFamily?: string; color: string; textAlign: NonNullable<DocumentElement['textAlign']>; lineHeight: number; before: number; after: number }
 
+/** A typeface whose name already says its weight («Funnel Sans SemiBold»): bold on it is PowerPoint's fake bold. */
+const NAMED_WEIGHT = /\b(thin|hairline|light|regular|book|medium|(semi|demi|extra|ultra)?\s?bold|black|heavy)$/i;
+
+/**
+ * The family a paragraph is drawn with, its bold and italic included: the canvas has no
+ * weight per text, so «Funnel Sans Bold» is a family of its own that the host resolves.
+ */
+function styledFamily(font: string | undefined, bold: boolean, italic: boolean): string | undefined {
+  if (!font) return font;
+  const named = NAMED_WEIGHT.test(font.replace(/\s+italic$/i, ''));
+  return `${font}${bold && !named ? ' Bold' : ''}${italic && !/italic$/i.test(font) ? ' Italic' : ''}`;
+}
+
 const placeholderOf = (shape: XmlNode) => descendants(child(shape, 'nvSpPr'), 'ph')[0];
 const masterKind = (type: string | undefined) => type === 'title' || type === 'ctrTitle' ? 'title' : !type || type === 'subTitle' || type === 'obj' || type === 'body' ? 'body' : type;
 const shapesOf = (root: XmlNode | undefined, tag: string) => children(child(child(root && child(root, tag), 'cSld'), 'spTree'), 'sp');
@@ -176,14 +189,22 @@ export function parsePptx(input: Uint8Array | ArrayBuffer, limits: ParseLimits =
             // The shape's style outranks the master's text styles, not the shape's own.
             color: firstOf([own, ...near.map(level => child(level, 'defRPr'))].map(n => n && paint(child(n, 'solidFill')))) ?? styleColor
               ?? firstOf(far.map(level => paint(child(child(level, 'defRPr'), 'solidFill')))) ?? schemeColor('tx1'),
-            emphasis: pick(n => n.attrs.b) === '1' || pick(n => n.attrs.i) === '1',
+            bold: pick(n => n.attrs.b) === '1',
+            italic: pick(n => n.attrs.i) === '1',
           };
         };
         const style = styleOf(styled[0] ?? runs[0]);
+        // Bold and italic are the paragraph's when most of its letters have them.
+        let letters = 0, bold = 0, italic = 0;
         for (const run of styled) {
-          const other = styleOf(run);
-          if (other.emphasis || other.size !== style.size || other.font !== style.font || other.color?.hex !== style.color?.hex) simplified = true;
+          const other = styleOf(run), length = value(child(run, 't')).length;
+          letters += length;
+          if (other.bold) bold += length;
+          if (other.italic) italic += length;
+          if (other.size !== style.size || other.font !== style.font || other.color?.hex !== style.color?.hex) simplified = true;
         }
+        const isBold = letters ? bold * 2 > letters : style.bold, isItalic = letters ? italic * 2 > letters : style.italic;
+        if (styled.some(run => styleOf(run).bold !== isBold || styleOf(run).italic !== isItalic)) simplified = true;
         const spacing = (name: string) => {
           const node = paragraphValue(n => child(n, name));
           const points = child(node, 'spcPts')?.attrs.val, percent = child(node, 'spcPct')?.attrs.val;
@@ -195,7 +216,7 @@ export function parsePptx(input: Uint8Array | ArrayBuffer, limits: ParseLimits =
         const text = paragraph.children.map(n => n.name === 'br' ? '\n' : n.name === 'r' || n.name === 'fld' ? value(child(n, 't')) : '').join('');
         const bullet = paragraphValue(n => child(n, 'buNone') ? '' : child(n, 'buChar')?.attrs.char);
         return {
-          text: bullet && text.trim() ? `${bullet} ${text}` : text, fontSize: style.size, fontFamily: style.font,
+          text: bullet && text.trim() ? `${bullet} ${text}` : text, fontSize: style.size, fontFamily: styledFamily(style.font, isBold, isItalic),
           color: style.color?.hex ?? '#1a1a1a', textAlign: ALIGN[paragraphValue(n => n.attrs.algn) ?? 'l'] ?? 'left',
           lineHeight, before: spacing('spcBef'), after: spacing('spcAft'),
         };

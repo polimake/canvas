@@ -3,7 +3,7 @@ import { useState, useRef, useEffect, Fragment, useMemo, useCallback, useId, use
 import "@excalidraw/excalidraw/index.css";
 import { CaptureUpdateAction, newElementWith, convertToExcalidrawElements, restore, serializeAsJSON, exportToCanvas, exportToBlob, exportToSvg, MainMenu, FONT_FAMILY, useI18n, viewportCoordsToSceneCoords, getVisibleSceneBounds, Excalidraw, getNonDeletedElements } from "@excalidraw/excalidraw";
 import { cloneSceneElements } from "../components.js";
-import { P as PAGE_GAP } from "./layout-L5bQ5REv.js";
+import { P as PAGE_GAP } from "./layout-BEpoNps2.js";
 import { fontFormatHint, buildFontFaceCss, fontFamilyAlias, normalizeFontSrc, customFontFamilyId, dedupeFontFaces } from "../fonts.js";
 import { createPortal, flushSync } from "react-dom";
 const CAPTURE = {
@@ -6394,4 +6394,4 @@ export {
   captureThumbnail as y,
   cascadePoints as z
 };
-//# sourceMappingURL=LibraryPanel-BYzzRXsq.js.map
+//# sourceMappingURL=LibraryPanel-CXZYwM7D.js.map
