@@ -1,5 +1,5 @@
 "use client";
-import { B, C, a, b, D, c, d, L, e, M, P, f, g, V, a as a2, m, p } from "./chunks/LibraryPanel-BV5lg-GI.js";
+import { B, C, a, b, D, c, d, E, L, e, M, P, f, g, V, a as a2, l, m, p } from "./chunks/LibraryPanel-BmXiKJff.js";
 export {
   B as BrandGallery,
   C as Canvas2,
