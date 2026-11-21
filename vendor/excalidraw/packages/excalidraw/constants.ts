@@ -71,6 +71,7 @@ export enum EVENT {
   MOUSE_MOVE = "mousemove",
   RESIZE = "resize",
   UNLOAD = "unload",
+  PAGEHIDE = "pagehide",
   FOCUS = "focus",
   BLUR = "blur",
   DRAG_OVER = "dragover",

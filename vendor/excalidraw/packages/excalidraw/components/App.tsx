@@ -2666,7 +2666,10 @@ class App extends React.Component<AppProps, AppState> {
       }),
       addEventListener(document, EVENT.CUT, this.onCut, { passive: false }),
       addEventListener(window, EVENT.RESIZE, this.onResize, false),
-      addEventListener(window, EVENT.UNLOAD, this.onUnload, false),
+      // `pagehide`, no `unload`: Chrome ya no deja registrar `unload` (sale
+      // «Permissions policy violation: unload» en la consola) y saca la página
+      // del bfcache. Solo suelta el estado de teclado (`onBlur`), sin guardar.
+      addEventListener(window, EVENT.PAGEHIDE, this.onUnload, false),
       addEventListener(window, EVENT.BLUR, this.onBlur, false),
       addEventListener(
         this.excalidrawContainerRef.current,
