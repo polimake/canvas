@@ -74,6 +74,15 @@ describe('PageActions', () => {
     expect(quedan.map((f: { id: string }) => f.id)).toEqual(['a', 'c']);
   });
 
+  it('la confirmación es un botón con nombre y se lleva el foco', () => {
+    // La papelera se va al armar: sin el foco, el lector no anunciaba nada.
+    const { api } = tres();
+    render(<PageActions api={api as never} activePageId="b" />);
+    fireEvent.click(screen.getByLabelText('Eliminar página'));
+    const confirmar = screen.getByRole('button', { name: '¿Eliminar?' });
+    expect(document.activeElement).toBe(confirmar);
+  });
+
   it('cambiar de página desarma el borrado', () => {
     // Si no, el "¿Eliminar?" armado en una se dispararía sobre otra.
     const { api } = tres();

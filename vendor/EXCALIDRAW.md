@@ -61,6 +61,7 @@ la de npm. Encima:
 | Versión | Parche | Dónde |
 |---|---|---|
 | `polimake.1` | Marco con esquinas rectas (`FRAME_STYLE.radius` 8 → 0): un marco es una página. Studio lo parcheaba sobre el dist de npm. | `packages/excalidraw/constants.ts` |
+| `polimake.1` (sin recompilar) | `pagehide` en vez de `unload` para soltar el teclado al salir: Chrome ya no deja registrar `unload` («Permissions policy violation» en la consola de Studio, 21/11) y saca la página del bfcache. Aplicado igual, a mano, en `excalidraw-dist/dist/prod/index.js` y sus tipos (una línea); la próxima compilación lo deja idéntico desde el fuente. | `packages/excalidraw/constants.ts`, `components/App.tsx` |
 
 Candidatos, de más a menos código que nos ahorran:
 
