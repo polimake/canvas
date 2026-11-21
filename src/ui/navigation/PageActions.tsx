@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { ExcalidrawImperativeAPI } from '../../core/excal';
 import {
   listPages,
@@ -64,6 +64,7 @@ export function PageActions({
   const c = palette[theme];
   const [anchor, setAnchor] = useState<Anchor | null>(null);
   const [armedDelete, setArmedDelete] = useState(false);
+  const confirmRef = useRef<HTMLButtonElement>(null);
   const [pageCount, setPageCount] = useState(0);
 
   // La posición depende del scroll y del zoom, que cambian en CADA tick de
@@ -94,6 +95,8 @@ export function PageActions({
 
   useEffect(() => {
     if (!armedDelete) return;
+    // Una vez al armar (no en cada render: la barra se repinta con cada paneo).
+    confirmRef.current?.focus();
     const t = setTimeout(() => setArmedDelete(false), 2500);
     return () => clearTimeout(t);
   }, [armedDelete]);
@@ -204,8 +207,14 @@ export function PageActions({
         btnDisabled(L.pages.lastPage, <TrashIcon />)}
       {pageCount > 1 && !page.locked && (
         armedDelete ? (
+          // La papelera desaparece al armar: sin llevar el foco a la
+          // confirmación, un lector de pantalla se quedaba sin nada enfocado y
+          // no anunciaba «¿Eliminar?» ni que era un botón.
           <button
             type="button"
+            aria-label={L.pages.confirmDelete}
+            title={L.pages.delete}
+            ref={confirmRef}
             onClick={() => {
               setArmedDelete(false);
               deletePage(api, page.id);

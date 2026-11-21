@@ -3066,6 +3066,7 @@ function PageActions({
   const c = palette[theme];
   const [anchor, setAnchor] = useState(null);
   const [armedDelete, setArmedDelete] = useState(false);
+  const confirmRef = useRef(null);
   const [pageCount, setPageCount] = useState(0);
   useEffect(() => {
     const recompute = () => {
@@ -3090,7 +3091,9 @@ function PageActions({
     return api.onChange(recompute);
   }, [api, activePageId]);
   useEffect(() => {
+    var _a;
     if (!armedDelete) return;
+    (_a = confirmRef.current) == null ? void 0 : _a.focus();
     const t = setTimeout(() => setArmedDelete(false), 2500);
     return () => clearTimeout(t);
   }, [armedDelete]);
@@ -3179,28 +3182,36 @@ function PageActions({
           page.locked ? /* @__PURE__ */ jsx(LockIcon, {}) : /* @__PURE__ */ jsx(UnlockIcon, {})
         ),
         pageCount <= 1 && !page.locked && btnDisabled(L.pages.lastPage, /* @__PURE__ */ jsx(TrashIcon, {})),
-        pageCount > 1 && !page.locked && (armedDelete ? /* @__PURE__ */ jsx(
-          "button",
-          {
-            type: "button",
-            onClick: () => {
-              setArmedDelete(false);
-              deletePage(api, page.id);
-              const fallback = listPages(api).find((p) => p.id !== page.id);
-              if (fallback) select(fallback.id);
-            },
-            style: {
-              all: "unset",
-              cursor: "pointer",
-              padding: "2px 6px",
-              borderRadius: 4,
-              fontSize: 11,
-              fontWeight: 700,
-              color: c.dangerFg,
-              background: c.danger
-            },
-            children: L.pages.confirmDelete
-          }
+        pageCount > 1 && !page.locked && (armedDelete ? (
+          // La papelera desaparece al armar: sin llevar el foco a la
+          // confirmación, un lector de pantalla se quedaba sin nada enfocado y
+          // no anunciaba «¿Eliminar?» ni que era un botón.
+          /* @__PURE__ */ jsx(
+            "button",
+            {
+              type: "button",
+              "aria-label": L.pages.confirmDelete,
+              title: L.pages.delete,
+              ref: confirmRef,
+              onClick: () => {
+                setArmedDelete(false);
+                deletePage(api, page.id);
+                const fallback = listPages(api).find((p) => p.id !== page.id);
+                if (fallback) select(fallback.id);
+              },
+              style: {
+                all: "unset",
+                cursor: "pointer",
+                padding: "2px 6px",
+                borderRadius: 4,
+                fontSize: 11,
+                fontWeight: 700,
+                color: c.dangerFg,
+                background: c.danger
+              },
+              children: L.pages.confirmDelete
+            }
+          )
         ) : btn(L.pages.delete, () => setArmedDelete(true), /* @__PURE__ */ jsx(TrashIcon, {}), true))
       ]
     }
@@ -6395,4 +6406,4 @@ export {
   captureThumbnail as y,
   cascadePoints as z
 };
-//# sourceMappingURL=LibraryPanel-BSQVVWiQ.js.map
+//# sourceMappingURL=LibraryPanel-Br7ScrTf.js.map
