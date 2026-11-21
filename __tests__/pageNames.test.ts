@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   DEFAULT_PAGE_NAMES,
+  displayPageName,
   isDefaultPageName,
   renumberedPageName,
   resolvePageNames,
@@ -65,5 +66,21 @@ describe('nombres de serie de las páginas', () => {
     expect(DEFAULT_PAGE_NAMES.defaultName(1)).toBe('Página 1');
     expect(DEFAULT_PAGE_NAMES.untitled).toBe('Página');
     expect(DEFAULT_PAGE_NAMES.copyName('Página 1')).toBe('Página 1 (copia)');
+  });
+});
+
+describe('cómo se lee el nombre de una página', () => {
+  const en = { defaultName: (n: number) => `Page ${n}`, untitled: 'Page' };
+
+  it('un nombre de serie se lee en el idioma de ahora, con su número', () => {
+    expect(displayPageName('Página 2', en)).toBe('Page 2');
+    expect(displayPageName('Page 7')).toBe('Página 7');
+  });
+
+  it('un nombre puesto a mano se lee tal cual; uno vacío, como sin nombre', () => {
+    expect(displayPageName('Portada', en)).toBe('Portada');
+    expect(displayPageName('Página 2 (copia)', en)).toBe('Página 2 (copia)');
+    expect(displayPageName(null, en)).toBe('Page');
+    expect(displayPageName('', en)).toBe('Page');
   });
 });

@@ -8,6 +8,7 @@ export {
   D as DEFAULT_LABELS,
   c as DesignPanel,
   d as DragPreview,
+  E as EN_LABELS,
   L as LayersPanel,
   e as LibraryPanel,
   M as ModeSwitch,
@@ -16,6 +17,7 @@ export {
   g as PageNavigator,
   V as VideoFramePicker,
   a2 as default,
+  l as labelsFor,
   m as mergeLabels,
   p as palette
 };

@@ -39,6 +39,8 @@ export type { PageInfo, PageSize, PageSizePreset } from './core/pages';
 // Los nombres que el editor pone a las páginas, que se guardan con el diseño:
 // los aceptan `createBlankScene`, `addPage`, `duplicatePage` y compañía.
 export type { PageNames } from './core/pageNames';
+// Cómo se lee un nombre de serie en el idioma de ahora, sin cambiar el guardado.
+export { displayPageName } from './core/pageNames';
 // Paginar una escena que llegó sin páginas (importada, pegada, arrastrada).
 export {
   convertToPages,
@@ -113,7 +115,7 @@ export { setAsBackground, extendToPage } from './core/imageOps';
 export { reorderPageMembers, sendMemberToBack } from './core/zorder';
 export { palette, PANEL_FONT } from './ui/shared/theme';
 // Contrato de textos: canvas2 no lleva i18n dentro, el host inyecta.
-export { DEFAULT_LABELS, mergeLabels } from './ui/shared/labels';
+export { DEFAULT_LABELS, EN_LABELS, labelsFor, mergeLabels } from './ui/shared/labels';
 export type { Canvas2Labels, PartialLabels } from './ui/shared/labels';
 export type { Palette, Canvas2Theme } from './ui/shared/theme';
 

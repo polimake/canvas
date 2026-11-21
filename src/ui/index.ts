@@ -22,6 +22,6 @@ export { VideoFramePicker } from './overlays/VideoFramePicker';
 export type { VideoFramePickerProps } from './overlays/VideoFramePicker';
 export { DragPreview } from './overlays/DragPreview';
 export type { DragPreviewProps } from './overlays/DragPreview';
-export { DEFAULT_LABELS, mergeLabels } from './shared/labels';
+export { DEFAULT_LABELS, EN_LABELS, labelsFor, mergeLabels } from './shared/labels';
 export type { Canvas2Labels, PartialLabels } from './shared/labels';
 export { palette, PANEL_FONT } from './shared/theme';

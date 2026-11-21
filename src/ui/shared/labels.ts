@@ -7,9 +7,12 @@
  * `@polimake/ui` en su 0.6.0: el componente define el CONTRATO de etiquetas y
  * quien lo monta las rellena desde su propio sistema.
  *
- * Los valores por defecto son en español porque es el idioma en el que se
- * trabaja hoy y así el editor funciona sin configurar nada. El host los pisa con
- * los suyos, parcialmente: no hace falta pasar las 45.
+ * Trae de serie dos juegos, español (`DEFAULT_LABELS`) e inglés (`EN_LABELS`),
+ * y elige por el `langCode` que recibe el editor, el mismo que se le pasa a
+ * Excalidraw: así lo propio del paquete va en el idioma de lo de Excalidraw
+ * aunque el host no traduzca todas las claves. El host los pisa con los suyos,
+ * parcialmente: no hace falta pasar las 45. Sin `langCode`, español, que es el
+ * idioma en el que se ha trabajado siempre.
  */
 
 export interface Canvas2Labels {
@@ -415,6 +418,205 @@ export const DEFAULT_LABELS: Canvas2Labels = {
 };
 
 /**
+ * Los mismos textos en inglés. Lo que también traduce la web
+ * (`apps/web/src/shared/lib/i18n/locales/en/canvas2.json`) va con sus mismas
+ * palabras, para que el editor no cambie de voz de una clave a la de al lado.
+ */
+export const EN_LABELS: Canvas2Labels = {
+  workspace: {
+    elements: 'Elements',
+    text: 'Text',
+    brand: 'Brand',
+    page: 'Page',
+    files: 'Files',
+    searchElements: 'Search elements',
+    noResults: 'No elements found.',
+    rectangle: 'Rectangle',
+    ellipse: 'Circle',
+    diamond: 'Diamond',
+    arrow: 'Arrow',
+    draw: 'Draw',
+    label: 'Workspace',
+    excalidraw: 'Excalidraw',
+    design: 'Design',
+    advanced: 'Advanced',
+    panels: 'Editor panels',
+    showPanels: 'Show panels',
+    hidePanels: 'Hide panels',
+    frameTool: 'Frame tool',
+    findOnCanvas: 'Find on canvas',
+    theme: 'Canvas theme',
+    themeApp: 'Same as the app',
+    themeLight: 'Light',
+    themeDark: 'Dark',
+  },
+  library: {
+    title: 'Library',
+    close: 'Close',
+  },
+  components: {
+    title: 'Components',
+    empty: 'No components in this project yet. Save a page as a component from the menu.',
+    insert: 'Insert as a new page',
+    inserted: 'Component inserted',
+    insertFailed: 'Could not insert the component',
+    save: 'Save page as component',
+    saved: 'Page saved as a component',
+    saveFailed: 'Could not save the component',
+  },
+  menu: {
+    background: 'Page background',
+    backgroundOther: 'Other colour…',
+    backgroundRemove: 'Remove background',
+    size: 'Page size',
+    width: 'Width',
+    height: 'Height',
+    apply: 'Apply',
+    scaleContent: 'Scale contents',
+    insertText: 'Insert text',
+    export: 'Export',
+    exporting: 'Exporting…',
+    exportFailed: 'Export · failed',
+    exportPngPage: 'PNG · current page',
+    exportPngAll: 'PNG · all pages',
+    exportSvg: 'SVG · current page',
+    exportPdf: 'PDF · all pages',
+    toPages: 'Turn into pages',
+    toPagesHint: (count) => `${count} loose`,
+    toPagesDone: (count) => `${count} page${count === 1 ? '' : 's'} created`,
+    exportName: 'design',
+  },
+  video: {
+    pickFrame: 'Pick a frame',
+    loading: 'Loading video…',
+    useFrame: 'Use this one',
+    saving: 'Saving…',
+    cancel: 'Cancel',
+    failed: 'Could not capture the frame',
+    unavailable: 'The frame picker is not available here',
+  },
+  loose: {
+    warning: (count) =>
+      count === 1
+        ? 'There is 1 element outside every page: it will not be exported or shown in the thumbnail.'
+        : `There are ${count} elements outside every page: they will not be exported or shown in the thumbnail.`,
+    adopt: 'Move into this page',
+    dismiss: 'Dismiss warning',
+  },
+  pages: {
+    add: 'Add page after',
+    addAtEnd: 'Add page',
+    insertHere: 'Insert a page here',
+    addFailed: "Couldn't create the page",
+    duplicate: 'Duplicate page',
+    rename: 'Rename page',
+    lock: 'Lock page',
+    unlock: 'Unlock page',
+    delete: 'Delete page',
+    confirmDelete: 'Delete?',
+    moveLeft: 'Move left',
+    moveRight: 'Move right',
+    lastPage: 'This is the only page: a design cannot be left without one',
+    fitAll: 'See all pages',
+    // «Page» es una de las palabras que reconoce `core/pageNames.ts`: una
+    // página nueva en inglés se sigue renumerando como las de siempre.
+    defaultName: (n) => `Page ${n}`,
+    untitled: 'Page',
+    copyName: (name) => `${name} (copy)`,
+  },
+  layers: {
+    empty: 'This page is empty.',
+    image: 'Image',
+    rectangle: 'Rectangle',
+    ellipse: 'Ellipse',
+    diamond: 'Diamond',
+    line: 'Line',
+    arrow: 'Arrow',
+    freedraw: 'Stroke',
+    text: 'Text',
+    textWith: (excerpt) => `Text: ${excerpt}`,
+    useAsBackground: 'Use as background',
+    extendToPage: 'Extend to page',
+    show: 'Show',
+    hide: 'Hide',
+    lock: 'Lock',
+    unlock: 'Unlock',
+    delete: 'Delete',
+    renameHint: 'Double-click to rename the page',
+    alignHeading: 'Align',
+  },
+  align: {
+    left: 'Align left',
+    centerX: 'Centre horizontally',
+    right: 'Align right',
+    top: 'Align top',
+    centerY: 'Centre vertically',
+    bottom: 'Align bottom',
+  },
+  text: {
+    heading: 'Heading',
+    subheading: 'Subheading',
+    body: 'Body text',
+    headingText: 'Heading',
+    subheadingText: 'Subheading',
+    bodyText: 'Write something…',
+  },
+  dock: {
+    design: 'Design',
+    layers: 'Layers',
+    components: 'Components',
+    agent: 'Agent',
+    page: 'Page',
+    brand: 'Brand',
+    collapse: 'Collapse',
+    expand: 'Expand',
+  },
+  brand: {
+    title: 'Brand',
+    defaultColor: 'default colour',
+    applyToSelection: (color) => `Apply ${color} to selection`,
+    applied: (count) => `${count} element${count === 1 ? '' : 's'}`,
+    insertLogo: (label) => `Insert ${label.toLowerCase()}`,
+    logoInserted: 'logo inserted',
+    logo: 'Logo',
+    black: 'Black',
+    white: 'White',
+    insertFailed: 'could not insert it',
+    imageTimeout: 'The image took too long to load',
+    imageNoSize: 'The image has no usable dimensions',
+    imageUnreachable: 'Could not load the image',
+  },
+  sizes: {
+    'ig-post': 'Post 4:5',
+    square: 'Square 1:1',
+    story: 'Story / Reel 9:16',
+    landscape: 'Landscape 16:9',
+    'yt-thumb': 'YouTube thumbnail',
+    a4: 'A4',
+    default: 'Classic canvas',
+  },
+  mode: {
+    group: 'Canvas mode',
+    view: 'View',
+    comment: 'Comment',
+    edit: 'Edit',
+    done: 'Done',
+  },
+};
+
+/**
+ * Los textos de serie para un `langCode` de Excalidraw (`en`, `es-ES`…).
+ *
+ * Solo hay dos juegos: cualquier inglés (`en`, `en-GB`) va al inglés y todo lo
+ * demás al español, el de siempre. Un idioma que Excalidraw traduce y este
+ * paquete no (el alemán, pongamos) se queda con lo propio en español hasta que
+ * el host pase sus textos.
+ */
+export function labelsFor(langCode?: string | null): Canvas2Labels {
+  return /^en(?:-|$)/i.test(langCode ?? '') ? EN_LABELS : DEFAULT_LABELS;
+}
+
+/**
  * Rótulo de un texto que se puede insertar (título, subtítulo, cuerpo).
  *
  * `sizes` se sigue mirando primero: hasta que existió la sección `text`, la
@@ -434,18 +636,20 @@ export type PartialLabels = {
 };
 
 /**
- * Mezcla las etiquetas del host sobre las de serie.
+ * Mezcla las etiquetas del host sobre las de serie del idioma (`labelsFor`).
  *
  * La mezcla es de DOS niveles y no recursiva a propósito: el contrato tiene
  * exactamente esa forma, y una mezcla profunda genérica invitaría a añadir
  * anidamiento sin pensarlo. Un valor `undefined` o vacío NO pisa al de serie —
- * una traducción a medias debe caer al español, no dejar un botón sin texto.
+ * una traducción a medias debe caer al de serie de su idioma, no dejar un botón
+ * sin texto.
  */
-export function mergeLabels(custom?: PartialLabels | null): Canvas2Labels {
-  if (!custom) return DEFAULT_LABELS;
+export function mergeLabels(custom?: PartialLabels | null, langCode?: string | null): Canvas2Labels {
+  const defaults = labelsFor(langCode);
+  if (!custom) return defaults;
   const out = {} as Canvas2Labels;
-  for (const key of Object.keys(DEFAULT_LABELS) as (keyof Canvas2Labels)[]) {
-    const base = DEFAULT_LABELS[key] as Record<string, unknown>;
+  for (const key of Object.keys(defaults) as (keyof Canvas2Labels)[]) {
+    const base = defaults[key] as Record<string, unknown>;
     const over = (custom[key] ?? {}) as Record<string, unknown>;
     const merged: Record<string, unknown> = { ...base };
     for (const k of Object.keys(over)) {
