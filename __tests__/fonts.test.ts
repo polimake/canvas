@@ -8,9 +8,27 @@ import {
   customFontFamilyId,
   dedupeFontFaces,
   fontFamilyAlias,
+  fontFamilyCss,
   normalizeFontName,
   normalizeFontSrc,
 } from '../src/core/fonts';
+
+describe('fontFamilyCss', () => {
+  it('deja sin comillas lo que ya es un nombre de familia válido', () => {
+    expect(fontFamilyCss('Montserrat')).toBe('Montserrat');
+    expect(fontFamilyCss('Instrument Serif')).toBe('Instrument Serif');
+    expect(fontFamilyCss('Space-Grotesk')).toBe('Space-Grotesk');
+  });
+
+  it('entrecomilla lo que el atajo font no sabe leer suelto', () => {
+    expect(fontFamilyCss('Helvetica (marca)')).toBe('"Helvetica (marca)"');
+    expect(fontFamilyCss('Nunito (marca)')).toBe('"Nunito (marca)"');
+    expect(fontFamilyCss('Serif')).toBe('"Serif"');
+    expect(fontFamilyCss('Ben & Jerry')).toBe('"Ben & Jerry"');
+    // Una comilla dentro no cierra la cadena.
+    expect(fontFamilyCss('A"B (x)')).toBe('"A\\22 B (x)"');
+  });
+});
 
 describe('nombres de familia', () => {
   it('normaliza comillas y espacios', () => {
@@ -184,7 +202,28 @@ describe('registro contra FONT_FAMILY', () => {
     const { registerCustomFont } = await cargar(tabla);
     registerCustomFont('Nunito');
     expect(tabla.Nunito).toBe(6);
-    expect(tabla['Nunito (marca)']).toBe(customFontFamilyId('Nunito'));
+    expect((tabla as Record<string, number>)['"Nunito (marca)"']).toBe(customFontFamilyId('Nunito'));
+  });
+
+  it('la clave de un alias con paréntesis va entre comillas, que es como la usa el atajo font', async () => {
+    // Un PDF con texto en Helvetica trae la marca "Helvetica" → alias
+    // "Helvetica (marca)". Excalidraw pone la clave sin comillas en
+    // `document.fonts.check('16px <clave>, Segoe UI Emoji')`, y con los
+    // paréntesis sueltos eso lanza y tumba la miniatura de la página.
+    const tabla = tablaFalsa();
+    const { registerCustomFont, fontFamilyId, resetFontRegistry } = await cargar(tabla);
+    const reg = registerCustomFont('Helvetica');
+    expect(reg).toEqual({ alias: 'Helvetica (marca)', id: customFontFamilyId('Helvetica') });
+    expect(tabla).not.toHaveProperty('Helvetica (marca)');
+    expect((tabla as Record<string, number>)['"Helvetica (marca)"']).toBe(customFontFamilyId('Helvetica'));
+    expect(tabla.Helvetica).toBe(2);
+    expect(fontFamilyId('Helvetica')).toBe(customFontFamilyId('Helvetica'));
+    // Volver a registrarla no la confunde con una colisión.
+    const aviso = vi.spyOn(console, 'error').mockImplementation(() => {});
+    resetFontRegistry();
+    expect(registerCustomFont('Helvetica')).toEqual(reg);
+    expect(aviso).not.toHaveBeenCalled();
+    aviso.mockRestore();
   });
 
   it('es idempotente', async () => {

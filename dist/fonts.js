@@ -26,6 +26,33 @@ function fontFamilyAlias(name) {
   if (!limpio) return "";
   return BUILTIN.has(limpio.toLowerCase()) ? `${limpio}${ALIAS_SUFFIX}` : limpio;
 }
+const RESERVADAS_CSS = /* @__PURE__ */ new Set([
+  "serif",
+  "sans-serif",
+  "monospace",
+  "cursive",
+  "fantasy",
+  "system-ui",
+  "math",
+  "emoji",
+  "fangsong",
+  "ui-serif",
+  "ui-sans-serif",
+  "ui-monospace",
+  "ui-rounded",
+  "inherit",
+  "initial",
+  "unset",
+  "revert",
+  "revert-layer",
+  "default"
+]);
+const IDENTIFICADOR_CSS = /^-?[_a-zA-Z -\u{10FFFF}][_a-zA-Z0-9 -\u{10FFFF}-]*$/u;
+function fontFamilyCss(alias) {
+  const palabras = alias.split(" ");
+  const suelto = alias.length > 0 && palabras.every((p) => IDENTIFICADOR_CSS.test(p)) && !(palabras.length === 1 && RESERVADAS_CSS.has(alias.toLowerCase()));
+  return suelto ? alias : `"${dentroDeCadenaCss(alias)}"`;
+}
 function customFontFamilyId(name) {
   const alias = fontFamilyAlias(name);
   if (!alias) return 0;
@@ -79,6 +106,7 @@ export {
   customFontFamilyId,
   dedupeFontFaces,
   fontFamilyAlias,
+  fontFamilyCss,
   fontFormatHint,
   normalizeFontName,
   normalizeFontSrc,
