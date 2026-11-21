@@ -16,6 +16,7 @@ import { usePageThumbnails, type FilesMap } from '../hooks/pageThumbnails';
 import { PANEL_FONT, palette } from '../shared/theme';
 import { FitAllIcon, LockIcon, PlusIcon } from '../shared/icons';
 import { mergeLabels, type PartialLabels } from '../shared/labels';
+import { displayPageName } from '../../core/pageNames';
 import { DragPreview, hideNativeDragImage, type DragGrab } from '../overlays/DragPreview';
 
 export interface PageNavigatorProps {
@@ -279,7 +280,7 @@ export function PageNavigator({
             }}
             role="button"
             tabIndex={0}
-            title={page.name}
+            title={displayPageName(page.name, L.pages)}
             draggable={!viewMode && !isRenaming}
             onDragStart={(e) => {
               setDraggingId(page.id);

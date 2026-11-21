@@ -54,7 +54,11 @@ export interface Canvas2EditorProps {
      * es solo del cromo: el diseño se pinta con sus colores (ver `sceneTheme`).
      */
     theme?: 'light' | 'dark';
-    /** UI language. Defaults to Spanish to match studio. */
+    /**
+     * Idioma del editor, como código de Excalidraw (`en`, `es-ES`…). Lo usan
+     * Excalidraw para lo suyo (barra, propiedades, menú contextual) y canvas2
+     * para elegir sus textos de serie (`labelsFor`). Sin él, español.
+     */
     langCode?: string;
     /** Receives the imperative API once mounted (updateScene, exportToBlob, …).
      *  This is canvas2's analogue of `onRegisterEditorApi`.
@@ -212,7 +216,8 @@ export interface Canvas2EditorProps {
     /**
      * Textos del editor. canvas2 no lleva i18n dentro (no puede depender del
      * `react-i18next` de apps/web), así que el host inyecta lo que tenga
-     * traducido; lo que no pase se queda en español. Ver labels.ts.
+     * traducido; lo que no pase sale en el de serie del idioma (`langCode`).
+     * Ver labels.ts.
      */
     labels?: PartialLabels;
     /**

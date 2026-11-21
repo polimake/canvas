@@ -12,6 +12,7 @@ import { mergeLabels, type Canvas2Labels, type PartialLabels } from '../shared/l
 import { reorderPageMembers } from '../../core/zorder';
 import { setAsBackground, extendToPage } from '../../core/imageOps';
 import { renamePage } from '../../core/pages';
+import { displayPageName } from '../../core/pageNames';
 import { isPageBackground } from '../../core/background';
 import { PAGE_ALIGNMENTS, alignToPage, type PageAlignment } from '../../core/align';
 import {
@@ -501,7 +502,7 @@ export function LayersPanel({
           />
         ) : (
           <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {frame && frame.type === 'frame' ? frame.name ?? L.pages.untitled : L.pages.untitled}
+            {frame && frame.type === 'frame' ? displayPageName(frame.name, L.pages) : L.pages.untitled}
           </span>
         )}
       </div>

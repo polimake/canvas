@@ -7,9 +7,12 @@
  * `@polimake/ui` en su 0.6.0: el componente define el CONTRATO de etiquetas y
  * quien lo monta las rellena desde su propio sistema.
  *
- * Los valores por defecto son en español porque es el idioma en el que se
- * trabaja hoy y así el editor funciona sin configurar nada. El host los pisa con
- * los suyos, parcialmente: no hace falta pasar las 45.
+ * Trae de serie dos juegos, español (`DEFAULT_LABELS`) e inglés (`EN_LABELS`),
+ * y elige por el `langCode` que recibe el editor, el mismo que se le pasa a
+ * Excalidraw: así lo propio del paquete va en el idioma de lo de Excalidraw
+ * aunque el host no traduzca todas las claves. El host los pisa con los suyos,
+ * parcialmente: no hace falta pasar las 45. Sin `langCode`, español, que es el
+ * idioma en el que se ha trabajado siempre.
  */
 export interface Canvas2Labels {
     workspace: {
@@ -228,6 +231,21 @@ export interface Canvas2Labels {
 }
 export declare const DEFAULT_LABELS: Canvas2Labels;
 /**
+ * Los mismos textos en inglés. Lo que también traduce la web
+ * (`apps/web/src/shared/lib/i18n/locales/en/canvas2.json`) va con sus mismas
+ * palabras, para que el editor no cambie de voz de una clave a la de al lado.
+ */
+export declare const EN_LABELS: Canvas2Labels;
+/**
+ * Los textos de serie para un `langCode` de Excalidraw (`en`, `es-ES`…).
+ *
+ * Solo hay dos juegos: cualquier inglés (`en`, `en-GB`) va al inglés y todo lo
+ * demás al español, el de siempre. Un idioma que Excalidraw traduce y este
+ * paquete no (el alemán, pongamos) se queda con lo propio en español hasta que
+ * el host pase sus textos.
+ */
+export declare function labelsFor(langCode?: string | null): Canvas2Labels;
+/**
  * Rótulo de un texto que se puede insertar (título, subtítulo, cuerpo).
  *
  * `sizes` se sigue mirando primero: hasta que existió la sección `text`, la
@@ -240,12 +258,13 @@ export type PartialLabels = {
     [S in keyof Canvas2Labels]?: Partial<Canvas2Labels[S]>;
 };
 /**
- * Mezcla las etiquetas del host sobre las de serie.
+ * Mezcla las etiquetas del host sobre las de serie del idioma (`labelsFor`).
  *
  * La mezcla es de DOS niveles y no recursiva a propósito: el contrato tiene
  * exactamente esa forma, y una mezcla profunda genérica invitaría a añadir
  * anidamiento sin pensarlo. Un valor `undefined` o vacío NO pisa al de serie —
- * una traducción a medias debe caer al español, no dejar un botón sin texto.
+ * una traducción a medias debe caer al de serie de su idioma, no dejar un botón
+ * sin texto.
  */
-export declare function mergeLabels(custom?: PartialLabels | null): Canvas2Labels;
+export declare function mergeLabels(custom?: PartialLabels | null, langCode?: string | null): Canvas2Labels;
 //# sourceMappingURL=labels.d.ts.map

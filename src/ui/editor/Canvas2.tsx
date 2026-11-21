@@ -92,7 +92,11 @@ export interface Canvas2EditorProps {
    * es solo del cromo: el diseño se pinta con sus colores (ver `sceneTheme`).
    */
   theme?: 'light' | 'dark';
-  /** UI language. Defaults to Spanish to match studio. */
+  /**
+   * Idioma del editor, como código de Excalidraw (`en`, `es-ES`…). Lo usan
+   * Excalidraw para lo suyo (barra, propiedades, menú contextual) y canvas2
+   * para elegir sus textos de serie (`labelsFor`). Sin él, español.
+   */
   langCode?: string;
   /** Receives the imperative API once mounted (updateScene, exportToBlob, …).
    *  This is canvas2's analogue of `onRegisterEditorApi`.
@@ -244,7 +248,8 @@ export interface Canvas2EditorProps {
   /**
    * Textos del editor. canvas2 no lleva i18n dentro (no puede depender del
    * `react-i18next` de apps/web), así que el host inyecta lo que tenga
-   * traducido; lo que no pase se queda en español. Ver labels.ts.
+   * traducido; lo que no pase sale en el de serie del idioma (`langCode`).
+   * Ver labels.ts.
    */
   labels?: PartialLabels;
   /**
@@ -464,7 +469,10 @@ export function Canvas2Editor({
     onWorkspaceChange?.(next);
   };
   const brand = useMemo(() => resolveBrandKit(brandKit), [brandKit]);
-  const L = mergeLabels(labels);
+  // Los textos propios, en el idioma de Excalidraw: los de serie de `langCode`
+  // con los del host encima. A los paneles va ESTE juego completo y no el
+  // parcial del host, o lo que el host no traduzca les caería al español.
+  const L = useMemo(() => mergeLabels(labels, langCode), [labels, langCode]);
   // Los nombres que se ponen a las páginas (y que se guardan con el diseño) van
   // por referencia: los efectos que crean o adoptan páginas se montan una vez y
   // tienen que leer los de ahora sin volver a suscribirse en cada render.
@@ -905,20 +913,20 @@ export function Canvas2Editor({
     // se esconde o cambia de sitio.
     if (workspace !== 'excalidraw') {
       workspacePanels.push({ id: 'elements', title: L.workspace.elements,
-        content: <InsertPanel api={api} pageId={activePageId} labels={labels} /> });
+        content: <InsertPanel api={api} pageId={activePageId} labels={L} /> });
       workspacePanels.push({ id: 'text', title: L.workspace.text,
-        content: <InsertPanel api={api} pageId={activePageId} text labels={labels}
+        content: <InsertPanel api={api} pageId={activePageId} text labels={L}
           families={{ heading: brand.headingFamily, body: brand.bodyFamily }} /> });
     }
   }
   if (!viewMode && library) workspacePanels.push({ id: 'library', title: L.workspace.files, content: library });
   if (!viewMode && api && brandKit) workspacePanels.push({ id: 'brand', title: L.workspace.brand,
-    content: <BrandGallery api={api} activePageId={activePageId} brandKit={brandKit} theme={theme} labels={labels} embedded /> });
+    content: <BrandGallery api={api} activePageId={activePageId} brandKit={brandKit} theme={theme} labels={L} embedded /> });
   if (!viewMode && api && pages) workspacePanels.push({ id: 'design', title: L.workspace.page,
-    content: <DesignPanel api={api} activePageId={activePageId} theme={theme} brandKit={brandKit} labels={labels} /> });
+    content: <DesignPanel api={api} activePageId={activePageId} theme={theme} brandKit={brandKit} labels={L} /> });
   if (!viewMode && agentPanel) workspacePanels.push({ id: 'agent', title: L.dock.agent, content: agentPanel });
   if (!viewMode && api && layers && pages) workspacePanels.push({ id: 'layers', title: L.dock.layers,
-    content: <LayersPanel api={api} activePageId={activePageId} theme={theme} labels={labels} embedded /> });
+    content: <LayersPanel api={api} activePageId={activePageId} theme={theme} labels={L} embedded /> });
   for (const panel of workspacePanels) panel.icon = <WorkspaceIcon name={panel.id} />;
 
   // Tras un separador, en texto: los paneles que van en la píldora y los
@@ -942,7 +950,7 @@ export function Canvas2Editor({
       actions={narrow && workspace === 'excalidraw' && !viewMode
         ? (toolbarActions ?? []).map(action => ({ ...action, icon: action.icon ?? <WorkspaceIcon name="library" /> }))
         : undefined}
-      theme={theme} labels={labels} openPanel={openPanel} onOpenPanelChange={setOpenPanel}>
+      theme={theme} labels={L} openPanel={openPanel} onOpenPanelChange={setOpenPanel}>
     <div
       ref={rootRef}
       data-canvas2=""
@@ -1127,7 +1135,7 @@ export function Canvas2Editor({
             fontFaces={fuentes.faces}
             onSaveComponent={onSaveComponent}
             themeChoice={themeChoice}
-            labels={labels}
+            labels={L}
           />
       </Excalidraw>
       {/* Marco de «suelta aquí y sustituyo esta». Es lo ÚNICO que anuncia que
@@ -1165,7 +1173,7 @@ export function Canvas2Editor({
         api={api}
         theme={theme}
         viewMode={viewMode}
-        labels={labels}
+        labels={L}
         resolveVideoSrc={resolveVideoSrc}
         releaseVideoSrc={releaseVideoSrc}
         onPickFrame={onPickVideoFrame}
@@ -1179,7 +1187,7 @@ export function Canvas2Editor({
           theme={theme}
           viewMode={viewMode}
           narrow={narrow}
-          labels={labels}
+          labels={L}
         />
       )}
       {pages && api && (
@@ -1193,7 +1201,7 @@ export function Canvas2Editor({
           pageSize={pageSize}
           thumbnails={pageThumbnails}
           thumbnailFiles={pageThumbnailFiles}
-          labels={labels}
+          labels={L}
         />
       )}
       {pillActions.length > 0 && !narrow ? (
@@ -1232,7 +1240,7 @@ export function Canvas2Editor({
           activePageId={activePageId}
           theme={theme}
           onActiveChange={setActivePageId}
-          labels={labels}
+          labels={L}
         />
       )}
     </div>

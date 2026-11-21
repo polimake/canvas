@@ -31,6 +31,16 @@ export declare function resolvePageNames(names?: PageNames | null): Required<Pag
 /** ¿Es un nombre de serie (`Página 3`, `Page 3`) y no uno puesto a mano? */
 export declare function isDefaultPageName(name: string | null | undefined): boolean;
 /**
+ * Cómo se ENSEÑA el nombre de una página en el cromo del editor (tira de
+ * páginas, capas), sin tocar el que se guarda.
+ *
+ * Un nombre de serie se enseña en el idioma de ahora con su mismo número: un
+ * diseño guardado con «Página 2» se lee «Page 2» en inglés y al revés. Un
+ * nombre puesto a mano se enseña tal cual, y uno vacío como `untitled`. El dato
+ * no cambia (ver `renumberedPageName`): solo lo que se lee.
+ */
+export declare function displayPageName(name: string | null | undefined, names?: PageNames | null): string;
+/**
  * El nombre de serie que le toca a una página en la posición `n`, o `null` si
  * el que lleva no es de serie (y entonces no se toca).
  *

@@ -309,6 +309,12 @@ function resolvePageNames(names) {
   };
 }
 const DEFAULT_NAME_RE = /^(Página|Page) (\d+)$/;
+function displayPageName(name, names) {
+  const resolved = resolvePageNames(names);
+  const match = DEFAULT_NAME_RE.exec(name ?? "");
+  if (match) return resolved.defaultName(Number(match[2]));
+  return name || resolved.untitled;
+}
 function renumberedPageName(name, n) {
   const match = DEFAULT_NAME_RE.exec(name ?? "");
   return match ? `${match[1]} ${n}` : null;
@@ -1368,14 +1374,196 @@ const DEFAULT_LABELS = {
     done: "Listo"
   }
 };
+const EN_LABELS = {
+  workspace: {
+    elements: "Elements",
+    text: "Text",
+    brand: "Brand",
+    page: "Page",
+    files: "Files",
+    searchElements: "Search elements",
+    noResults: "No elements found.",
+    rectangle: "Rectangle",
+    ellipse: "Circle",
+    diamond: "Diamond",
+    arrow: "Arrow",
+    draw: "Draw",
+    label: "Workspace",
+    excalidraw: "Excalidraw",
+    design: "Design",
+    advanced: "Advanced",
+    panels: "Editor panels",
+    showPanels: "Show panels",
+    hidePanels: "Hide panels",
+    frameTool: "Frame tool",
+    findOnCanvas: "Find on canvas",
+    theme: "Canvas theme",
+    themeApp: "Same as the app",
+    themeLight: "Light",
+    themeDark: "Dark"
+  },
+  library: {
+    title: "Library",
+    close: "Close"
+  },
+  components: {
+    title: "Components",
+    empty: "No components in this project yet. Save a page as a component from the menu.",
+    insert: "Insert as a new page",
+    inserted: "Component inserted",
+    insertFailed: "Could not insert the component",
+    save: "Save page as component",
+    saved: "Page saved as a component",
+    saveFailed: "Could not save the component"
+  },
+  menu: {
+    background: "Page background",
+    backgroundOther: "Other colour…",
+    backgroundRemove: "Remove background",
+    size: "Page size",
+    width: "Width",
+    height: "Height",
+    apply: "Apply",
+    scaleContent: "Scale contents",
+    insertText: "Insert text",
+    export: "Export",
+    exporting: "Exporting…",
+    exportFailed: "Export · failed",
+    exportPngPage: "PNG · current page",
+    exportPngAll: "PNG · all pages",
+    exportSvg: "SVG · current page",
+    exportPdf: "PDF · all pages",
+    toPages: "Turn into pages",
+    toPagesHint: (count) => `${count} loose`,
+    toPagesDone: (count) => `${count} page${count === 1 ? "" : "s"} created`,
+    exportName: "design"
+  },
+  video: {
+    pickFrame: "Pick a frame",
+    loading: "Loading video…",
+    useFrame: "Use this one",
+    saving: "Saving…",
+    cancel: "Cancel",
+    failed: "Could not capture the frame",
+    unavailable: "The frame picker is not available here"
+  },
+  loose: {
+    warning: (count) => count === 1 ? "There is 1 element outside every page: it will not be exported or shown in the thumbnail." : `There are ${count} elements outside every page: they will not be exported or shown in the thumbnail.`,
+    adopt: "Move into this page",
+    dismiss: "Dismiss warning"
+  },
+  pages: {
+    add: "Add page after",
+    addAtEnd: "Add page",
+    insertHere: "Insert a page here",
+    addFailed: "Couldn't create the page",
+    duplicate: "Duplicate page",
+    rename: "Rename page",
+    lock: "Lock page",
+    unlock: "Unlock page",
+    delete: "Delete page",
+    confirmDelete: "Delete?",
+    moveLeft: "Move left",
+    moveRight: "Move right",
+    lastPage: "This is the only page: a design cannot be left without one",
+    fitAll: "See all pages",
+    // «Page» es una de las palabras que reconoce `core/pageNames.ts`: una
+    // página nueva en inglés se sigue renumerando como las de siempre.
+    defaultName: (n) => `Page ${n}`,
+    untitled: "Page",
+    copyName: (name) => `${name} (copy)`
+  },
+  layers: {
+    empty: "This page is empty.",
+    image: "Image",
+    rectangle: "Rectangle",
+    ellipse: "Ellipse",
+    diamond: "Diamond",
+    line: "Line",
+    arrow: "Arrow",
+    freedraw: "Stroke",
+    text: "Text",
+    textWith: (excerpt) => `Text: ${excerpt}`,
+    useAsBackground: "Use as background",
+    extendToPage: "Extend to page",
+    show: "Show",
+    hide: "Hide",
+    lock: "Lock",
+    unlock: "Unlock",
+    delete: "Delete",
+    renameHint: "Double-click to rename the page",
+    alignHeading: "Align"
+  },
+  align: {
+    left: "Align left",
+    centerX: "Centre horizontally",
+    right: "Align right",
+    top: "Align top",
+    centerY: "Centre vertically",
+    bottom: "Align bottom"
+  },
+  text: {
+    heading: "Heading",
+    subheading: "Subheading",
+    body: "Body text",
+    headingText: "Heading",
+    subheadingText: "Subheading",
+    bodyText: "Write something…"
+  },
+  dock: {
+    design: "Design",
+    layers: "Layers",
+    components: "Components",
+    agent: "Agent",
+    page: "Page",
+    brand: "Brand",
+    collapse: "Collapse",
+    expand: "Expand"
+  },
+  brand: {
+    title: "Brand",
+    defaultColor: "default colour",
+    applyToSelection: (color2) => `Apply ${color2} to selection`,
+    applied: (count) => `${count} element${count === 1 ? "" : "s"}`,
+    insertLogo: (label) => `Insert ${label.toLowerCase()}`,
+    logoInserted: "logo inserted",
+    logo: "Logo",
+    black: "Black",
+    white: "White",
+    insertFailed: "could not insert it",
+    imageTimeout: "The image took too long to load",
+    imageNoSize: "The image has no usable dimensions",
+    imageUnreachable: "Could not load the image"
+  },
+  sizes: {
+    "ig-post": "Post 4:5",
+    square: "Square 1:1",
+    story: "Story / Reel 9:16",
+    landscape: "Landscape 16:9",
+    "yt-thumb": "YouTube thumbnail",
+    a4: "A4",
+    default: "Classic canvas"
+  },
+  mode: {
+    group: "Canvas mode",
+    view: "View",
+    comment: "Comment",
+    edit: "Edit",
+    done: "Done"
+  }
+};
+function labelsFor(langCode) {
+  return /^en(?:-|$)/i.test(langCode ?? "") ? EN_LABELS : DEFAULT_LABELS;
+}
 function textPresetLabel(labels, key) {
   return labels.sizes[key] ?? labels.text[key];
 }
-function mergeLabels(custom) {
-  if (!custom) return DEFAULT_LABELS;
+function mergeLabels(custom, langCode) {
+  const defaults = labelsFor(langCode);
+  if (!custom) return defaults;
   const out = {};
-  for (const key of Object.keys(DEFAULT_LABELS)) {
-    const base = DEFAULT_LABELS[key];
+  for (const key of Object.keys(defaults)) {
+    const base = defaults[key];
     const over = custom[key] ?? {};
     const merged = { ...base };
     for (const k of Object.keys(over)) {
@@ -1639,7 +1827,7 @@ function PageNavigator({
                       },
                       role: "button",
                       tabIndex: 0,
-                      title: page.name,
+                      title: displayPageName(page.name, L.pages),
                       draggable: !viewMode && !isRenaming,
                       onDragStart: (e) => {
                         setDraggingId(page.id);
@@ -4457,7 +4645,7 @@ function LayersPanel({
                     fontFamily: PANEL_FONT
                   }
                 }
-              ) : /* @__PURE__ */ jsx("span", { style: { flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }, children: frame && frame.type === "frame" ? frame.name ?? L.pages.untitled : L.pages.untitled })
+              ) : /* @__PURE__ */ jsx("span", { style: { flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }, children: frame && frame.type === "frame" ? displayPageName(frame.name, L.pages) : L.pages.untitled })
             ]
           }
         )
@@ -5627,7 +5815,7 @@ function Canvas2Editor({
     onWorkspaceChange == null ? void 0 : onWorkspaceChange(next);
   };
   const brand = useMemo(() => resolveBrandKit(brandKit), [brandKit]);
-  const L = mergeLabels(labels);
+  const L = useMemo(() => mergeLabels(labels, langCode), [labels, langCode]);
   const pageNames = useRef(L.pages);
   pageNames.current = L.pages;
   const allFontOverrides = useMemo(
@@ -5877,7 +6065,7 @@ ${css}` : css;
       workspacePanels.push({
         id: "elements",
         title: L.workspace.elements,
-        content: /* @__PURE__ */ jsx(InsertPanel, { api, pageId: activePageId, labels })
+        content: /* @__PURE__ */ jsx(InsertPanel, { api, pageId: activePageId, labels: L })
       });
       workspacePanels.push({
         id: "text",
@@ -5888,7 +6076,7 @@ ${css}` : css;
             api,
             pageId: activePageId,
             text: true,
-            labels,
+            labels: L,
             families: { heading: brand.headingFamily, body: brand.bodyFamily }
           }
         )
@@ -5899,18 +6087,18 @@ ${css}` : css;
   if (!viewMode && api && brandKit) workspacePanels.push({
     id: "brand",
     title: L.workspace.brand,
-    content: /* @__PURE__ */ jsx(BrandGallery, { api, activePageId, brandKit, theme, labels, embedded: true })
+    content: /* @__PURE__ */ jsx(BrandGallery, { api, activePageId, brandKit, theme, labels: L, embedded: true })
   });
   if (!viewMode && api && pages) workspacePanels.push({
     id: "design",
     title: L.workspace.page,
-    content: /* @__PURE__ */ jsx(DesignPanel, { api, activePageId, theme, brandKit, labels })
+    content: /* @__PURE__ */ jsx(DesignPanel, { api, activePageId, theme, brandKit, labels: L })
   });
   if (!viewMode && agentPanel) workspacePanels.push({ id: "agent", title: L.dock.agent, content: agentPanel });
   if (!viewMode && api && layers && pages) workspacePanels.push({
     id: "layers",
     title: L.dock.layers,
-    content: /* @__PURE__ */ jsx(LayersPanel, { api, activePageId, theme, labels, embedded: true })
+    content: /* @__PURE__ */ jsx(LayersPanel, { api, activePageId, theme, labels: L, embedded: true })
   });
   for (const panel of workspacePanels) panel.icon = /* @__PURE__ */ jsx(WorkspaceIcon, { name: panel.id });
   const pillPanels = workspace === "excalidraw" ? workspacePanels.filter((panel) => panel.inToolbar) : [];
@@ -5932,7 +6120,7 @@ ${css}` : css;
       narrow,
       actions: narrow && workspace === "excalidraw" && !viewMode ? (toolbarActions ?? []).map((action) => ({ ...action, icon: action.icon ?? /* @__PURE__ */ jsx(WorkspaceIcon, { name: "library" }) })) : void 0,
       theme,
-      labels,
+      labels: L,
       openPanel,
       onOpenPanelChange: setOpenPanel,
       children: /* @__PURE__ */ jsxs(
@@ -6065,7 +6253,7 @@ ${css}` : css;
                     fontFaces: fuentes.faces,
                     onSaveComponent,
                     themeChoice,
-                    labels
+                    labels: L
                   }
                 )
               }
@@ -6099,7 +6287,7 @@ ${css}` : css;
                 api,
                 theme,
                 viewMode,
-                labels,
+                labels: L,
                 resolveVideoSrc,
                 releaseVideoSrc,
                 onPickFrame: onPickVideoFrame
@@ -6113,7 +6301,7 @@ ${css}` : css;
                 theme,
                 viewMode,
                 narrow,
-                labels
+                labels: L
               }
             ),
             pages && api && /* @__PURE__ */ jsx(
@@ -6128,7 +6316,7 @@ ${css}` : css;
                 pageSize,
                 thumbnails: pageThumbnails,
                 thumbnailFiles: pageThumbnailFiles,
-                labels
+                labels: L
               }
             ),
             pillActions.length > 0 && !narrow ? /* @__PURE__ */ jsxs(ToolbarSlot, { root: rootRef, children: [
@@ -6169,7 +6357,7 @@ ${css}` : css;
                 activePageId,
                 theme,
                 onActiveChange: setActivePageId,
-                labels
+                labels: L
               }
             )
           ]
@@ -6296,79 +6484,82 @@ function LibraryPanel({
   );
 }
 export {
-  fitAllPages as $,
-  clusterLooseElements as A,
+  extendToPage as $,
+  captureThumbnail as A,
   BrandGallery as B,
   Canvas2 as C,
   DEFAULT_LABELS as D,
-  EMPTY_BRAND as E,
-  contrastTextColor as F,
-  convertToPages as G,
-  createBlankScene as H,
+  EN_LABELS as E,
+  cascadePoints as F,
+  clusterLooseElements as G,
+  contrastTextColor as H,
   ImageLoadError as I,
-  dataUrlToBlob as J,
-  deletePage as K,
+  convertToPages as J,
+  createBlankScene as K,
   LayersPanel as L,
   ModeSwitch as M,
-  downloadBlob as N,
-  duplicatePage as O,
+  dataUrlToBlob as N,
+  deletePage as O,
   PANEL_FONT as P,
-  ensurePagePapers as Q,
-  exportScenePdf as R,
-  exportScenePng as S,
+  displayPageName as Q,
+  downloadBlob as R,
+  duplicatePage as S,
   TEXT_PRESETS as T,
-  exportSceneSvg as U,
+  ensurePagePapers as U,
   VideoFramePicker as V,
-  exportStoredScenePng as W,
-  exportStoredSceneSvg as X,
-  extendToPage as Y,
-  externalizeInlineImages as Z,
-  findInlineImageIds as _,
+  exportScenePdf as W,
+  exportScenePng as X,
+  exportSceneSvg as Y,
+  exportStoredScenePng as Z,
+  exportStoredSceneSvg as _,
   Canvas2Editor as a,
-  fitPagePapersInArray as a0,
-  focusLayer as a1,
-  fontFamilyId as a2,
-  getPageBackground as a3,
-  getPageSize as a4,
-  getSelectedVideo as a5,
-  getVideoMeta as a6,
-  hasUploadsInFlight as a7,
-  hideNativeDragImage as a8,
-  imageAtScenePoint as a9,
-  sendMemberToBack as aA,
-  serializeScene as aB,
-  setAsBackground as aC,
-  setPageBackgroundColor as aD,
-  setPageLocked as aE,
-  setVideoPoster as aF,
-  storedScenePageCount as aG,
-  usePageThumbnails as aH,
-  insertImageFromBlob as aa,
-  insertImageFromUrl as ab,
-  insertImageWithPreview as ac,
-  insertTextPreset as ad,
-  insertVideo as ae,
-  isInlineDataUrl as af,
-  isPageBackground as ag,
-  isPageLocked as ah,
-  isVideoElement as ai,
-  listPages as aj,
-  looseElements as ak,
-  movePage as al,
-  movePageTo as am,
-  paginateSceneInArray as an,
-  parseScene as ao,
-  patchElement as ap,
-  registerCustomFont as aq,
-  registerCustomFonts as ar,
-  relayoutPages as as,
-  renamePage as at,
-  reorderPageMembers as au,
-  replaceImageFromUrl as av,
-  resizePage as aw,
-  resolveBrandKit as ax,
-  resolveInsertPageId as ay,
-  restoreScene as az,
+  externalizeInlineImages as a0,
+  findInlineImageIds as a1,
+  fitAllPages as a2,
+  fitPagePapersInArray as a3,
+  focusLayer as a4,
+  fontFamilyId as a5,
+  getPageBackground as a6,
+  getPageSize as a7,
+  getSelectedVideo as a8,
+  getVideoMeta as a9,
+  resolveBrandKit as aA,
+  resolveInsertPageId as aB,
+  restoreScene as aC,
+  sendMemberToBack as aD,
+  serializeScene as aE,
+  setAsBackground as aF,
+  setPageBackgroundColor as aG,
+  setPageLocked as aH,
+  setVideoPoster as aI,
+  storedScenePageCount as aJ,
+  usePageThumbnails as aK,
+  hasUploadsInFlight as aa,
+  hideNativeDragImage as ab,
+  imageAtScenePoint as ac,
+  insertImageFromBlob as ad,
+  insertImageFromUrl as ae,
+  insertImageWithPreview as af,
+  insertTextPreset as ag,
+  insertVideo as ah,
+  isInlineDataUrl as ai,
+  isPageBackground as aj,
+  isPageLocked as ak,
+  isVideoElement as al,
+  listPages as am,
+  looseElements as an,
+  movePage as ao,
+  movePageTo as ap,
+  paginateSceneInArray as aq,
+  parseScene as ar,
+  patchElement as as,
+  registerCustomFont as at,
+  registerCustomFonts as au,
+  relayoutPages as av,
+  renamePage as aw,
+  reorderPageMembers as ax,
+  replaceImageFromUrl as ay,
+  resizePage as az,
   CanvasMenu as b,
   DesignPanel as c,
   DragPreview as d,
@@ -6379,20 +6570,20 @@ export {
   buildPersistableFiles as i,
   packPagesInArray as j,
   commitElements as k,
-  goToPage as l,
+  labelsFor as l,
   mergeLabels as m,
-  DEFAULT_PAGE_SIZE as n,
-  MEDIA_DROP_TYPE as o,
+  goToPage as n,
+  DEFAULT_PAGE_SIZE as o,
   palette as p,
-  PAGE_ALIGNMENTS as q,
+  EMPTY_BRAND as q,
   renumberPagesInArray as r,
-  PAGE_SIZE_PRESETS as s,
-  VIDEO_MARKER as t,
-  addPage as u,
-  adoptLooseIntoPage as v,
-  adoptStrayFramesInArray as w,
-  alignToPage as x,
-  captureThumbnail as y,
-  cascadePoints as z
+  MEDIA_DROP_TYPE as s,
+  PAGE_ALIGNMENTS as t,
+  PAGE_SIZE_PRESETS as u,
+  VIDEO_MARKER as v,
+  addPage as w,
+  adoptLooseIntoPage as x,
+  adoptStrayFramesInArray as y,
+  alignToPage as z
 };
-//# sourceMappingURL=LibraryPanel-BSQVVWiQ.js.map
+//# sourceMappingURL=LibraryPanel-w1TpNmgB.js.map
