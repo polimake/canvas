@@ -4,7 +4,7 @@ import "@excalidraw/excalidraw/index.css";
 import { CaptureUpdateAction, newElementWith, convertToExcalidrawElements, restore, serializeAsJSON, exportToCanvas, exportToBlob, exportToSvg, MainMenu, FONT_FAMILY, useI18n, viewportCoordsToSceneCoords, getVisibleSceneBounds, Excalidraw, getNonDeletedElements } from "@excalidraw/excalidraw";
 import { cloneSceneElements } from "../components.js";
 import { P as PAGE_GAP } from "./layout-BEpoNps2.js";
-import { fontFormatHint, buildFontFaceCss, fontFamilyAlias, normalizeFontSrc, customFontFamilyId, dedupeFontFaces } from "../fonts.js";
+import { fontFormatHint, buildFontFaceCss, fontFamilyAlias, normalizeFontSrc, fontFamilyCss, customFontFamilyId, dedupeFontFaces } from "../fonts.js";
 import { createPortal, flushSync } from "react-dom";
 const CAPTURE = {
   // One undo entry, immediately.
@@ -3822,14 +3822,15 @@ function registerCustomFont(name) {
   if (yaEsta !== void 0) return { alias, id: yaEsta };
   const id = customFontFamilyId(alias);
   const tabla = FONT_FAMILY;
+  const clave = fontFamilyCss(alias);
   const ocupante = (_a = Object.entries(tabla).find(([, valor]) => valor === id)) == null ? void 0 : _a[0];
-  if (ocupante !== void 0 && ocupante !== alias) {
+  if (ocupante !== void 0 && ocupante !== clave) {
     console.error(
       `[canvas2] la tipografía "${alias}" colisiona con "${ocupante}" (id ${id}); se usará la fuente por defecto. Renombra la familia en el brand kit.`
     );
     return null;
   }
-  tabla[alias] = id;
+  tabla[clave] = id;
   registradas.set(alias, id);
   return { alias, id };
 }
@@ -3847,7 +3848,7 @@ function registerCustomFonts(faces) {
 function fontFamilyId(name) {
   const alias = fontFamilyAlias(name);
   const tabla = FONT_FAMILY;
-  return tabla[alias] ?? tabla[name] ?? null;
+  return tabla[fontFamilyCss(alias)] ?? tabla[name] ?? null;
 }
 const TEXT_PRESETS = [
   { key: "heading", label: "Título", text: "Título", fontSize: 64, anchorY: 0.24 },
@@ -6395,4 +6396,4 @@ export {
   captureThumbnail as y,
   cascadePoints as z
 };
-//# sourceMappingURL=LibraryPanel-BSQVVWiQ.js.map
+//# sourceMappingURL=LibraryPanel-BV5lg-GI.js.map

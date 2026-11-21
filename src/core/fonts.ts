@@ -162,6 +162,56 @@ export function fontFamilyAlias(name: string): string {
   return BUILTIN.has(limpio.toLowerCase()) ? `${limpio}${ALIAS_SUFFIX}` : limpio;
 }
 
+/** Palabras que, sueltas como familia, el atajo `font` lee como otra cosa. */
+const RESERVADAS_CSS = new Set([
+  'serif',
+  'sans-serif',
+  'monospace',
+  'cursive',
+  'fantasy',
+  'system-ui',
+  'math',
+  'emoji',
+  'fangsong',
+  'ui-serif',
+  'ui-sans-serif',
+  'ui-monospace',
+  'ui-rounded',
+  'inherit',
+  'initial',
+  'unset',
+  'revert',
+  'revert-layer',
+  'default',
+]);
+
+/** Un identificador CSS que vale como palabra de un nombre de familia sin comillas. */
+const IDENTIFICADOR_CSS = /^-?[_a-zA-Z -\u{10FFFF}][_a-zA-Z0-9 -\u{10FFFF}-]*$/u;
+
+/**
+ * La familia tal como tiene que ir en un atajo `font` (`ctx.font`,
+ * `document.fonts.check/load`): tal cual si todas sus palabras son
+ * identificadores CSS, entre comillas si no.
+ *
+ * Excalidraw compone ese atajo con la CLAVE de `FONT_FAMILY` y sin comillas
+ * (ver la cabecera). Un nombre con paréntesis —el alias "Helvetica (marca)" de
+ * una fuente de marca homónima de una de serie, que es justo lo que trae un PDF
+ * con texto en Helvetica— no es un identificador: `ctx.font` descarta la
+ * declaración y `document.fonts.check('16px Helvetica (marca), Segoe UI Emoji')`
+ * LANZA un `SyntaxError`, que tumbaba la miniatura de la página entera. Por eso
+ * la clave que se escribe en `FONT_FAMILY` es esta, y no el alias pelado. El
+ * `@font-face` sigue declarando el alias (allí va siempre entre comillas, ver
+ * `buildFontFaceCss`), y entrecomillado es el mismo nombre de familia.
+ */
+export function fontFamilyCss(alias: string): string {
+  const palabras = alias.split(' ');
+  const suelto =
+    alias.length > 0 &&
+    palabras.every((p) => IDENTIFICADOR_CSS.test(p)) &&
+    !(palabras.length === 1 && RESERVADAS_CSS.has(alias.toLowerCase()));
+  return suelto ? alias : `"${dentroDeCadenaCss(alias)}"`;
+}
+
 /**
  * Id numérico de una familia propia, derivado SOLO de su nombre.
  *

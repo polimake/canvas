@@ -105,6 +105,22 @@ export declare function stripFontDigits(name: string): string;
  */
 export declare function fontFamilyAlias(name: string): string;
 /**
+ * La familia tal como tiene que ir en un atajo `font` (`ctx.font`,
+ * `document.fonts.check/load`): tal cual si todas sus palabras son
+ * identificadores CSS, entre comillas si no.
+ *
+ * Excalidraw compone ese atajo con la CLAVE de `FONT_FAMILY` y sin comillas
+ * (ver la cabecera). Un nombre con paréntesis —el alias "Helvetica (marca)" de
+ * una fuente de marca homónima de una de serie, que es justo lo que trae un PDF
+ * con texto en Helvetica— no es un identificador: `ctx.font` descarta la
+ * declaración y `document.fonts.check('16px Helvetica (marca), Segoe UI Emoji')`
+ * LANZA un `SyntaxError`, que tumbaba la miniatura de la página entera. Por eso
+ * la clave que se escribe en `FONT_FAMILY` es esta, y no el alias pelado. El
+ * `@font-face` sigue declarando el alias (allí va siempre entre comillas, ver
+ * `buildFontFaceCss`), y entrecomillado es el mismo nombre de familia.
+ */
+export declare function fontFamilyCss(alias: string): string;
+/**
  * Id numérico de una familia propia, derivado SOLO de su nombre.
  *
  * Es determinista a propósito y no un contador: el id se guarda dentro de cada
