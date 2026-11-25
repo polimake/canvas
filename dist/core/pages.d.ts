@@ -1,6 +1,7 @@
 import { type ExcalidrawImperativeAPI, type SceneElement, type SceneElements } from './excal';
 import { type CaptureMode } from './mutate';
 import { type PageNames } from './pageNames';
+import { framesInDocumentOrder } from './pageModel';
 /**
  * "Pages" / artboards on top of Excalidraw's infinite canvas.
  *
@@ -38,6 +39,7 @@ export interface PageSizePreset extends PageSize {
     label: string;
 }
 export declare const PAGE_SIZE_PRESETS: PageSizePreset[];
+export { framesInDocumentOrder };
 /**
  * PURE: re-pack pages flush left → right, preserving `order` (default: current
  * document order) and anchoring the strip at the current leftmost x and at the
@@ -251,6 +253,21 @@ export declare function movePage(api: ExcalidrawImperativeAPI, pageId: string, d
 export declare function resizePage(api: ExcalidrawImperativeAPI, pageId: string, size: PageSize, opts?: {
     scaleContent?: boolean;
 }): void;
+/**
+ * Cambia el tamaño de VARIAS páginas en UNA entrada de deshacer: el tamaño de
+ * una presentación es de todas sus diapositivas (Archivo › Tamaño), y deshacer
+ * el cambio no puede pedir un Ctrl+Z por diapositiva.
+ */
+export declare function resizePages(api: ExcalidrawImperativeAPI, pageIds: readonly string[], size: PageSize, opts?: {
+    scaleContent?: boolean;
+}): void;
+/**
+ * Copia del array con la página `pageId` a `size`. Puro; devuelve el MISMO
+ * array si no hay nada que hacer (página que no existe o tamaño imposible).
+ */
+export declare function resizePageInArray(elements: readonly SceneElement[], pageId: string, size: PageSize, opts?: {
+    scaleContent?: boolean;
+}): readonly SceneElement[];
 /**
  * Duplicate a page and its contents, inserting the copy right AFTER the
  * source (pages to the right shift over) — one undo entry.

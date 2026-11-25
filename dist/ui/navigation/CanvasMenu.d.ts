@@ -2,7 +2,7 @@ import { type ExcalidrawImperativeAPI } from '../../core/excal';
 import type { FilesMap } from '../hooks/pageThumbnails';
 import type { SvgFontFace } from '../../core/svgFonts';
 import { type PartialLabels } from '../shared/labels';
-import type { CanvasWorkspace } from '../workspaces/types';
+import { type CanvasWorkspace } from '../workspaces/types';
 /**
  * Menú principal del editor: acciones de DOCUMENTO —convertir en páginas,
  * insertar texto, guardar como componente y exportar.
@@ -56,6 +56,8 @@ export interface CanvasMenuProps {
     themeChoice?: CanvasThemeChoice;
     /** Textos, inyectados por el host (ver labels.ts). */
     labels?: PartialLabels;
+    /** Idioma de los textos al exportar a PowerPoint (`es-ES`). */
+    lang?: string;
 }
 /** «Como la app», claro u oscuro: lo que elige la persona, no el tema pintado. */
 export type CanvasThemeChoiceValue = 'app' | 'light' | 'dark';
@@ -63,5 +65,5 @@ export interface CanvasThemeChoice {
     value: CanvasThemeChoiceValue;
     onChange: (value: CanvasThemeChoiceValue) => void;
 }
-export declare function CanvasMenu({ pages: pageMode, workspace, onWorkspaceChange, api, activePageId, viewMode, hydrateFiles, fontFaces, onSaveComponent, themeChoice, labels: labelsProp, }: CanvasMenuProps): import("react").JSX.Element;
+export declare function CanvasMenu({ pages: pageMode, workspace, onWorkspaceChange, api, activePageId, viewMode, hydrateFiles, fontFaces, onSaveComponent, themeChoice, labels: labelsProp, lang, }: CanvasMenuProps): import("react").JSX.Element;
 //# sourceMappingURL=CanvasMenu.d.ts.map

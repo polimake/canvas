@@ -1,6 +1,7 @@
 export { Canvas2Editor, Canvas2, default } from './ui/editor/Canvas2';
-export type { Canvas2EditorProps, Canvas2Scene, Canvas2Api } from './ui/editor/Canvas2';
+export type { Canvas2EditorProps, Canvas2Scene, Canvas2Api, Canvas2HostPanel } from './ui/editor/Canvas2';
 export type { CanvasWorkspace } from './ui/workspaces/types';
+export type { SlidesHostOptions, SlidesImport } from './ui/workspaces/slides/SlidesWorkspace';
 export type { Canvas2Mode, Canvas2ModeControl } from './ui/navigation/ModeSwitch';
 export { MEDIA_DROP_TYPE } from './ui/editor/Canvas2';
 export { PageNavigator } from './ui/navigation/PageNavigator';
@@ -60,6 +61,8 @@ export type { InsertImageOptions, ImageLoadFailure, ImageHit, MediaUploader, Fil
 export { cloneSceneElements, listSlots, deriveComponentMeta, extractComponentFragment, instantiateComponent, appendComponentToEditorConfig, measureWrappedText, fitImageInBox, } from './core/components';
 export type { ComponentElement, ComponentFileEntry, ComponentFragment, ComponentSlotInfo, InstantiatedComponent, SlotValue, SlotValues, } from './core/components';
 export { insertComponentIntoScene, extractPageForComponent } from './core/insertComponent';
+export { insertPagesIntoScene, type IncomingPages } from './core/insertPages';
+export { getPageNotes, setPageNotes, isPageSkipped, setPageSkipped, getPageTransition, setPageTransition } from './core/slideMeta';
 export { TEXT_PRESETS, insertTextPreset, contrastTextColor } from './core/text';
 export type { TextPreset, TextPresetKey } from './core/text';
 export { getPageBackground, setPageBackgroundColor, ensurePagePapers, fitPagePapersInArray, isPageBackground, } from './core/background';

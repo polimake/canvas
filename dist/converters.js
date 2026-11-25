@@ -2,6 +2,8 @@ import { D, P, c, f, g, l, a, p, b, d, e, r, h, s } from "./chunks/legacy-BS2a1q
 import { P as PAGE_GAP } from "./chunks/layout-BEpoNps2.js";
 import { customFontFamilyId } from "./fonts.js";
 import { e as estimateTextHeight } from "./chunks/model-Rq3yAvOe.js";
+import { P as PAGE_MARKER, S as SLIDE_NOTES_KEY, a as SLIDE_SKIP_KEY, b as SLIDE_TRANSITION_KEY } from "./chunks/documentToPptx-XCLs01g1.js";
+import { c as c2, d as d2, e as e2, f as f2, p as p2, s as s2, x } from "./chunks/documentToPptx-XCLs01g1.js";
 const ROUNDNESS_ADAPTIVE = 3;
 const AVERAGE_GLYPH_WIDTH = 0.5;
 const MAX_ONE_LINE_OVERFLOW = 1.4;
@@ -17,7 +19,6 @@ function textPlacement(source, fontSize, lineHeight) {
   return { x: source.x + inset.left, y: source.y + inset.top + offset, width, height, autoResize };
 }
 function documentToScene(document, options = {}) {
-  var _a;
   const result = { elements: [], files: {}, fonts: options.fonts ?? [], warnings: [...document.warnings], pendingAssetIds: [] };
   let serial = 0, xOffset = 0;
   const prefix = options.idPrefix ?? "import";
@@ -49,8 +50,13 @@ function documentToScene(document, options = {}) {
     locked: false,
     ...extra
   });
-  for (const page of document.pages) {
-    const frame = base({ type: "frame", x: xOffset, width: page.width, height: page.height, name: page.name });
+  document.pages.forEach((page, pageIndex) => {
+    var _a, _b;
+    const customData = { [PAGE_MARKER]: { index: pageIndex } };
+    if ((_a = page.notes) == null ? void 0 : _a.trim()) customData[SLIDE_NOTES_KEY] = page.notes.replace(/\s+$/, "");
+    if (page.hidden) customData[SLIDE_SKIP_KEY] = true;
+    if (page.transition === "fade") customData[SLIDE_TRANSITION_KEY] = "fade";
+    const frame = base({ type: "frame", x: xOffset, width: page.width, height: page.height, name: page.name, customData });
     result.elements.push(frame, base({
       x: xOffset,
       width: page.width,
@@ -78,7 +84,7 @@ function documentToScene(document, options = {}) {
         customData: { sourceId: source.id, sourceFormat: document.format }
       };
       if (source.kind === "text") {
-        const font = result.fonts.find((f2) => f2.family === source.fontFamily);
+        const font = result.fonts.find((f3) => f3.family === source.fontFamily);
         if (source.fontFamily && !font) result.warnings.push({ code: "unresolved-font", message: `Font ${source.fontFamily} uses a fallback until supplied by the host.`, pageId: page.id, elementId: source.id });
         const fontSize = source.fontSize ?? 24, lineHeight = source.lineHeight ?? 1.25;
         const placed = textPlacement(source, fontSize, lineHeight);
@@ -114,7 +120,7 @@ function documentToScene(document, options = {}) {
           endArrowhead: source.arrowEnd ? "arrow" : null
         }));
       } else if (source.kind === "image") {
-        const asset = source.assetId ? (_a = options.assets) == null ? void 0 : _a[source.assetId] : void 0;
+        const asset = source.assetId ? (_b = options.assets) == null ? void 0 : _b[source.assetId] : void 0;
         if (asset && /^https?:\/\//i.test(asset.url)) {
           const fileId = `${prefix}-asset-${source.assetId}`;
           result.files[fileId] = { id: fileId, dataURL: asset.url, mimeType: asset.mimeType, created: 0 };
@@ -141,24 +147,31 @@ function documentToScene(document, options = {}) {
       } else result.elements.push(base({ ...common, type: source.kind }));
     }
     xOffset += page.width + PAGE_GAP;
-  }
+  });
   return result;
 }
 export {
   D as DEFAULT_MAX_SUBPATHS,
+  c2 as POTX_MIME,
+  d2 as PPTX_MIME,
   P as PSD_IMAGE_MARKER,
   c as countSubpaths,
+  e2 as dataUrlBytes,
+  f2 as documentToPptx,
   documentToScene,
   f as flattenBezierPath,
   g as groupStyleRuns,
   l as legacyToScene,
   a as listImagePlaceholders,
+  p2 as parseColor,
   p as parseLegacyText,
   b as postScriptStyleToCss,
   d as psdColorToHex,
   e as psdToScene,
   r as resetIdCounter,
   h as resetPsdIdCounter,
-  s as splitPostScriptFont
+  s2 as sceneToDocument,
+  s as splitPostScriptFont,
+  x as xmlText
 };
 //# sourceMappingURL=converters.js.map

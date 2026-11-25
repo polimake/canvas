@@ -1,7 +1,14 @@
 import { type ExcalidrawImperativeAPI, type SceneElement } from './excal';
 import { type CaptureMode } from './mutate';
-/** Whether an element is a page's background "paper" sheet. */
-export declare function isPageBackground(el: SceneElement): boolean;
+import { isPageBackground } from './pageModel';
+/**
+ * Per-page background color — Canva-clone parity. Excalidraw frames have no
+ * fill of their own, so the background is a locked, full-bleed rectangle sent
+ * to the back of the page. It is tagged through the PUBLIC `customData` field
+ * (round-tripped verbatim by Excalidraw), so re-applying a color PATCHES the
+ * existing background in place (stable element id) instead of rebuilding it.
+ */
+export { isPageBackground };
 /**
  * Build the background "paper" element for a page: a locked, full-bleed,
  * SHARP-CORNERED rectangle (roughness 0, no roundness) with a hairline border.

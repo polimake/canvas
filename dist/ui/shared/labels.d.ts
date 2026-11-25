@@ -32,7 +32,11 @@ export interface Canvas2Labels {
         excalidraw: string;
         design: string;
         advanced: string;
+        /** El espacio Presentación (distribución de Slides). */
+        slides: string;
         panels: string;
+        /** La flecha de la derecha que abre el inspector (Página · Capas · Marca…). */
+        openPanel: string;
         showPanels: string;
         hidePanels: string;
         /** La herramienta de marcos de «Más herramientas»: Excalidraw no la trae en español. */
@@ -76,6 +80,10 @@ export interface Canvas2Labels {
         exportPngAll: string;
         exportSvg: string;
         exportPdf: string;
+        /** PowerPoint editable (todas las páginas, una por diapositiva). */
+        exportPptx: string;
+        /** La misma presentación como plantilla de PowerPoint. */
+        exportPotx: string;
         /** Acción de paginar lo que está suelto en el lienzo. */
         toPages: string;
         /** Recibe cuántos elementos sueltos hay ahora mismo. */
@@ -106,6 +114,8 @@ export interface Canvas2Labels {
         add: string;
         /** Añadir al final del documento (tira de páginas). */
         addAtEnd: string;
+        /** Rótulo corto bajo la ficha de añadir de la tira («Añadir»). */
+        addShort: string;
         /** Insertar en la juntura entre dos páginas de la tira. */
         insertHere: string;
         /** El intento de crear una página ha fallado (si no, el botón parece muerto). */
@@ -150,6 +160,13 @@ export interface Canvas2Labels {
         text: string;
         /** Capa de texto; recibe el principio de lo que tiene escrito. */
         textWith: (excerpt: string) => string;
+        /** Un grupo sin texto dentro (con texto, se llama como su primer texto). */
+        group: string;
+        /** Desplegar y plegar un grupo de la lista. */
+        expandGroup: string;
+        collapseGroup: string;
+        /** Cuántas capas hay dentro de un grupo, al lado de su nombre. */
+        groupCount: (n: number) => string;
         useAsBackground: string;
         extendToPage: string;
         show: string;
@@ -220,6 +237,8 @@ export interface Canvas2Labels {
     };
     /** Nombres de los tamaños de página, por clave de preset. */
     sizes: Record<string, string>;
+    /** Espacio Presentación: menús, barra, tira, notas y presentar (slides/). */
+    slides: SlidesLabels;
     /** Selector de modo (Ver · Comentar · Editar) del host. */
     mode: {
         group: string;
@@ -229,6 +248,125 @@ export interface Canvas2Labels {
         done: string;
     };
 }
+export interface SlidesLabels {
+    /** Región de los menús (Archivo, Editar…), para el lector de pantalla. */
+    menubar: string;
+    file: string;
+    edit: string;
+    view: string;
+    insert: string;
+    format: string;
+    slide: string;
+    arrange: string;
+    /** Barra de herramientas. */
+    toolbar: string;
+    search: string;
+    newSlide: string;
+    newSlideAfter: string;
+    undo: string;
+    redo: string;
+    zoomFit: string;
+    zoomIn: string;
+    zoomOut: string;
+    select: string;
+    textBox: string;
+    image: string;
+    shape: string;
+    rectangle: string;
+    ellipse: string;
+    diamond: string;
+    line: string;
+    arrow: string;
+    comment: string;
+    background: string;
+    components: string;
+    theme: string;
+    transition: string;
+    formatOptions: string;
+    hideMenus: string;
+    showMenus: string;
+    /** Diapositiva. */
+    slides: string;
+    slideN: (n: number) => string;
+    duplicateSlide: string;
+    deleteSlide: string;
+    skipSlide: string;
+    unskipSlide: string;
+    skipped: string;
+    moveSlide: string;
+    moveToStart: string;
+    moveToEnd: string;
+    moveUp: string;
+    moveDown: string;
+    changeBackground: string;
+    applyComponent: string;
+    changeTheme: string;
+    pageSize: string;
+    pageSizeCurrent: (label: string) => string;
+    /** Editar. */
+    duplicate: string;
+    delete: string;
+    selectAll: string;
+    group: string;
+    ungroup: string;
+    /** Organizar. */
+    align: string;
+    order: string;
+    bringToFront: string;
+    bringForward: string;
+    sendBackward: string;
+    sendToBack: string;
+    /** Ver. */
+    present: string;
+    presentFromStart: string;
+    presentOptions: string;
+    gridView: string;
+    backToSlide: string;
+    showNotes: string;
+    showFilmstrip: string;
+    hideFilmstrip: string;
+    workspace: string;
+    /** Notas. */
+    notes: string;
+    notesPlaceholder: string;
+    /** Cuadrícula. */
+    slideCount: (n: number) => string;
+    /** Paneles de la derecha. */
+    panels: string;
+    details: string;
+    closePanel: string;
+    themeInPresentation: string;
+    importTheme: string;
+    importThemeHint: string;
+    transitionNone: string;
+    transitionFade: string;
+    transitionApplyAll: string;
+    /** Presentar. */
+    presenting: string;
+    previous: string;
+    next: string;
+    counter: (i: number, n: number) => string;
+    presenterView: string;
+    presenterNext: string;
+    presenterEnd: string;
+    presenterTimer: string;
+    exit: string;
+    escToExit: string;
+    presenterBlocked: string;
+    /** Archivo › Importar diapositivas (de un .pptx o un .pdf, al final de la presentación). */
+    importSlides: string;
+    importing: string;
+    imported: (count: number) => string;
+    importFailed: string;
+    /** Nombres de teclas para los atajos de los menús. */
+    keys: {
+        shift: string;
+        enter: string;
+        del: string;
+    };
+}
+export declare const SLIDES_ES: SlidesLabels;
+export declare const SLIDES_EN: SlidesLabels;
 export declare const DEFAULT_LABELS: Canvas2Labels;
 /**
  * Los mismos textos en inglés. Lo que también traduce la web

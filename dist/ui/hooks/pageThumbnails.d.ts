@@ -13,5 +13,11 @@ export type FilesMap = NonNullable<ExportOptions['files']>;
 export declare function usePageThumbnails(api: ExcalidrawImperativeAPI | null, opts?: {
     enabled?: boolean;
     files?: FilesMap;
+    /**
+     * Lado mayor de la miniatura, en px. 64 para los chips de la tira de
+     * páginas; la tira de diapositivas del espacio Presentación las pinta a
+     * ~170 px y pide el doble para pantallas densas.
+     */
+    width?: number;
 }): Record<string, string>;
 //# sourceMappingURL=pageThumbnails.d.ts.map

@@ -317,6 +317,16 @@ function styledFamily(font, bold, italic) {
   return `${font}${bold && !named ? " Bold" : ""}${italic && !/italic$/i.test(font) ? " Italic" : ""}`;
 }
 const placeholderOf = (shape) => descendants(child(shape, "nvSpPr"), "ph")[0];
+function notesText(notes) {
+  const shapes = descendants(notes, "sp");
+  const body = shapes.find((sp) => {
+    var _a;
+    return ((_a = placeholderOf(sp)) == null ? void 0 : _a.attrs.type) === "body";
+  }) ?? shapes.find((sp) => !placeholderOf(sp) && child(sp, "txBody"));
+  if (!body) return descendants(notes, "t").map(value).join("\n").replace(/\s+$/, "");
+  const paragraphs = descendants(child(body, "txBody"), "p").map((p) => p.children.flatMap((run) => run.name === "br" ? ["\n"] : run.name === "r" || run.name === "fld" ? descendants(run, "t").map(value) : []).join(""));
+  return paragraphs.join("\n").replace(/\s+$/, "");
+}
 const masterKind = (type) => type === "title" || type === "ctrTitle" ? "title" : !type || type === "subTitle" || type === "obj" || type === "body" ? "body" : type;
 const shapesOf = (root, tag) => children(child(child(root && child(root, tag), "cSld"), "spTree"), "sp");
 function parsePptx(input, limits = {}) {
@@ -707,6 +717,7 @@ function parsePptx(input, limits = {}) {
     const slideRoot = read(rel.target), slide = child(slideRoot, "sld");
     if (!slide) throw new DocumentImportError("invalid-file", "Missing slide root.");
     const page = { id: `slide-${pageIndex + 1}`, name: ((_a = child(slide, "cSld")) == null ? void 0 : _a.attrs.name) || `Slide ${pageIndex + 1}`, width, height, elements: [] };
+    if (slide.attrs.show === "0") page.hidden = true;
     doc.pages.push(page);
     page.extractedText = descendants(slide, "t").map(value).join("\n");
     const slideRels = relationships(rel.target);
@@ -765,8 +776,13 @@ function parsePptx(input, limits = {}) {
     if (slide.attrs.showMasterSp !== "0" && layoutPath) tree(layout).forEach((n) => shape(n, relationships(layoutPath), false, root));
     tree(slide).forEach((n) => shape(n, slideRels, true, root));
     const notes = [...slideRels.values()].find((r) => r.type.endsWith("/notesSlide") && !r.external);
-    if (notes && files[notes.target]) page.notes = descendants(read(notes.target), "t").map(value).join("\n");
-    if (child(slide, "timing") || child(slide, "transition")) warn("animation", "Animation and transitions are not imported.", page.id);
+    if (notes && files[notes.target]) {
+      const text = notesText(read(notes.target));
+      if (text) page.notes = text;
+    }
+    const transition = child(slide, "transition") ?? descendants(child(slide, "AlternateContent"), "transition")[0];
+    if (transition && transition.children.some((c) => c.name !== "extLst" && c.name !== "sndAc")) page.transition = "fade";
+    if (child(slide, "timing")) warn("animation", "Object animations are not imported.", page.id);
   }
   return doc;
 }

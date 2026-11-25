@@ -1,10 +1,11 @@
 import { jsxs, jsx, Fragment as Fragment$1 } from "react/jsx-runtime";
-import { useState, useRef, useEffect, Fragment, useMemo, useCallback, useId, useReducer } from "react";
+import { useState, useRef, useEffect, Fragment, useMemo, useCallback, useId, useLayoutEffect, useReducer } from "react";
 import "@excalidraw/excalidraw/index.css";
-import { CaptureUpdateAction, newElementWith, convertToExcalidrawElements, restore, serializeAsJSON, exportToCanvas, exportToBlob, exportToSvg, MainMenu, FONT_FAMILY, useI18n, viewportCoordsToSceneCoords, getVisibleSceneBounds, Excalidraw, getNonDeletedElements } from "@excalidraw/excalidraw";
+import { CaptureUpdateAction, newElementWith, convertToExcalidrawElements, restore, serializeAsJSON, exportToCanvas, exportToBlob, exportToSvg, FONT_FAMILY, MainMenu, useI18n, viewportCoordsToSceneCoords, getVisibleSceneBounds, Excalidraw, getNonDeletedElements } from "@excalidraw/excalidraw";
+import { i as isPageBackground, B as BG_MARKER$1, g as pageOrderOf, P as PAGE_MARKER, h as framesInDocumentOrder, s as sceneToDocument, f as documentToPptx, n as notesOf, t as transitionOf, j as isSkippedFrame, S as SLIDE_NOTES_KEY, a as SLIDE_SKIP_KEY, b as SLIDE_TRANSITION_KEY, k as SLIDE_TRANSITIONS } from "./documentToPptx-XCLs01g1.js";
 import { cloneSceneElements } from "../components.js";
 import { P as PAGE_GAP } from "./layout-BEpoNps2.js";
-import { fontFormatHint, buildFontFaceCss, fontFamilyAlias, normalizeFontSrc, fontFamilyCss, customFontFamilyId, dedupeFontFaces } from "../fonts.js";
+import { fontFormatHint, buildFontFaceCss, fontFamilyAlias, fontFamilyCss, customFontFamilyId, normalizeFontSrc, dedupeFontFaces } from "../fonts.js";
 import { createPortal, flushSync } from "react-dom";
 const CAPTURE = {
   // One undo entry, immediately.
@@ -82,10 +83,10 @@ function commitElements(api, elements, capture = "undoable", appState) {
     captureUpdate: CAPTURE[capture]
   });
 }
-const BG_MARKER$1 = "pageBackground";
+const BG_MARKER = "pageBackground";
 function isPaper(el) {
   var _a;
-  return ((_a = el.customData) == null ? void 0 : _a.c2) === BG_MARKER$1;
+  return ((_a = el.customData) == null ? void 0 : _a.c2) === BG_MARKER;
 }
 function floorFirst(members, orderedBottomFirst) {
   const paperIds = members.filter(isPaper).map((e) => e.id);
@@ -141,11 +142,6 @@ function sendMemberToBack(api, elementId, pageId) {
   const ordered = [elementId, ...currentBottomFirst.filter((id) => id !== elementId)];
   return reorderPageMembers(api, pageId, ordered);
 }
-const BG_MARKER = "pageBackground";
-function isPageBackground(el) {
-  var _a;
-  return ((_a = el.customData) == null ? void 0 : _a.c2) === BG_MARKER;
-}
 function buildPageBackground(pageId, bounds, color2) {
   const skeleton = [
     {
@@ -166,7 +162,7 @@ function buildPageBackground(pageId, bounds, color2) {
     ...el,
     frameId: pageId,
     locked: true,
-    customData: { c2: BG_MARKER }
+    customData: { c2: BG_MARKER$1 }
   }));
 }
 const PAPER_TOLERANCE = 0.01;
@@ -309,6 +305,9 @@ function resolvePageNames(names) {
   };
 }
 const DEFAULT_NAME_RE = /^(Página|Page) (\d+)$/;
+function isDefaultPageName(name) {
+  return DEFAULT_NAME_RE.test(name ?? "");
+}
 function displayPageName(name, names) {
   const resolved = resolvePageNames(names);
   const match = DEFAULT_NAME_RE.exec(name ?? "");
@@ -336,19 +335,7 @@ function createId() {
   }
   return `pg_${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
 }
-const PAGE_MARKER = "c2page";
-function pageOrderOf(el) {
-  var _a, _b;
-  const raw = (_b = (_a = el.customData) == null ? void 0 : _a[PAGE_MARKER]) == null ? void 0 : _b.index;
-  return typeof raw === "number" && Number.isFinite(raw) ? raw : null;
-}
-function framesInArray(elements) {
-  const frames2 = elements.filter((e) => e.type === "frame");
-  const marked = frames2.length > 0 && frames2.every((f) => pageOrderOf(f) !== null);
-  return frames2.slice().sort(
-    marked ? (a, b) => pageOrderOf(a) - pageOrderOf(b) : (a, b) => a.x - b.x
-  );
-}
+const framesInArray = framesInDocumentOrder;
 const MIN_PAGE_SIDE = 16;
 function usableSize(size) {
   const side = (v, fallback) => typeof v === "number" && Number.isFinite(v) && v > 0 ? Math.max(MIN_PAGE_SIDE, v) : fallback;
@@ -625,18 +612,27 @@ function movePage(api, pageId, direction) {
   commitElements(api, next);
 }
 function resizePage(api, pageId, size, opts = {}) {
+  resizePages(api, [pageId], size, opts);
+}
+function resizePages(api, pageIds, size, opts = {}) {
+  const before = api.getSceneElements();
+  let next = before;
+  for (const id of pageIds) next = resizePageInArray(next, id, size, opts);
+  if (next === before) return;
+  commitElements(api, packPagesInArray(next));
+}
+function resizePageInArray(elements, pageId, size, opts = {}) {
   const scaleContent = opts.scaleContent ?? true;
-  const elements = api.getSceneElements();
   const frame = elements.find(
     (e) => e.id === pageId && e.type === "frame"
   );
-  if (!frame) return;
-  if (!Number.isFinite(size.width) || !Number.isFinite(size.height)) return;
-  if (size.width <= 0 || size.height <= 0) return;
+  if (!frame) return elements;
+  if (!Number.isFinite(size.width) || !Number.isFinite(size.height)) return elements;
+  if (size.width <= 0 || size.height <= 0) return elements;
   const sx = size.width / frame.width;
   const sy = size.height / frame.height;
   const k = Math.min(sx, sy);
-  const resized = elements.map((e) => {
+  return elements.map((e) => {
     if (e.id === pageId && e.type === "frame") {
       return patchElement(e, { width: size.width, height: size.height });
     }
@@ -668,7 +664,6 @@ function resizePage(api, pageId, size, opts = {}) {
     }
     return patchElement(e, updates);
   });
-  commitElements(api, packPagesInArray(resized));
 }
 function duplicatePage(api, pageId, names) {
   const elements = api.getSceneElements();
@@ -735,7 +730,7 @@ function restoreScene(scene) {
     files: restored.files ?? {}
   };
 }
-async function blobToDataUrl$1(blob, mime) {
+async function blobToDataUrl$2(blob, mime) {
   const buf = new Uint8Array(await blob.arrayBuffer());
   let binario = "";
   const CHUNK = 32768;
@@ -764,7 +759,7 @@ async function inlineFontFaces(faces, fetcher) {
     faces.map(async (f) => {
       if (f.src.startsWith("data:")) return f;
       try {
-        return { ...f, src: await blobToDataUrl$1(await fetcher(f.src), mimeFor(f.src)) };
+        return { ...f, src: await blobToDataUrl$2(await fetcher(f.src), mimeFor(f.src)) };
       } catch {
         failed.push(f.family);
         return f;
@@ -981,6 +976,7 @@ function usePageThumbnails(api, opts) {
   const urlsRef = useRef({});
   const enabled = (opts == null ? void 0 : opts.enabled) ?? true;
   const files = opts == null ? void 0 : opts.files;
+  const width = (opts == null ? void 0 : opts.width) ?? THUMB_WIDTH;
   const filesToken = files ? Object.keys(files).sort().join(",") : "";
   const filesRef = useRef(files);
   filesRef.current = files;
@@ -1014,7 +1010,7 @@ function usePageThumbnails(api, opts) {
         try {
           const blob = await exportScenePng(api, {
             pageId: page.id,
-            maxWidthOrHeight: THUMB_WIDTH,
+            maxWidthOrHeight: width,
             background: true,
             ...files2 ? { files: files2 } : {}
           });
@@ -1044,7 +1040,7 @@ function usePageThumbnails(api, opts) {
       cancelled = true;
       clearInterval(id);
     };
-  }, [api, enabled, filesToken]);
+  }, [api, enabled, filesToken, width]);
   useEffect(
     () => () => {
       Object.values(urlsRef.current).forEach((u) => URL.revokeObjectURL(u));
@@ -1088,6 +1084,10 @@ const palette = {
     warnText: "#e3a33a"
   }
 };
+const ISLAND_SHADOW = {
+  light: "0 1px 2px rgba(17,17,17,0.06), 0 2px 8px rgba(17,17,17,0.06)",
+  dark: "0 1px 2px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.25)"
+};
 const PANEL_FONT = '"Polimake Funnel Sans", sans-serif';
 function Svg({ children, size = 13 }) {
   const style = { display: "block", flexShrink: 0 };
@@ -1110,6 +1110,11 @@ function Svg({ children, size = 13 }) {
 }
 const ChevronLeftIcon = () => /* @__PURE__ */ jsx(Svg, { children: /* @__PURE__ */ jsx("path", { d: "M15 18l-6-6 6-6" }) });
 const ChevronRightIcon = () => /* @__PURE__ */ jsx(Svg, { children: /* @__PURE__ */ jsx("path", { d: "M9 18l6-6-6-6" }) });
+const ChevronDownIcon = () => /* @__PURE__ */ jsx(Svg, { children: /* @__PURE__ */ jsx("path", { d: "M6 9l6 6 6-6" }) });
+const GroupIcon = () => /* @__PURE__ */ jsxs(Svg, { children: [
+  /* @__PURE__ */ jsx("rect", { x: "3.5", y: "3.5", width: "11", height: "11", rx: "2" }),
+  /* @__PURE__ */ jsx("rect", { x: "9.5", y: "9.5", width: "11", height: "11", rx: "2" })
+] });
 const DuplicateIcon = () => /* @__PURE__ */ jsxs(Svg, { children: [
   /* @__PURE__ */ jsx("rect", { x: "9", y: "9", width: "12", height: "12", rx: "1" }),
   /* @__PURE__ */ jsx("path", { d: "M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" })
@@ -1198,6 +1203,208 @@ const FitAllIcon = () => /* @__PURE__ */ jsxs("svg", { width: "15", height: "15"
   /* @__PURE__ */ jsx("path", { d: "M9 21H5a2 2 0 0 1-2-2v-4" }),
   /* @__PURE__ */ jsx("path", { d: "M15 21h4a2 2 0 0 0 2-2v-4" })
 ] });
+const SLIDES_ES = {
+  menubar: "Menús de la presentación",
+  file: "Archivo",
+  edit: "Editar",
+  view: "Ver",
+  insert: "Insertar",
+  format: "Formato",
+  slide: "Diapositiva",
+  arrange: "Organizar",
+  toolbar: "Herramientas",
+  search: "Buscar en la presentación",
+  newSlide: "Nueva diapositiva",
+  newSlideAfter: "Nueva diapositiva detrás de esta",
+  undo: "Deshacer",
+  redo: "Rehacer",
+  zoomFit: "Ajustar",
+  zoomIn: "Acercar",
+  zoomOut: "Alejar",
+  select: "Seleccionar",
+  textBox: "Cuadro de texto",
+  image: "Imagen de la biblioteca",
+  shape: "Forma",
+  rectangle: "Rectángulo",
+  ellipse: "Elipse",
+  diamond: "Rombo",
+  line: "Línea",
+  arrow: "Flecha",
+  comment: "Comentar",
+  background: "Fondo",
+  components: "Componentes",
+  theme: "Tema",
+  transition: "Transición",
+  formatOptions: "Opciones de formato",
+  hideMenus: "Ocultar los menús",
+  showMenus: "Mostrar los menús",
+  slides: "Diapositivas",
+  slideN: (n) => `Diapositiva ${n}`,
+  duplicateSlide: "Duplicar diapositiva",
+  deleteSlide: "Eliminar diapositiva",
+  skipSlide: "Saltar diapositiva",
+  unskipSlide: "No saltar diapositiva",
+  skipped: "Se salta al presentar",
+  moveSlide: "Mover diapositiva",
+  moveToStart: "Mover al principio",
+  moveToEnd: "Mover al final",
+  moveUp: "Subir",
+  moveDown: "Bajar",
+  changeBackground: "Cambiar fondo",
+  applyComponent: "Aplicar componente",
+  changeTheme: "Cambiar tema (marca)",
+  pageSize: "Tamaño",
+  pageSizeCurrent: (label) => `Tamaño: ${label}`,
+  duplicate: "Duplicar",
+  delete: "Eliminar",
+  selectAll: "Seleccionar todo",
+  group: "Agrupar",
+  ungroup: "Desagrupar",
+  align: "Alinear en la diapositiva",
+  order: "Ordenar",
+  bringToFront: "Traer al frente",
+  bringForward: "Traer adelante",
+  sendBackward: "Enviar atrás",
+  sendToBack: "Enviar al fondo",
+  present: "Presentar",
+  presentFromStart: "Presentar desde el principio",
+  presentOptions: "Opciones de presentación",
+  gridView: "Vista de cuadrícula",
+  backToSlide: "Volver a la diapositiva",
+  showNotes: "Notas del orador",
+  showFilmstrip: "Mostrar la tira",
+  hideFilmstrip: "Ocultar la tira",
+  workspace: "Espacio de trabajo",
+  notes: "Notas del orador",
+  notesPlaceholder: "Haz clic para añadir notas del orador",
+  slideCount: (n) => n === 1 ? "1 diapositiva" : `${n} diapositivas`,
+  panels: "Paneles",
+  details: "Detalles",
+  closePanel: "Cerrar el panel",
+  themeInPresentation: "En esta presentación",
+  importTheme: "Importar tema",
+  importThemeHint: "De un .pptx o de otra marca del espacio",
+  transitionNone: "Ninguna",
+  transitionFade: "Fundido",
+  transitionApplyAll: "Aplicar a todas las diapositivas",
+  presenting: "Presentación",
+  previous: "Anterior",
+  next: "Siguiente",
+  counter: (i, n) => `${i} / ${n}`,
+  presenterView: "Vista del orador",
+  presenterNext: "Siguiente",
+  presenterEnd: "Fin de la presentación",
+  presenterTimer: "Tiempo",
+  exit: "Salir",
+  escToExit: "Esc para salir",
+  presenterBlocked: "El navegador ha bloqueado la ventana de la vista del orador",
+  importSlides: "Importar diapositivas…",
+  importing: "Importando…",
+  imported: (n) => n === 1 ? "1 diapositiva importada" : `${n} diapositivas importadas`,
+  importFailed: "No se pudo importar el archivo",
+  keys: { shift: "Mayús", enter: "Intro", del: "Supr" }
+};
+const SLIDES_EN = {
+  menubar: "Presentation menus",
+  file: "File",
+  edit: "Edit",
+  view: "View",
+  insert: "Insert",
+  format: "Format",
+  slide: "Slide",
+  arrange: "Arrange",
+  toolbar: "Tools",
+  search: "Search the presentation",
+  newSlide: "New slide",
+  newSlideAfter: "New slide after this one",
+  undo: "Undo",
+  redo: "Redo",
+  zoomFit: "Fit",
+  zoomIn: "Zoom in",
+  zoomOut: "Zoom out",
+  select: "Select",
+  textBox: "Text box",
+  image: "Image from the library",
+  shape: "Shape",
+  rectangle: "Rectangle",
+  ellipse: "Ellipse",
+  diamond: "Diamond",
+  line: "Line",
+  arrow: "Arrow",
+  comment: "Comment",
+  background: "Background",
+  components: "Components",
+  theme: "Theme",
+  transition: "Transition",
+  formatOptions: "Format options",
+  hideMenus: "Hide the menus",
+  showMenus: "Show the menus",
+  slides: "Slides",
+  slideN: (n) => `Slide ${n}`,
+  duplicateSlide: "Duplicate slide",
+  deleteSlide: "Delete slide",
+  skipSlide: "Skip slide",
+  unskipSlide: "Unskip slide",
+  skipped: "Skipped when presenting",
+  moveSlide: "Move slide",
+  moveToStart: "Move to beginning",
+  moveToEnd: "Move to end",
+  moveUp: "Move up",
+  moveDown: "Move down",
+  changeBackground: "Change background",
+  applyComponent: "Apply component",
+  changeTheme: "Change theme (brand)",
+  pageSize: "Size",
+  pageSizeCurrent: (label) => `Size: ${label}`,
+  duplicate: "Duplicate",
+  delete: "Delete",
+  selectAll: "Select all",
+  group: "Group",
+  ungroup: "Ungroup",
+  align: "Align on the slide",
+  order: "Order",
+  bringToFront: "Bring to front",
+  bringForward: "Bring forward",
+  sendBackward: "Send backward",
+  sendToBack: "Send to back",
+  present: "Present",
+  presentFromStart: "Present from the beginning",
+  presentOptions: "Presentation options",
+  gridView: "Grid view",
+  backToSlide: "Back to the slide",
+  showNotes: "Speaker notes",
+  showFilmstrip: "Show the filmstrip",
+  hideFilmstrip: "Hide the filmstrip",
+  workspace: "Workspace",
+  notes: "Speaker notes",
+  notesPlaceholder: "Click to add speaker notes",
+  slideCount: (n) => n === 1 ? "1 slide" : `${n} slides`,
+  panels: "Panels",
+  details: "Details",
+  closePanel: "Close the panel",
+  themeInPresentation: "In this presentation",
+  importTheme: "Import theme",
+  importThemeHint: "From a .pptx or another brand in the space",
+  transitionNone: "None",
+  transitionFade: "Fade",
+  transitionApplyAll: "Apply to all slides",
+  presenting: "Presentation",
+  previous: "Previous",
+  next: "Next",
+  counter: (i, n) => `${i} / ${n}`,
+  presenterView: "Presenter view",
+  presenterNext: "Next",
+  presenterEnd: "End of presentation",
+  presenterTimer: "Time",
+  exit: "Exit",
+  escToExit: "Esc to exit",
+  presenterBlocked: "The browser blocked the presenter view window",
+  importSlides: "Import slides…",
+  importing: "Importing…",
+  imported: (n) => n === 1 ? "1 slide imported" : `${n} slides imported`,
+  importFailed: "The file could not be imported",
+  keys: { shift: "Shift", enter: "Enter", del: "Del" }
+};
 const DEFAULT_LABELS = {
   workspace: {
     elements: "Elementos",
@@ -1216,7 +1423,9 @@ const DEFAULT_LABELS = {
     excalidraw: "Excalidraw",
     design: "Canva",
     advanced: "Experta",
+    slides: "Presentación",
     panels: "Paneles del editor",
+    openPanel: "Abrir el panel",
     showPanels: "Mostrar paneles",
     hidePanels: "Ocultar paneles",
     frameTool: "Marco",
@@ -1257,6 +1466,8 @@ const DEFAULT_LABELS = {
     exportPngAll: "PNG · todas las páginas",
     exportSvg: "SVG · página actual",
     exportPdf: "PDF · todas las páginas",
+    exportPptx: "PowerPoint (.pptx)",
+    exportPotx: "Plantilla de PowerPoint (.potx)",
     toPages: "Convertir en páginas",
     toPagesHint: (count) => `${count} suelto${count === 1 ? "" : "s"}`,
     toPagesDone: (count) => `${count} página${count === 1 ? "" : "s"} creada${count === 1 ? "" : "s"}`,
@@ -1279,6 +1490,7 @@ const DEFAULT_LABELS = {
   pages: {
     add: "Agregar página después",
     addAtEnd: "Añadir página",
+    addShort: "Añadir",
     insertHere: "Insertar página aquí",
     addFailed: "No se pudo crear la página",
     duplicate: "Duplicar página",
@@ -1306,6 +1518,10 @@ const DEFAULT_LABELS = {
     freedraw: "Trazo",
     text: "Texto",
     textWith: (excerpt) => `Texto: ${excerpt}`,
+    group: "Grupo",
+    expandGroup: "Ver lo que hay dentro",
+    collapseGroup: "Plegar el grupo",
+    groupCount: (n) => n === 1 ? "1 capa" : `${n} capas`,
     useAsBackground: "Usar como fondo",
     extendToPage: "Extender a la página",
     show: "Mostrar",
@@ -1366,6 +1582,7 @@ const DEFAULT_LABELS = {
     a4: "A4",
     default: "Lienzo clásico"
   },
+  slides: SLIDES_ES,
   mode: {
     group: "Modo del lienzo",
     view: "Ver",
@@ -1392,7 +1609,9 @@ const EN_LABELS = {
     excalidraw: "Excalidraw",
     design: "Design",
     advanced: "Advanced",
+    slides: "Presentation",
     panels: "Editor panels",
+    openPanel: "Open the panel",
     showPanels: "Show panels",
     hidePanels: "Hide panels",
     frameTool: "Frame tool",
@@ -1433,6 +1652,8 @@ const EN_LABELS = {
     exportPngAll: "PNG · all pages",
     exportSvg: "SVG · current page",
     exportPdf: "PDF · all pages",
+    exportPptx: "PowerPoint (.pptx)",
+    exportPotx: "PowerPoint template (.potx)",
     toPages: "Turn into pages",
     toPagesHint: (count) => `${count} loose`,
     toPagesDone: (count) => `${count} page${count === 1 ? "" : "s"} created`,
@@ -1455,6 +1676,7 @@ const EN_LABELS = {
   pages: {
     add: "Add page after",
     addAtEnd: "Add page",
+    addShort: "Add",
     insertHere: "Insert a page here",
     addFailed: "Couldn't create the page",
     duplicate: "Duplicate page",
@@ -1484,6 +1706,10 @@ const EN_LABELS = {
     freedraw: "Stroke",
     text: "Text",
     textWith: (excerpt) => `Text: ${excerpt}`,
+    group: "Group",
+    expandGroup: "Show what is inside",
+    collapseGroup: "Collapse the group",
+    groupCount: (n) => n === 1 ? "1 layer" : `${n} layers`,
     useAsBackground: "Use as background",
     extendToPage: "Extend to page",
     show: "Show",
@@ -1544,6 +1770,7 @@ const EN_LABELS = {
     a4: "A4",
     default: "Classic canvas"
   },
+  slides: SLIDES_EN,
   mode: {
     group: "Canvas mode",
     view: "View",
@@ -1634,7 +1861,10 @@ function DragPreview({ active, grab, children, radius = 8 }) {
 function pagesSignature(pages) {
   return pages.map((p) => `${p.id}:${p.name}:${p.width}x${p.height}:${p.locked ? 1 : 0}`).join("|");
 }
-const THUMB_W = 34;
+const THUMB_W = 38;
+const THUMB_SHADOW = {
+  light: "0 1px 3px rgba(17,17,17,0.14), 0 0 1px rgba(17,17,17,0.10)"
+};
 function PageNavigator({
   api,
   theme = "light",
@@ -1647,7 +1877,7 @@ function PageNavigator({
   thumbnailFiles,
   pageSize
 }) {
-  const c = palette[theme];
+  const c = palette.light;
   const L = mergeLabels(labelsProp);
   const pageNames = useRef(L.pages);
   pageNames.current = L.pages;
@@ -1661,7 +1891,9 @@ function PageNavigator({
   const activeId = controlledActiveId !== void 0 ? controlledActiveId : localActiveId;
   const [renaming, setRenaming] = useState(null);
   const [draggingId, setDraggingId] = useState(null);
-  const [dragOverId, setDragOverId] = useState(null);
+  const [dropIndex, setDropIndex] = useState(null);
+  const slotsRef = useRef([]);
+  const [grabThumb, setGrabThumb] = useState(null);
   const [grab, setGrab] = useState(null);
   const [addFailed, setAddFailed] = useState(false);
   const chipRefs = useRef(/* @__PURE__ */ new Map());
@@ -1706,6 +1938,31 @@ function PageNavigator({
     if (renaming && renaming.value.trim()) renamePage(api, renaming.id, renaming.value.trim());
     setRenaming(null);
   };
+  const dragIndex = draggingId ? pages.findIndex((p) => p.id === draggingId) : -1;
+  const indexAt = (clientX) => {
+    let j = 0;
+    slotsRef.current.forEach((slot, k) => {
+      if (k !== dragIndex && slot.center < clientX) j++;
+    });
+    return j;
+  };
+  const shiftFor = (k) => {
+    const slots = slotsRef.current;
+    if (dragIndex < 0 || dropIndex === null || !slots[k]) return 0;
+    let target;
+    if (k === dragIndex) target = dropIndex;
+    else {
+      const rest = k - (k > dragIndex ? 1 : 0);
+      target = rest + (rest >= dropIndex ? 1 : 0);
+    }
+    return slots[target] ? slots[target].left - slots[k].left : 0;
+  };
+  const endDrag = () => {
+    setDraggingId(null);
+    setDropIndex(null);
+    setGrab(null);
+    setGrabThumb(null);
+  };
   const ultima = pages[pages.length - 1];
   const ghostRatio = ultima ? { width: ultima.width, height: ultima.height } : pageSize ?? { width: 1080, height: 1350 };
   const inputStyle = {
@@ -1736,12 +1993,16 @@ function PageNavigator({
         alignItems: "center",
         gap: 4,
         maxWidth: narrow ? void 0 : "min(920px, 94%)",
-        padding: "4px 8px",
-        // Isla como las de Excalidraw: sin borde, sombra suave.
+        // El mismo aire a los dos lados: la juntura de delante de la primera
+        // página se mete en este relleno (margen negativo, abajo) en vez de
+        // sumarle 10px solo a la izquierda.
+        // 7 aquí + 3 del carril = 10 a cada lado (ver el carril, abajo).
+        padding: "1px 7px",
+        // Sin tarjeta: las miniaturas (con su sombra) sueltas sobre la mesa.
         borderRadius: 16,
-        background: c.bg,
+        background: "transparent",
         color: c.fg,
-        boxShadow: "0 1px 2px rgba(17,17,17,0.04), 0 6px 20px rgba(17,17,17,0.07)",
+        boxShadow: "none",
         fontFamily: PANEL_FONT
       },
       children: [
@@ -1756,10 +2017,34 @@ function PageNavigator({
               // acababan a 24px una de otra y la tira se leía como una lista suelta.
               gap: 0,
               minWidth: 0,
-              overflowX: "auto"
+              overflowX: "auto",
+              // Aire para la sombra de las miniaturas: el desplazamiento recorta
+              // lo que sale de su caja y la primera salía cortada por la izquierda.
+              padding: 3
+            },
+            onDragEnter: (e) => {
+              if (draggingId) e.preventDefault();
+            },
+            onDragOver: (e) => {
+              if (!draggingId) return;
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "move";
+              const j = indexAt(e.clientX);
+              setDropIndex((prev) => prev === j ? prev : j);
+            },
+            onDrop: (e) => {
+              if (!draggingId) return;
+              e.preventDefault();
+              const j = dropIndex ?? indexAt(e.clientX);
+              const id = draggingId;
+              endDrag();
+              if (j !== dragIndex) {
+                movePageTo(api, id, j);
+                select(id);
+              }
             },
             children: [
-              pages.map((page) => {
+              pages.map((page, index) => {
                 const isActive = page.id === activeId;
                 const isRenaming = (renaming == null ? void 0 : renaming.id) === page.id;
                 const thumb = pageThumbs[page.id];
@@ -1781,6 +2066,9 @@ function PageNavigator({
                         alignSelf: "stretch",
                         flexShrink: 0,
                         width: 10,
+                        // La primera, sobre el relleno de la tira: si no, la izquierda
+                        // tenía 10px más de aire que la derecha.
+                        marginLeft: index === 0 ? -10 : 0,
                         cursor: "pointer",
                         display: "grid",
                         placeContent: "center",
@@ -1815,7 +2103,7 @@ function PageNavigator({
                   )
                 ) : null;
                 const thumbH = Math.round(THUMB_W * (page.height / Math.max(1, page.width)));
-                const isDropTarget = dragOverId === page.id && draggingId !== page.id;
+                const shift = shiftFor(index);
                 return /* @__PURE__ */ jsxs(Fragment, { children: [
                   gap,
                   /* @__PURE__ */ jsxs(
@@ -1827,12 +2115,34 @@ function PageNavigator({
                       },
                       role: "button",
                       tabIndex: 0,
+                      className: "canvas2-page-chip",
                       title: displayPageName(page.name, L.pages),
                       draggable: !viewMode && !isRenaming,
                       onDragStart: (e) => {
+                        var _a;
                         setDraggingId(page.id);
                         e.dataTransfer.effectAllowed = "move";
                         e.dataTransfer.setData("text/plain", page.id);
+                        slotsRef.current = pages.map((p) => {
+                          var _a2;
+                          const r = (_a2 = chipRefs.current.get(p.id)) == null ? void 0 : _a2.getBoundingClientRect();
+                          return r ? { left: r.left, center: r.left + r.width / 2 } : { left: 0, center: 0 };
+                        });
+                        setDropIndex(index);
+                        const img = e.currentTarget.querySelector("img");
+                        let snap = null;
+                        if (img && img.complete && img.naturalWidth > 0) {
+                          try {
+                            const canvas = document.createElement("canvas");
+                            canvas.width = THUMB_W * 2;
+                            canvas.height = Math.round(canvas.width * (img.naturalHeight / img.naturalWidth));
+                            (_a = canvas.getContext("2d")) == null ? void 0 : _a.drawImage(img, 0, 0, canvas.width, canvas.height);
+                            snap = canvas.toDataURL("image/png");
+                          } catch {
+                            snap = null;
+                          }
+                        }
+                        setGrabThumb(snap);
                         const box = e.currentTarget.getBoundingClientRect();
                         setGrab({
                           x: e.clientX - box.left,
@@ -1842,28 +2152,7 @@ function PageNavigator({
                         });
                         hideNativeDragImage(e);
                       },
-                      onDragOver: (e) => {
-                        if (!draggingId || draggingId === page.id) return;
-                        e.preventDefault();
-                        e.dataTransfer.dropEffect = "move";
-                        setDragOverId(page.id);
-                      },
-                      onDragLeave: () => setDragOverId((prev) => prev === page.id ? null : prev),
-                      onDrop: (e) => {
-                        e.preventDefault();
-                        if (draggingId && draggingId !== page.id) {
-                          movePageTo(api, draggingId, page.index);
-                          select(draggingId);
-                        }
-                        setDraggingId(null);
-                        setDragOverId(null);
-                        setGrab(null);
-                      },
-                      onDragEnd: () => {
-                        setDraggingId(null);
-                        setDragOverId(null);
-                        setGrab(null);
-                      },
+                      onDragEnd: endDrag,
                       onClick: () => select(page.id),
                       onDoubleClick: (e) => {
                         if (viewMode) return;
@@ -1888,14 +2177,16 @@ function PageNavigator({
                         fontWeight: 600,
                         flexShrink: 0,
                         color: c.fg,
-                        // La página activa se distingue SOLO por opacidad: la miniatura ya
-                        // es el contenido, y un fondo de color encima competía con ella.
-                        opacity: draggingId === page.id ? 0.3 : isActive ? 1 : 0.45,
-                        // El destino de un arrastre se marca con un filo, no moviendo las
-                        // páginas: que la tira baile mientras arrastras hace imposible
-                        // apuntar. Se queda en gris, como el resto de la tira.
-                        boxShadow: isDropTarget ? `inset 3px 0 0 ${c.fg}` : "none",
-                        transition: "opacity 120ms ease"
+                        // La activa, entera; las demás, apagadas. Sin fondo ni filo
+                        // encima: competían con el contenido (y el cromo no lleva bordes).
+                        // La que se arrastra deja su hueco tenue en el puesto donde caería.
+                        opacity: draggingId === page.id ? 0.25 : isActive ? 1 : 0.55,
+                        // Mientras arrastras, las demás se deslizan al puesto que les
+                        // quedaría al soltar: se ve el orden antes de soltar. El destino
+                        // sale de las posiciones del principio (`slotsRef`), así que
+                        // deslizarse no cambia a dónde apuntas y la tira no baila.
+                        transform: shift ? `translateX(${shift}px)` : void 0,
+                        transition: draggingId ? "transform 180ms cubic-bezier(0.2, 0, 0, 1), opacity 120ms ease" : "opacity 120ms ease"
                       },
                       children: [
                         /* @__PURE__ */ jsxs(
@@ -1905,11 +2196,12 @@ function PageNavigator({
                               position: "relative",
                               width: THUMB_W,
                               height: thumbH,
-                              // El contenido nunca curvo: la miniatura es la pieza, va recta.
-                              borderRadius: 0,
+                              // El contenido casi recto: la miniatura es la pieza.
+                              borderRadius: 2,
                               background: c.hover,
                               overflow: "hidden",
-                              flexShrink: 0
+                              flexShrink: 0,
+                              boxShadow: THUMB_SHADOW.light
                             },
                             children: [
                               thumb ? (
@@ -1920,6 +2212,7 @@ function PageNavigator({
                                   {
                                     src: thumb,
                                     alt: "",
+                                    draggable: false,
                                     style: { width: "100%", height: "100%", objectFit: "cover", display: "block" }
                                   }
                                 )
@@ -1987,6 +2280,9 @@ function PageNavigator({
                     alignItems: "center",
                     gap: 2,
                     padding: "4px 0",
+                    // El mismo aire que hay entre dos páginas (la juntura mide 10):
+                    // pegada a la última, su sombra y la ficha se montaban.
+                    marginLeft: pages.length > 0 ? 10 : 0,
                     borderRadius: 8,
                     color: c.sub,
                     fontSize: 11,
@@ -2000,7 +2296,8 @@ function PageNavigator({
                         style: {
                           width: THUMB_W,
                           height: Math.round(THUMB_W * (ghostRatio.height / Math.max(1, ghostRatio.width))),
-                          borderRadius: 0,
+                          borderRadius: 2,
+                          // Relleno suave, sin filo: nada del cromo lleva borde.
                           background: c.hover,
                           display: "grid",
                           placeContent: "center",
@@ -2009,7 +2306,7 @@ function PageNavigator({
                         children: /* @__PURE__ */ jsx(PlusIcon, {})
                       }
                     ),
-                    /* @__PURE__ */ jsx("span", { "aria-hidden": "true", children: pages.length + 1 })
+                    /* @__PURE__ */ jsx("span", { "aria-hidden": "true", style: { fontWeight: 500 }, children: L.pages.addShort })
                   ]
                 }
               )
@@ -2073,7 +2370,7 @@ function PageNavigator({
         /* @__PURE__ */ jsx(DragPreview, { active: Boolean(draggingId), grab, radius: 8, children: (() => {
           const page = pages.find((p) => p.id === draggingId);
           if (!page) return null;
-          const thumb = pageThumbs[page.id];
+          const thumb = grabThumb;
           return /* @__PURE__ */ jsxs(
             "div",
             {
@@ -2088,7 +2385,6 @@ function PageNavigator({
                 padding: 4,
                 background: c.bg,
                 color: c.fg,
-                border: `1px solid ${c.border}`,
                 borderRadius: 8,
                 fontSize: 11,
                 fontWeight: 600,
@@ -2102,16 +2398,17 @@ function PageNavigator({
                     style: {
                       width: THUMB_W,
                       height: Math.round(THUMB_W * (page.height / Math.max(1, page.width))),
-                      borderRadius: 0,
-                      border: `1px solid ${c.border}`,
+                      borderRadius: 2,
                       background: c.hover,
-                      overflow: "hidden"
+                      overflow: "hidden",
+                      boxShadow: THUMB_SHADOW.light
                     },
                     children: thumb ? /* @__PURE__ */ jsx(
                       "img",
                       {
                         src: thumb,
                         alt: "",
+                        draggable: false,
                         style: { width: "100%", height: "100%", objectFit: "cover", display: "block" }
                       }
                     ) : null
@@ -2630,7 +2927,7 @@ async function replaceImageFromUrl(api, elementId, url2) {
   );
   return true;
 }
-function blobToDataUrl(blob) {
+function blobToDataUrl$1(blob) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));
@@ -2643,7 +2940,7 @@ async function insertImageWithPreview(api, blob, uploader, opts) {
     throw new Error("insertImageWithPreview requiere un MediaUploader: las imágenes van a MediaMonster.");
   }
   const filename = (opts == null ? void 0 : opts.filename) ?? `canvas-${Date.now()}.png`;
-  const local2 = await blobToDataUrl(blob);
+  const local2 = await blobToDataUrl$1(blob);
   const { width, height } = await loadImageSize(local2);
   let pendingFileId = null;
   const elementId = insertImageByReference(
@@ -3076,9 +3373,141 @@ async function elementosParaExportar(elements, files, medirImagen = medir) {
   );
   return recortesALaImagen(elements, tamanos);
 }
+const registradas = /* @__PURE__ */ new Map();
+function registerCustomFont(name) {
+  var _a;
+  const alias = fontFamilyAlias(name);
+  if (!alias) return null;
+  const yaEsta = registradas.get(alias);
+  if (yaEsta !== void 0) return { alias, id: yaEsta };
+  const id = customFontFamilyId(alias);
+  const tabla = FONT_FAMILY;
+  const clave = fontFamilyCss(alias);
+  const ocupante = (_a = Object.entries(tabla).find(([, valor]) => valor === id)) == null ? void 0 : _a[0];
+  if (ocupante !== void 0 && ocupante !== clave) {
+    console.error(
+      `[canvas2] la tipografía "${alias}" colisiona con "${ocupante}" (id ${id}); se usará la fuente por defecto. Renombra la familia en el brand kit.`
+    );
+    return null;
+  }
+  tabla[clave] = id;
+  registradas.set(alias, id);
+  return { alias, id };
+}
+function registerCustomFonts(faces) {
+  const ids = /* @__PURE__ */ new Map();
+  const salida = [];
+  for (const face of faces) {
+    const reg = registerCustomFont(face.family);
+    if (!reg) continue;
+    ids.set(reg.alias, reg.id);
+    salida.push({ ...face, family: reg.alias });
+  }
+  return { faces: salida, ids };
+}
+function fontFamilyId(name) {
+  const alias = fontFamilyAlias(name);
+  const tabla = FONT_FAMILY;
+  return tabla[fontFamilyCss(alias)] ?? tabla[name] ?? null;
+}
+function fontFamilyName(id) {
+  var _a;
+  const tabla = FONT_FAMILY;
+  const clave = (_a = Object.entries(tabla).find(([, valor]) => valor === id)) == null ? void 0 : _a[0];
+  return clave == null ? void 0 : clave.replace(/^"(.*)"$/, "$1").replace(/\\(.)/g, "$1");
+}
+const OFFICE_IMAGES = /* @__PURE__ */ new Set(["image/png", "image/jpeg", "image/jpg", "image/gif", "image/bmp"]);
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
+async function rasterToPng(dataURL) {
+  var _a;
+  const img = new Image();
+  img.decoding = "async";
+  img.src = dataURL;
+  try {
+    await img.decode();
+  } catch {
+    return null;
+  }
+  const w = img.naturalWidth || 1, h = img.naturalHeight || 1;
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  (_a = canvas.getContext("2d")) == null ? void 0 : _a.drawImage(img, 0, 0, w, h);
+  return canvas.toDataURL("image/png");
+}
+async function officeFiles(source) {
+  const out = {};
+  await Promise.all(Object.entries(source).map(async ([id, file]) => {
+    var _a, _b, _c;
+    let dataURL = file.dataURL;
+    try {
+      if (dataURL && !dataURL.startsWith("data:")) dataURL = await blobToDataUrl(await (await fetch(dataURL)).blob());
+      const mime = (_b = (_a = /^data:([^;,]+)/.exec(dataURL ?? "")) == null ? void 0 : _a[1]) == null ? void 0 : _b.toLowerCase();
+      if (dataURL && mime && !OFFICE_IMAGES.has(mime)) dataURL = await rasterToPng(dataURL) ?? void 0;
+    } catch (err) {
+      console.warn("[canvas2] PowerPoint: imagen sin traer", id, err);
+      dataURL = void 0;
+    }
+    out[id] = { ...file, dataURL, mimeType: dataURL ? (_c = /^data:([^;,]+)/.exec(dataURL)) == null ? void 0 : _c[1] : file.mimeType };
+  }));
+  return out;
+}
 function safeFilename(name, fallback) {
   return (name || fallback).replace(/[\\/:*?"<>|]+/g, "-").trim() || fallback;
 }
+async function runCanvasExport(api, kind, ctx) {
+  var _a, _b, _c;
+  const pages = listPages(api, ctx.pageNames);
+  const activePage = pages.find((p) => p.id === ctx.activePageId) ?? null;
+  const base = safeFilename(activePage == null ? void 0 : activePage.name, ctx.fallbackName);
+  const office = kind === "pptx" || kind === "potx";
+  const files = ctx.hydrateFiles ? await ctx.hydrateFiles(kind === "svg" || office ? { output: "dataurl" } : void 0) : void 0;
+  const elements = files ? await elementosParaExportar(api.getSceneElements(), files) : void 0;
+  const pageId = ctx.activePageId ?? void 0;
+  if (kind === "png") {
+    downloadBlob(await exportScenePng(api, { pageId, files, elements }), `${base}.png`);
+  } else if (kind === "png-all") {
+    for (const page of pages) {
+      downloadBlob(
+        await exportScenePng(api, { pageId: page.id, files, elements }),
+        `${safeFilename(page.name, ctx.fallbackName)}.png`
+      );
+    }
+  } else if (kind === "svg") {
+    const svg = await exportSceneSvg(api, {
+      pageId,
+      files,
+      elements,
+      fontFaces: ctx.fontFaces,
+      // Google sirve las fuentes con CORS abierto, así que un `fetch` normal
+      // basta. Si falla, la fuente se queda por URL y el SVG se sigue viendo
+      // bien donde haya red.
+      fontFetcher: (url2) => fetch(url2).then((r) => r.blob())
+    });
+    const blob = new Blob([new XMLSerializer().serializeToString(svg)], { type: "image/svg+xml" });
+    downloadBlob(blob, `${base}.svg`);
+  } else if (office) {
+    const sceneFiles = await officeFiles(files ?? api.getFiles());
+    const doc = sceneToDocument(elements ?? api.getSceneElements(), sceneFiles, { fontName: fontFamilyName });
+    const title = ((_a = ctx.title) == null ? void 0 : _a.trim()) || ((_b = pages[0]) == null ? void 0 : _b.name) || ctx.fallbackName;
+    const out = documentToPptx(doc, { template: kind === "potx", title, lang: ctx.lang });
+    if (out.warnings.length) console.info("[canvas2] PowerPoint: avisos", out.warnings);
+    downloadBlob(new Blob([out.bytes.slice()], { type: out.mimeType }), `${safeFilename(title, ctx.fallbackName)}.${out.extension}`);
+  } else {
+    downloadBlob(
+      await exportScenePdf(api, { files, elements }),
+      `${safeFilename((_c = pages[0]) == null ? void 0 : _c.name, ctx.fallbackName)}.pdf`
+    );
+  }
+}
+const CANVAS_WORKSPACES = ["excalidraw", "design", "advanced", "slides"];
 function CanvasMenu({
   pages: pageMode = true,
   workspace = "excalidraw",
@@ -3090,7 +3519,8 @@ function CanvasMenu({
   fontFaces,
   onSaveComponent,
   themeChoice,
-  labels: labelsProp
+  labels: labelsProp,
+  lang
 }) {
   const L = mergeLabels(labelsProp);
   const themeItems = themeChoice ? /* @__PURE__ */ jsx(MainMenu.Group, { title: L.workspace.theme, children: [
@@ -3108,7 +3538,7 @@ function CanvasMenu({
     },
     value
   )) }) : null;
-  const workspaceItems = !viewMode && onWorkspaceChange ? /* @__PURE__ */ jsx(MainMenu.Group, { title: L.workspace.label, children: ["excalidraw", "design", "advanced"].map((value) => /* @__PURE__ */ jsx(
+  const workspaceItems = !viewMode && onWorkspaceChange ? /* @__PURE__ */ jsx(MainMenu.Group, { title: L.workspace.label, children: CANVAS_WORKSPACES.map((value) => /* @__PURE__ */ jsx(
     MainMenu.Item,
     {
       role: "menuitemradio",
@@ -3136,43 +3566,18 @@ function CanvasMenu({
     return api.onChange(refresh);
   }, [api]);
   const runExport = async (kind) => {
-    var _a;
     if (!api || exporting) return;
     setExporting(true);
     setExportError(false);
     try {
-      const base = safeFilename(activePage == null ? void 0 : activePage.name, L.menu.exportName);
-      const files = hydrateFiles ? await hydrateFiles(kind === "svg" ? { output: "dataurl" } : void 0) : void 0;
-      const elements = files ? await elementosParaExportar(api.getSceneElements(), files) : void 0;
-      if (kind === "png") {
-        downloadBlob(
-          await exportScenePng(api, { pageId: activePageId ?? void 0, files, elements }),
-          `${base}.png`
-        );
-      } else if (kind === "png-all") {
-        for (const page of pages) {
-          downloadBlob(
-            await exportScenePng(api, { pageId: page.id, files, elements }),
-            `${safeFilename(page.name, L.menu.exportName)}.png`
-          );
-        }
-      } else if (kind === "svg") {
-        const svg = await exportSceneSvg(api, {
-          pageId: activePageId ?? void 0,
-          files,
-          elements,
-          fontFaces,
-          // Google sirve las fuentes con CORS abierto, así que un `fetch` normal
-          // basta: no hace falta el proxy del worker (que además solo permite
-          // los hosts de media). Si falla, la fuente se queda por URL y el SVG
-          // se sigue viendo bien donde haya red.
-          fontFetcher: (url2) => fetch(url2).then((r) => r.blob())
-        });
-        const blob = new Blob([new XMLSerializer().serializeToString(svg)], { type: "image/svg+xml" });
-        downloadBlob(blob, `${base}.svg`);
-      } else {
-        downloadBlob(await exportScenePdf(api, { files, elements }), `${safeFilename((_a = pages[0]) == null ? void 0 : _a.name, L.menu.exportName)}.pdf`);
-      }
+      await runCanvasExport(api, kind, {
+        activePageId,
+        hydrateFiles,
+        fontFaces,
+        fallbackName: L.menu.exportName,
+        pageNames: pageNames.current,
+        lang
+      });
     } catch (err) {
       console.error("[canvas2] export failed", err);
       setExportError(true);
@@ -3231,7 +3636,9 @@ function CanvasMenu({
           /* @__PURE__ */ jsx(MainMenu.Item, { onSelect: () => void runExport("png"), children: L.menu.exportPngPage }),
           /* @__PURE__ */ jsx(MainMenu.Item, { onSelect: () => void runExport("png-all"), children: L.menu.exportPngAll }),
           /* @__PURE__ */ jsx(MainMenu.Item, { onSelect: () => void runExport("svg"), children: L.menu.exportSvg }),
-          /* @__PURE__ */ jsx(MainMenu.Item, { onSelect: () => void runExport("pdf"), children: L.menu.exportPdf })
+          /* @__PURE__ */ jsx(MainMenu.Item, { onSelect: () => void runExport("pdf"), children: L.menu.exportPdf }),
+          /* @__PURE__ */ jsx(MainMenu.Item, { onSelect: () => void runExport("pptx"), children: L.menu.exportPptx }),
+          /* @__PURE__ */ jsx(MainMenu.Item, { onSelect: () => void runExport("potx"), children: L.menu.exportPotx })
         ]
       }
     ),
@@ -3242,7 +3649,11 @@ function CanvasMenu({
     /* @__PURE__ */ jsx(MainMenu.DefaultItems.Help, {})
   ] });
 }
-const OFFSET_Y = 26;
+const OFFSET_Y = 30;
+const ACTIONS_W = 132;
+function withoutNumber(name) {
+  return name.replace(/^\s*\d+\s*[.)·:-]\s*/, "").trim() || name;
+}
 function PageActions({
   api,
   activePageId,
@@ -3251,33 +3662,28 @@ function PageActions({
   labels: labelsProp
 }) {
   const L = mergeLabels(labelsProp);
-  const c = palette[theme];
-  const [anchor, setAnchor] = useState(null);
+  const c = palette.light;
+  const [placed, setPlaced] = useState([]);
   const [armedDelete, setArmedDelete] = useState(false);
+  const [renaming, setRenaming] = useState(null);
   const confirmRef = useRef(null);
-  const [pageCount, setPageCount] = useState(0);
   useEffect(() => {
     const recompute = () => {
-      const pages = listPages(api);
-      setPageCount(pages.length);
-      const page2 = pages.find((p) => p.id === activePageId) ?? null;
-      if (!page2) {
-        setAnchor(null);
-        return;
-      }
+      const pages = listPages(api, L.pages);
       const { scrollX, scrollY, zoom } = api.getAppState();
       const z = (zoom == null ? void 0 : zoom.value) ?? 1;
-      setAnchor({
-        // Esquina superior DERECHA del marco: el nombre de la página lo dibuja
-        // Excalidraw en la izquierda, así que ahí la barra lo taparía.
-        left: (page2.x + page2.width + scrollX) * z,
-        top: (page2.y + scrollY) * z - OFFSET_Y,
-        page: page2
-      });
+      setPlaced(
+        pages.map((page) => ({
+          left: (page.x + scrollX) * z,
+          top: (page.y + scrollY) * z - OFFSET_Y,
+          width: page.width * z,
+          page
+        }))
+      );
     };
     recompute();
     return api.onChange(recompute);
-  }, [api, activePageId]);
+  }, [api]);
   useEffect(() => {
     var _a;
     if (!armedDelete) return;
@@ -3286,124 +3692,213 @@ function PageActions({
     return () => clearTimeout(t);
   }, [armedDelete]);
   useEffect(() => setArmedDelete(false), [activePageId]);
-  if (!anchor) return null;
-  const { page } = anchor;
+  if (placed.length === 0) return null;
+  const pageCount = placed.length;
+  const active = placed.find((p) => p.page.id === activePageId) ?? null;
   const select = (id) => {
     onActiveChange == null ? void 0 : onActiveChange(id);
     goToPage(api, id);
   };
-  const btnDisabled = (label, icon) => /* @__PURE__ */ jsx(
+  const commitRename = () => {
+    if (!renaming) return;
+    const name = renaming.value.trim();
+    if (name) renamePage(api, renaming.id, name);
+    setRenaming(null);
+  };
+  const iconButton = (label, onClick, icon, danger = false) => /* @__PURE__ */ jsx(
     "button",
     {
       type: "button",
       "aria-label": label,
       title: label,
-      disabled: true,
+      disabled: !onClick,
+      onClick: onClick ?? void 0,
+      className: "canvas2-page-action",
       style: {
         all: "unset",
-        cursor: "not-allowed",
-        display: "inline-flex",
-        alignItems: "center",
-        lineHeight: 1,
-        padding: "2px 3px",
-        borderRadius: 4,
-        color: c.sub,
-        opacity: 0.35
+        cursor: onClick ? "pointer" : "not-allowed",
+        display: "inline-grid",
+        placeItems: "center",
+        width: 26,
+        height: 26,
+        borderRadius: 7,
+        color: danger ? c.danger : c.sub,
+        opacity: onClick ? 1 : 0.35
       },
       children: icon
     }
   );
-  const btn = (label, onClick, icon, danger = false) => /* @__PURE__ */ jsx(
-    "button",
-    {
-      type: "button",
-      "aria-label": label,
-      title: label,
-      onClick,
-      style: {
-        all: "unset",
-        cursor: "pointer",
-        display: "inline-flex",
-        alignItems: "center",
-        lineHeight: 1,
-        padding: "2px 3px",
-        borderRadius: 4,
-        color: danger ? c.danger : c.sub
-      },
-      children: icon
-    }
-  );
-  return /* @__PURE__ */ jsxs(
-    "div",
-    {
-      "data-testid": "canvas2-page-actions",
-      style: {
-        position: "absolute",
-        left: anchor.left,
-        top: anchor.top,
-        // Anclada por su borde derecho al del marco, para que crecer o encoger
-        // no la despegue de la esquina.
-        transform: "translateX(-100%)",
-        zIndex: 90,
-        display: "flex",
-        alignItems: "center",
-        gap: 0,
-        padding: 1,
-        borderRadius: 6,
-        // Discreta a propósito: acompaña al nombre de la página, no compite con
-        // él. Sin caja: iconos sueltos con el gris del rótulo del marco.
-        background: "transparent",
-        color: c.sub,
-        fontFamily: PANEL_FONT,
-        opacity: 0.9
-      },
-      children: [
-        page.index > 0 && btn(L.pages.moveLeft, () => movePage(api, page.id, -1), /* @__PURE__ */ jsx(ChevronLeftIcon, {})),
-        page.index < pageCount - 1 && btn(L.pages.moveRight, () => movePage(api, page.id, 1), /* @__PURE__ */ jsx(ChevronRightIcon, {})),
-        btn(L.pages.duplicate, () => {
-          const id = duplicatePage(api, page.id, L.pages);
-          if (id) select(id);
-        }, /* @__PURE__ */ jsx(DuplicateIcon, {})),
-        btn(
-          page.locked ? L.pages.unlock : L.pages.lock,
-          () => setPageLocked(api, page.id, !page.locked),
-          page.locked ? /* @__PURE__ */ jsx(LockIcon, {}) : /* @__PURE__ */ jsx(UnlockIcon, {})
-        ),
-        pageCount <= 1 && !page.locked && btnDisabled(L.pages.lastPage, /* @__PURE__ */ jsx(TrashIcon, {})),
-        pageCount > 1 && !page.locked && (armedDelete ? (
-          // La papelera desaparece al armar: sin llevar el foco a la
-          // confirmación, un lector de pantalla se quedaba sin nada enfocado y
-          // no anunciaba «¿Eliminar?» ni que era un botón.
-          /* @__PURE__ */ jsx(
-            "button",
-            {
-              type: "button",
-              "aria-label": L.pages.confirmDelete,
-              title: L.pages.delete,
-              ref: confirmRef,
-              onClick: () => {
-                setArmedDelete(false);
-                deletePage(api, page.id);
-                const fallback = listPages(api).find((p) => p.id !== page.id);
-                if (fallback) select(fallback.id);
-              },
-              style: {
-                all: "unset",
-                cursor: "pointer",
-                padding: "2px 6px",
-                borderRadius: 4,
-                fontSize: 11,
-                fontWeight: 700,
-                color: c.dangerFg,
-                background: c.danger
-              },
-              children: L.pages.confirmDelete
-            }
-          )
-        ) : btn(L.pages.delete, () => setArmedDelete(true), /* @__PURE__ */ jsx(TrashIcon, {}), true))
-      ]
-    }
-  );
+  return /* @__PURE__ */ jsxs(Fragment$1, { children: [
+    /* @__PURE__ */ jsx("div", { "data-testid": "canvas2-page-labels", style: { position: "absolute", inset: 0, pointerEvents: "none", zIndex: 90 }, children: placed.map(({ left, top, width, page }) => {
+      const isActive = page.id === activePageId;
+      const custom = !isDefaultPageName(page.name);
+      const editing = (renaming == null ? void 0 : renaming.id) === page.id;
+      const maxWidth = Math.max(28, width - (isActive ? ACTIONS_W : 0));
+      return /* @__PURE__ */ jsxs(
+        "div",
+        {
+          "data-testid": "canvas2-page-label",
+          "data-active": isActive ? "" : void 0,
+          title: editing || page.locked ? void 0 : L.layers.renameHint,
+          onClick: () => {
+            if (!isActive) onActiveChange == null ? void 0 : onActiveChange(page.id);
+          },
+          onDoubleClick: () => {
+            if (!page.locked) setRenaming({ id: page.id, value: page.name });
+          },
+          style: {
+            position: "absolute",
+            left,
+            top,
+            maxWidth,
+            height: 24,
+            display: "flex",
+            alignItems: "center",
+            gap: 7,
+            pointerEvents: "auto",
+            cursor: "default",
+            fontFamily: PANEL_FONT,
+            color: isActive ? c.fg : c.sub,
+            userSelect: "none"
+          },
+          children: [
+            custom && /* @__PURE__ */ jsx(
+              "span",
+              {
+                style: {
+                  flexShrink: 0,
+                  minWidth: 18,
+                  height: 18,
+                  padding: "0 5px",
+                  boxSizing: "border-box",
+                  display: "inline-grid",
+                  placeItems: "center",
+                  borderRadius: 5,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  fontVariantNumeric: "tabular-nums",
+                  // Sin ficha negra en la activa (pesaba demasiado sobre la
+                  // mesa): la misma ficha clara, y el número en tinta.
+                  background: c.border,
+                  color: isActive ? c.fg : c.sub
+                },
+                children: page.index + 1
+              }
+            ),
+            editing ? /* @__PURE__ */ jsx(
+              "input",
+              {
+                autoFocus: true,
+                "aria-label": L.pages.rename,
+                value: renaming.value,
+                onChange: (e) => setRenaming({ id: page.id, value: e.target.value }),
+                onKeyDown: (e) => {
+                  e.stopPropagation();
+                  if (e.key === "Enter") commitRename();
+                  if (e.key === "Escape") setRenaming(null);
+                },
+                onBlur: commitRename,
+                onFocus: (e) => e.currentTarget.select(),
+                style: {
+                  font: "inherit",
+                  fontSize: 12.5,
+                  color: c.fg,
+                  height: 22,
+                  width: Math.max(120, maxWidth - 30),
+                  padding: "0 6px",
+                  border: 0,
+                  borderRadius: 6,
+                  outline: `1.5px solid ${c.active}`,
+                  background: c.bg
+                }
+              }
+            ) : /* @__PURE__ */ jsx(
+              "span",
+              {
+                style: {
+                  minWidth: 0,
+                  fontSize: 12.5,
+                  fontWeight: isActive ? 500 : 400,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis"
+                },
+                children: custom ? withoutNumber(page.name) : displayPageName(page.name, L.pages)
+              }
+            ),
+            page.locked && // Adorno: en la activa lo dice el botón de desbloquear.
+            /* @__PURE__ */ jsx("span", { "aria-hidden": "true", style: { display: "inline-flex", color: c.sub, flexShrink: 0 }, children: /* @__PURE__ */ jsx(LockIcon, {}) })
+          ]
+        },
+        page.id
+      );
+    }) }),
+    active && /* @__PURE__ */ jsxs(
+      "div",
+      {
+        "data-testid": "canvas2-page-actions",
+        style: {
+          position: "absolute",
+          left: active.left + active.width,
+          top: active.top - 1,
+          // Anclada por su borde derecho al del marco, para que crecer o
+          // encoger no la despegue de la esquina.
+          transform: "translateX(-100%)",
+          zIndex: 90,
+          display: "flex",
+          alignItems: "center",
+          gap: 2,
+          color: c.sub,
+          fontFamily: PANEL_FONT
+        },
+        children: [
+          active.page.index > 0 && iconButton(L.pages.moveLeft, () => movePage(api, active.page.id, -1), /* @__PURE__ */ jsx(ChevronLeftIcon, {})),
+          active.page.index < pageCount - 1 && iconButton(L.pages.moveRight, () => movePage(api, active.page.id, 1), /* @__PURE__ */ jsx(ChevronRightIcon, {})),
+          iconButton(L.pages.duplicate, () => {
+            const id = duplicatePage(api, active.page.id, L.pages);
+            if (id) select(id);
+          }, /* @__PURE__ */ jsx(DuplicateIcon, {})),
+          iconButton(
+            active.page.locked ? L.pages.unlock : L.pages.lock,
+            () => setPageLocked(api, active.page.id, !active.page.locked),
+            active.page.locked ? /* @__PURE__ */ jsx(LockIcon, {}) : /* @__PURE__ */ jsx(UnlockIcon, {})
+          ),
+          pageCount <= 1 && !active.page.locked && iconButton(L.pages.lastPage, null, /* @__PURE__ */ jsx(TrashIcon, {})),
+          pageCount > 1 && !active.page.locked && (armedDelete ? (
+            // La papelera desaparece al armar: sin llevar el foco a la
+            // confirmación, un lector de pantalla se quedaba sin nada
+            // enfocado y no anunciaba «¿Eliminar?» ni que era un botón.
+            /* @__PURE__ */ jsx(
+              "button",
+              {
+                type: "button",
+                "aria-label": L.pages.confirmDelete,
+                title: L.pages.delete,
+                ref: confirmRef,
+                onClick: () => {
+                  setArmedDelete(false);
+                  deletePage(api, active.page.id);
+                  const fallback = listPages(api).find((p) => p.id !== active.page.id);
+                  if (fallback) select(fallback.id);
+                },
+                style: {
+                  all: "unset",
+                  cursor: "pointer",
+                  padding: "3px 8px",
+                  borderRadius: 7,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: c.dangerFg,
+                  background: c.danger
+                },
+                children: L.pages.confirmDelete
+              }
+            )
+          ) : iconButton(L.pages.delete, () => setArmedDelete(true), /* @__PURE__ */ jsx(TrashIcon, {}), true))
+        ]
+      }
+    )
+  ] });
 }
 const ORDER = ["view", "comment", "edit"];
 const ICONS = {
@@ -4012,43 +4507,6 @@ function DesignPanel({
     }
   );
 }
-const registradas = /* @__PURE__ */ new Map();
-function registerCustomFont(name) {
-  var _a;
-  const alias = fontFamilyAlias(name);
-  if (!alias) return null;
-  const yaEsta = registradas.get(alias);
-  if (yaEsta !== void 0) return { alias, id: yaEsta };
-  const id = customFontFamilyId(alias);
-  const tabla = FONT_FAMILY;
-  const clave = fontFamilyCss(alias);
-  const ocupante = (_a = Object.entries(tabla).find(([, valor]) => valor === id)) == null ? void 0 : _a[0];
-  if (ocupante !== void 0 && ocupante !== clave) {
-    console.error(
-      `[canvas2] la tipografía "${alias}" colisiona con "${ocupante}" (id ${id}); se usará la fuente por defecto. Renombra la familia en el brand kit.`
-    );
-    return null;
-  }
-  tabla[clave] = id;
-  registradas.set(alias, id);
-  return { alias, id };
-}
-function registerCustomFonts(faces) {
-  const ids = /* @__PURE__ */ new Map();
-  const salida = [];
-  for (const face of faces) {
-    const reg = registerCustomFont(face.family);
-    if (!reg) continue;
-    ids.set(reg.alias, reg.id);
-    salida.push({ ...face, family: reg.alias });
-  }
-  return { faces: salida, ids };
-}
-function fontFamilyId(name) {
-  const alias = fontFamilyAlias(name);
-  const tabla = FONT_FAMILY;
-  return tabla[fontFamilyCss(alias)] ?? tabla[name] ?? null;
-}
 const TEXT_PRESETS = [
   { key: "heading", label: "Título", text: "Título", fontSize: 64, anchorY: 0.24 },
   { key: "subheading", label: "Subtítulo", text: "Subtítulo", fontSize: 40, anchorY: 0.38 },
@@ -4306,13 +4764,13 @@ const ALIGN_ICON = {
   bottom: AlignBottomIcon
 };
 function typeIcon(type) {
-  const Icon = TYPE_ICON[type] ?? SquareIcon;
-  return /* @__PURE__ */ jsx(Icon, {});
+  const Icon2 = TYPE_ICON[type] ?? SquareIcon;
+  return /* @__PURE__ */ jsx(Icon2, {});
 }
 function displayName(el, L) {
   if (el.type === "text") {
     const t = (el.text ?? "").replace(/\s+/g, " ").trim();
-    return t ? L.textWith(t.slice(0, 20)) : L.text;
+    return t ? L.textWith(t.slice(0, 60)) : L.text;
   }
   const typeName = {
     image: L.image,
@@ -4324,6 +4782,39 @@ function displayName(el, L) {
     freedraw: L.freedraw
   };
   return typeName[el.type] ?? el.type;
+}
+function outerGroup$1(el) {
+  const ids = el.groupIds;
+  return ids && ids.length ? ids[ids.length - 1] : null;
+}
+function layerItems(rows, open) {
+  const items = [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const el of rows) {
+    const group = outerGroup$1(el);
+    if (!group) {
+      items.push({ kind: "element", el, depth: 0 });
+      continue;
+    }
+    if (seen.has(group)) continue;
+    seen.add(group);
+    const members = rows.filter((r) => outerGroup$1(r) === group);
+    if (members.length < 2) {
+      items.push({ kind: "element", el, depth: 0 });
+      continue;
+    }
+    items.push({ kind: "group", id: group, members });
+    if (open.has(group)) for (const m of members) items.push({ kind: "element", el: m, depth: 1 });
+  }
+  return items;
+}
+function groupName(members, L) {
+  for (const el of members) {
+    if (el.type !== "text") continue;
+    const t = (el.text ?? "").replace(/\s+/g, " ").trim();
+    if (t) return t.slice(0, 60);
+  }
+  return L.group;
 }
 function sceneSignature(api, pageId) {
   if (!pageId) return "";
@@ -4354,6 +4845,7 @@ function LayersPanel({
     selection: null
   });
   const [renamingPage, setRenamingPage] = useState(null);
+  const [openGroups, setOpenGroups] = useState(() => /* @__PURE__ */ new Set());
   useEffect(() => {
     const refresh = () => {
       const elements = api.getSceneElements();
@@ -4378,6 +4870,7 @@ function LayersPanel({
   const members = els.filter((e) => e.frameId === activePageId && !isPageBackground(e));
   const rows = [...members].reverse();
   const selected = api.getAppState().selectedElementIds;
+  const items = layerItems(rows, openGroups);
   const files = api.getFiles();
   const thumb = (el) => {
     var _a;
@@ -4407,6 +4900,42 @@ function LayersPanel({
       patch(el.id, { opacity: 0 });
     }
   };
+  const patchMany = (ids, changes) => {
+    const next = api.getSceneElements().map((e) => ids.has(e.id) ? patchElement(e, changes(e)) : e);
+    commitElements(api, next);
+  };
+  const selectGroup = (id, members2) => {
+    api.updateScene({
+      appState: {
+        selectedElementIds: Object.fromEntries(members2.map((m) => [m.id, true])),
+        selectedGroupIds: { [id]: true }
+      },
+      captureUpdate: CaptureUpdateAction.NEVER
+    });
+  };
+  const toggleGroupVisibility = (members2) => {
+    const ids = new Set(members2.map((m) => m.id));
+    const allHidden = members2.every((m) => m.opacity === 0);
+    if (!allHidden) {
+      for (const m of members2) if (m.opacity !== 0) priorOpacity.current.set(m.id, m.opacity);
+    }
+    patchMany(ids, (e) => ({ opacity: allHidden ? priorOpacity.current.get(e.id) ?? 100 : 0 }));
+  };
+  const toggleGroupLock = (members2) => {
+    const lock = !members2.every((m) => m.locked);
+    patchMany(new Set(members2.map((m) => m.id)), () => ({ locked: lock }));
+  };
+  const removeGroup = (members2) => {
+    const ids = new Set(members2.map((m) => m.id));
+    const next = api.getSceneElements().filter((e) => !ids.has(e.id) && !ids.has(e.containerId ?? ""));
+    commitElements(api, next);
+  };
+  const toggleOpen = (id) => setOpenGroups((prev) => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    return next;
+  });
   const handleDrop = (targetId) => {
     const fromId = dragId.current;
     dragId.current = null;
@@ -4499,7 +5028,7 @@ function LayersPanel({
               /* @__PURE__ */ jsx("span", { style: { flex: 1 }, children: embedded ? L.layers.alignHeading : L.dock.layers }),
               !viewMode && // Una píldora de seis botones, como un control segmentado.
               /* @__PURE__ */ jsx("span", { style: { display: "inline-flex", gap: 0, padding: 2, borderRadius: 999, background: c.hover }, children: PAGE_ALIGNMENTS.map((a) => {
-                const Icon = ALIGN_ICON[a.key];
+                const Icon2 = ALIGN_ICON[a.key];
                 return /* @__PURE__ */ jsx(
                   "button",
                   {
@@ -4518,7 +5047,7 @@ function LayersPanel({
                       color: c.fg
                     },
                     className: "canvas2-layer-btn",
-                    children: /* @__PURE__ */ jsx(Icon, {})
+                    children: /* @__PURE__ */ jsx(Icon2, {})
                   },
                   a.key
                 );
@@ -4528,7 +5057,76 @@ function LayersPanel({
         ),
         /* @__PURE__ */ jsxs("div", { style: { flex: 1, minHeight: 0, overflowY: "auto", padding: embedded ? 0 : 4, display: "flex", flexDirection: "column", gap: 2 }, children: [
           rows.length === 0 && /* @__PURE__ */ jsx("div", { style: { padding: "28px 12px", fontSize: 12, color: c.sub, textAlign: "center", borderRadius: 14, background: c.hover }, children: L.layers.empty }),
-          rows.map((el) => {
+          items.map((item) => {
+            if (item.kind === "group") {
+              const { id, members: members2 } = item;
+              const open = openGroups.has(id);
+              const isSel2 = members2.every((m) => selected[m.id]);
+              const hidden2 = members2.every((m) => m.opacity === 0);
+              const locked = members2.every((m) => m.locked);
+              return /* @__PURE__ */ jsxs(
+                "div",
+                {
+                  onClick: () => selectGroup(id, members2),
+                  className: "canvas2-layer-row",
+                  "data-selected": isSel2 ? "" : void 0,
+                  "data-group": "",
+                  style: {
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "5px 6px 5px 2px",
+                    borderRadius: 12,
+                    cursor: "pointer",
+                    background: isSel2 ? c.hover : "transparent",
+                    color: c.fg,
+                    opacity: hidden2 ? 0.45 : 1
+                  },
+                  children: [
+                    /* @__PURE__ */ jsx(
+                      "button",
+                      {
+                        type: "button",
+                        "aria-label": open ? L.layers.collapseGroup : L.layers.expandGroup,
+                        title: open ? L.layers.collapseGroup : L.layers.expandGroup,
+                        "aria-expanded": open,
+                        onClick: (e) => {
+                          e.stopPropagation();
+                          toggleOpen(id);
+                        },
+                        className: "canvas2-layer-btn",
+                        style: { all: "unset", cursor: "pointer", display: "inline-grid", placeItems: "center", width: 18, height: 26, borderRadius: 6, color: c.sub },
+                        children: open ? /* @__PURE__ */ jsx(ChevronDownIcon, {}) : /* @__PURE__ */ jsx(ChevronRightIcon, {})
+                      }
+                    ),
+                    /* @__PURE__ */ jsx("span", { style: { width: 32, height: 32, flexShrink: 0, display: "inline-grid", placeItems: "center", borderRadius: 6, background: c.hover, color: c.sub }, children: /* @__PURE__ */ jsx(GroupIcon, {}) }),
+                    /* @__PURE__ */ jsx(
+                      "span",
+                      {
+                        style: {
+                          flex: 1,
+                          minWidth: 0,
+                          fontSize: 13,
+                          fontWeight: isSel2 ? 600 : 500,
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis"
+                        },
+                        children: groupName(members2, L.layers)
+                      }
+                    ),
+                    /* @__PURE__ */ jsx("span", { className: "canvas2-layer-count", style: { flexShrink: 0, fontSize: 12, color: c.sub, paddingRight: 4 }, children: L.layers.groupCount(members2.length) }),
+                    !viewMode && /* @__PURE__ */ jsxs("span", { className: "canvas2-layer-actions", style: { display: "inline-flex", flexShrink: 0 }, children: [
+                      iconBtn(hidden2 ? L.layers.show : L.layers.hide, () => toggleGroupVisibility(members2), hidden2 ? /* @__PURE__ */ jsx(EyeOffIcon, {}) : /* @__PURE__ */ jsx(EyeIcon, {})),
+                      iconBtn(locked ? L.layers.unlock : L.layers.lock, () => toggleGroupLock(members2), locked ? /* @__PURE__ */ jsx(LockIcon, {}) : /* @__PURE__ */ jsx(UnlockIcon, {})),
+                      iconBtn(L.layers.delete, () => removeGroup(members2), /* @__PURE__ */ jsx(TrashIcon, {}), true)
+                    ] })
+                  ]
+                },
+                `group:${id}`
+              );
+            }
+            const { el, depth } = item;
             const isSel = !!selected[el.id];
             const hidden = el.opacity === 0;
             return /* @__PURE__ */ jsxs(
@@ -4549,7 +5147,8 @@ function LayersPanel({
                   display: "flex",
                   alignItems: "center",
                   gap: 10,
-                  padding: "5px 6px",
+                  // Dentro de un grupo desplegado, sangrada bajo él.
+                  padding: depth ? "5px 6px 5px 30px" : "5px 6px",
                   borderRadius: 12,
                   cursor: "pointer",
                   // Seleccionada = relleno cálido y peso, no una losa de tinta:
@@ -4722,12 +5321,17 @@ function AdvancedWorkspace({ panels }) {
     ] })
   ] });
 }
-function ExcalidrawWorkspace({ panels, narrow = false, actions = [], openPanel, onOpenPanelChange }) {
+function ExcalidrawWorkspace({ panels, narrow = false, actions = [], openPanel, onOpenPanelChange, closeLabel = "Cerrar", openLabel = "Abrir el panel" }) {
   const active = panels.find((panel) => panel.id === openPanel);
   const id = useId();
+  const strip = panels.filter((panel) => narrow || !panel.inToolbar);
+  const lastRef = useRef(null);
+  if (active && strip.some((panel) => panel.id === active.id)) lastRef.current = active.id;
+  const reopen = strip.find((panel) => panel.id === lastRef.current) ?? strip[0];
+  const tabbed = Boolean(active && strip.some((panel) => panel.id === active.id) && strip.length > 1);
   return /* @__PURE__ */ jsxs(Fragment$1, { children: [
-    /* @__PURE__ */ jsxs("div", { className: "canvas2-native-tools", role: "toolbar", "aria-orientation": "vertical", children: [
-      panels.filter((panel) => narrow || !panel.inToolbar).map((panel) => /* @__PURE__ */ jsx(
+    narrow ? /* @__PURE__ */ jsxs("div", { className: "canvas2-native-tools", role: "toolbar", "aria-orientation": "vertical", children: [
+      strip.map((panel) => /* @__PURE__ */ jsx(
         "button",
         {
           type: "button",
@@ -4752,10 +5356,47 @@ function ExcalidrawWorkspace({ panels, narrow = false, actions = [], openPanel, 
         },
         action.id
       ))
-    ] }),
+    ] }) : !active && reopen ? /* @__PURE__ */ jsx("div", { className: "canvas2-native-tools", "data-arrow": "", children: /* @__PURE__ */ jsx(
+      "button",
+      {
+        type: "button",
+        className: "canvas2-panel-arrow",
+        title: openLabel,
+        "aria-label": openLabel,
+        "aria-expanded": false,
+        onClick: () => onOpenPanelChange(reopen.id),
+        children: /* @__PURE__ */ jsxs("svg", { viewBox: "0 0 24 24", width: "18", height: "18", fill: "none", stroke: "currentColor", strokeWidth: "1.7", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true", children: [
+          /* @__PURE__ */ jsx("rect", { x: "3.5", y: "4", width: "17", height: "16", rx: "2.5" }),
+          /* @__PURE__ */ jsx("path", { d: "M14.5 4v16" })
+        ] })
+      }
+    ) }) : null,
     active && /* @__PURE__ */ jsxs("section", { id, className: "canvas2-resource-panel", role: "region", "aria-label": active.title, children: [
-      /* @__PURE__ */ jsx("header", { className: "canvas2-resource-heading", children: active.title }),
-      /* @__PURE__ */ jsx("div", { className: "canvas2-workspace-panel", children: active.content })
+      /* @__PURE__ */ jsxs("header", { className: "canvas2-resource-heading", "data-tabbed": tabbed ? "" : void 0, children: [
+        tabbed ? /* @__PURE__ */ jsx("div", { className: "canvas2-resource-tabs", role: "tablist", "aria-label": active.title, children: strip.map((panel) => /* @__PURE__ */ jsx(
+          "button",
+          {
+            type: "button",
+            role: "tab",
+            "aria-selected": panel.id === active.id,
+            onClick: () => onOpenPanelChange(panel.id),
+            children: panel.title
+          },
+          panel.id
+        )) }) : /* @__PURE__ */ jsx("span", { children: active.title }),
+        /* @__PURE__ */ jsx(
+          "button",
+          {
+            type: "button",
+            className: "canvas2-resource-close",
+            "aria-label": closeLabel,
+            title: closeLabel,
+            onClick: () => onOpenPanelChange(null),
+            children: /* @__PURE__ */ jsx("svg", { viewBox: "0 0 24 24", width: "16", height: "16", fill: "none", stroke: "currentColor", strokeWidth: "1.8", strokeLinecap: "round", "aria-hidden": "true", children: /* @__PURE__ */ jsx("path", { d: "M6 6l12 12M18 6L6 18" }) })
+          }
+        )
+      ] }),
+      /* @__PURE__ */ jsx("div", { className: "canvas2-workspace-panel", "data-bleed": active.bleed ? "" : void 0, children: active.content })
     ] })
   ] });
 }
@@ -4771,7 +5412,8 @@ function WorkspaceLayout({
   openPanel,
   onOpenPanelChange
 }) {
-  const L = mergeLabels(labels).workspace;
+  const all = mergeLabels(labels);
+  const L = all.workspace;
   const c = palette[theme];
   return /* @__PURE__ */ jsx(
     "div",
@@ -4788,6 +5430,7 @@ function WorkspaceLayout({
         "--workspace-accent": c.active,
         "--workspace-accent-fg": c.activeFg,
         "--workspace-sub": c.sub,
+        "--workspace-shadow": ISLAND_SHADOW[theme],
         fontFamily: PANEL_FONT
       },
       children: /* @__PURE__ */ jsxs("div", { className: "canvas2-workspace-body", children: [
@@ -4796,8 +5439,8 @@ function WorkspaceLayout({
           {
             className: "canvas2-workspace-sidebar",
             "aria-label": L.panels,
-            hidden: !actions.length && !panels.some((panel) => workspace !== "excalidraw" || narrow || !panel.inToolbar || panel.id === openPanel),
-            children: workspace === "excalidraw" ? /* @__PURE__ */ jsx(ExcalidrawWorkspace, { panels, narrow, actions, openPanel, onOpenPanelChange }) : workspace === "design" ? /* @__PURE__ */ jsx(DesignWorkspace, { panels }) : /* @__PURE__ */ jsx(AdvancedWorkspace, { panels })
+            hidden: workspace === "slides" || !actions.length && !panels.some((panel) => workspace !== "excalidraw" || narrow || !panel.inToolbar || panel.id === openPanel),
+            children: workspace === "slides" ? null : workspace === "excalidraw" ? /* @__PURE__ */ jsx(ExcalidrawWorkspace, { panels, narrow, actions, openPanel, onOpenPanelChange, closeLabel: all.library.close, openLabel: L.openPanel }) : workspace === "design" ? /* @__PURE__ */ jsx(DesignWorkspace, { panels }) : /* @__PURE__ */ jsx(AdvancedWorkspace, { panels })
           }
         ),
         /* @__PURE__ */ jsx("div", { className: "canvas2-workspace-surface", children })
@@ -4805,11 +5448,2444 @@ function WorkspaceLayout({
     }
   );
 }
+function insertPagesIntoScene(api, incoming, { afterPageId } = {}) {
+  var _a;
+  const current = api.getSceneElements();
+  const taken = new Set((((_a = api.getSceneElementsIncludingDeleted) == null ? void 0 : _a.call(api)) ?? current).map((e) => e.id));
+  const rename = /* @__PURE__ */ new Map();
+  const fresh = (id) => {
+    if (!taken.has(id)) return id;
+    let n = 2;
+    while (taken.has(`${id}-${n}`)) n += 1;
+    return `${id}-${n}`;
+  };
+  const source = incoming.elements;
+  for (const el of source) {
+    const id = fresh(el.id);
+    taken.add(id);
+    if (id !== el.id) rename.set(el.id, id);
+  }
+  const remap = (id) => typeof id === "string" ? rename.get(id) ?? id : id;
+  const groupsTaken = new Set(current.flatMap((e) => e.groupIds ?? []));
+  const groupRename = /* @__PURE__ */ new Map();
+  const regroup = (ids) => Array.isArray(ids) ? ids.map((g) => {
+    if (!groupsTaken.has(g)) return g;
+    let renamed = groupRename.get(g);
+    if (!renamed) {
+      let n = 2;
+      while (groupsTaken.has(`${g}-${n}`)) n += 1;
+      renamed = `${g}-${n}`;
+      groupRename.set(g, renamed);
+    }
+    return renamed;
+  }) : ids;
+  const existing = framesInDocumentOrder(current);
+  const anchor = afterPageId && existing.find((f) => f.id === afterPageId) || existing[existing.length - 1] || null;
+  const newFrames = source.filter((e) => e.type === "frame");
+  if (!newFrames.length) return [];
+  const minX = Math.min(...newFrames.map((f) => f.x));
+  const minY = Math.min(...newFrames.map((f) => f.y));
+  const dx = (anchor ? anchor.x + anchor.width + 1 : 0) - minX;
+  const dy = (anchor ? anchor.y : 0) - minY;
+  const moved = source.map((el) => ({
+    ...el,
+    id: remap(el.id),
+    x: el.x + dx,
+    y: el.y + dy,
+    frameId: remap(el.frameId) ?? null,
+    groupIds: regroup(el.groupIds) ?? [],
+    containerId: el.containerId == null ? el.containerId : remap(el.containerId),
+    boundElements: Array.isArray(el.boundElements) ? el.boundElements.map((b) => ({ ...b, id: remap(b.id) })) : el.boundElements
+  }));
+  const files = Object.values(incoming.files ?? {});
+  if (files.length) api.addFiles(files);
+  const newIds = framesInDocumentOrder(moved).map((f) => f.id);
+  const order = existing.map((f) => f.id);
+  const at = anchor ? order.indexOf(anchor.id) + 1 : order.length;
+  order.splice(at, 0, ...newIds);
+  let combined = [...current, ...moved];
+  combined = packPagesInArray(combined, order);
+  combined = renumberPagesInArray(combined, order);
+  commitElements(api, combined);
+  return newIds;
+}
+const MIN_ZOOM = 0.1;
+const MAX_ZOOM = 30;
+const SLIDE_COVERAGE = 0.94;
+function fitBoxInRect(box, rect, coverage = SLIDE_COVERAGE) {
+  const zoomRaw = Math.min(
+    rect.width * coverage / Math.max(1, box.width),
+    rect.height * coverage / Math.max(1, box.height)
+  );
+  const zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoomRaw));
+  return {
+    zoom,
+    scrollX: (rect.left + rect.width / 2) / zoom - (box.x + box.width / 2),
+    scrollY: (rect.top + rect.height / 2) / zoom - (box.y + box.height / 2)
+  };
+}
+function boxOnScreen(box, view) {
+  return {
+    left: (box.x + view.scrollX) * view.zoom,
+    top: (box.y + view.scrollY) * view.zoom,
+    width: box.width * view.zoom,
+    height: box.height * view.zoom
+  };
+}
+function currentViewport(api) {
+  var _a;
+  const s = api.getAppState();
+  return { scrollX: s.scrollX ?? 0, scrollY: s.scrollY ?? 0, zoom: ((_a = s.zoom) == null ? void 0 : _a.value) ?? 1 };
+}
+function pageBox(api, pageId) {
+  const f = api.getSceneElements().find((e) => e.id === pageId && e.type === "frame");
+  return f ? { x: f.x, y: f.y, width: f.width, height: f.height } : null;
+}
+function fitPageInRect(api, pageId, rect, coverage = SLIDE_COVERAGE) {
+  const box = pageBox(api, pageId);
+  if (!box || rect.width <= 0 || rect.height <= 0) return false;
+  const view = fitBoxInRect(box, rect, coverage);
+  api.updateScene({
+    appState: {
+      scrollX: view.scrollX,
+      scrollY: view.scrollY,
+      zoom: { value: view.zoom }
+    },
+    captureUpdate: CaptureUpdateAction.NEVER
+  });
+  return true;
+}
+function frameIn(elements, pageId) {
+  return elements.find((e) => e.id === pageId && e.type === "frame");
+}
+function setSlideMetaInArray(elements, pageId, key, value) {
+  const index = elements.findIndex((e) => e.id === pageId && e.type === "frame");
+  if (index < 0) return elements;
+  const frame = elements[index];
+  const current = { ...frame.customData ?? {} };
+  if (current[key] === value || value === void 0 && !(key in current)) return elements;
+  if (value === void 0) delete current[key];
+  else current[key] = value;
+  const next = elements.slice();
+  next[index] = patchElement(frame, { customData: current });
+  return next;
+}
+function commitMeta(api, pageId, key, value, capture) {
+  const elements = api.getSceneElements();
+  const next = setSlideMetaInArray(elements, pageId, key, value);
+  if (next === elements) return false;
+  commitElements(api, next, capture);
+  return true;
+}
+function getPageNotes(api, pageId) {
+  return notesOf(frameIn(api.getSceneElements(), pageId));
+}
+function setPageNotes(api, pageId, text, capture = "undoable") {
+  const value = text.replace(/\s+$/, "");
+  return commitMeta(api, pageId, SLIDE_NOTES_KEY, value || void 0, capture);
+}
+function isPageSkipped(api, pageId) {
+  return isSkippedFrame(frameIn(api.getSceneElements(), pageId));
+}
+function setPageSkipped(api, pageId, skipped) {
+  return commitMeta(api, pageId, SLIDE_SKIP_KEY, skipped || void 0, "undoable");
+}
+function getPageTransition(api, pageId) {
+  return transitionOf(frameIn(api.getSceneElements(), pageId));
+}
+function setPageTransition(api, pageId, transition) {
+  const value = transition === "none" ? void 0 : transition;
+  const elements = api.getSceneElements();
+  const ids = pageId ? [pageId] : elements.filter((e) => e.type === "frame").map((e) => e.id);
+  let next = elements;
+  for (const id of ids) next = setSlideMetaInArray(next, id, SLIDE_TRANSITION_KEY, value);
+  if (next === elements) return false;
+  commitElements(api, next, "undoable");
+  return true;
+}
+const EMPTY = { slides: [], hasSelection: false, activeTool: "selection", zoom: 1 };
+function useDeck(api, names) {
+  const [state, setState] = useState(EMPTY);
+  const namesRef = useRef(names);
+  namesRef.current = names;
+  const keyRef = useRef("");
+  useEffect(() => {
+    var _a;
+    if (!api) return;
+    let lastElements = null;
+    let frameList = [];
+    let lastFrameVersions = -1;
+    let slides = [];
+    let slidesKey = "";
+    const refresh = () => {
+      var _a2, _b;
+      const elements = api.getSceneElements();
+      const frameVersions = elements === lastElements ? frameList.reduce((sum, f) => sum + f.version, 0) : -2;
+      if (elements !== lastElements || frameVersions !== lastFrameVersions) {
+        lastElements = elements;
+        const frameElements = elements.filter((e) => e.type === "frame");
+        frameList = frameElements;
+        lastFrameVersions = frameList.reduce((sum, f) => sum + f.version, 0);
+        const frames2 = new Map(frameElements.map((f) => [f.id, f]));
+        slides = listPages(api, namesRef.current).map((p) => ({
+          ...p,
+          skipped: isSkippedFrame(frames2.get(p.id))
+        }));
+        slidesKey = slides.map((s) => `${s.id}:${s.name}:${s.width}x${s.height}@${Math.round(s.x)},${Math.round(s.y)}:${s.skipped ? 1 : 0}`).join("|");
+      }
+      const appState = api.getAppState();
+      const hasSelection = Object.values(appState.selectedElementIds ?? {}).some(Boolean);
+      const activeTool = String(((_a2 = appState.activeTool) == null ? void 0 : _a2.type) ?? "selection");
+      const zoom = ((_b = appState.zoom) == null ? void 0 : _b.value) ?? 1;
+      const key = [slidesKey, hasSelection, activeTool, Math.round(zoom * 100)].join("#");
+      if (key === keyRef.current) return;
+      keyRef.current = key;
+      setState({ slides, hasSelection, activeTool, zoom });
+    };
+    refresh();
+    const offChange = api.onChange(refresh);
+    const offScroll = (_a = api.onScrollChange) == null ? void 0 : _a.call(api, refresh);
+    return () => {
+      offChange();
+      offScroll == null ? void 0 : offScroll();
+    };
+  }, [api]);
+  return state;
+}
+function Icon({ children, size = 18, fill = "none", stroke = 1.7 }) {
+  return /* @__PURE__ */ jsx(
+    "svg",
+    {
+      width: size,
+      height: size,
+      viewBox: "0 0 24 24",
+      fill,
+      stroke: "currentColor",
+      strokeWidth: stroke,
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      "aria-hidden": "true",
+      focusable: "false",
+      style: { display: "block", flexShrink: 0 },
+      children
+    }
+  );
+}
+const P = (d) => /* @__PURE__ */ jsx("path", { d });
+const SlidesIcon = {
+  search: () => /* @__PURE__ */ jsxs(Icon, { children: [
+    /* @__PURE__ */ jsx("circle", { cx: "11", cy: "11", r: "7" }),
+    P("M20 20l-3.5-3.5")
+  ] }),
+  plus: () => /* @__PURE__ */ jsx(Icon, { stroke: 1.8, children: P("M12 5v14M5 12h14") }),
+  caret: () => /* @__PURE__ */ jsx(Icon, { size: 12, stroke: 2.2, children: P("M6 9l6 6 6-6") }),
+  chevronUp: () => /* @__PURE__ */ jsx(Icon, { size: 16, stroke: 2, children: P("M18 15l-6-6-6 6") }),
+  chevronDown: () => /* @__PURE__ */ jsx(Icon, { size: 16, stroke: 2, children: P("M6 9l6 6 6-6") }),
+  chevronLeft: () => /* @__PURE__ */ jsx(Icon, { size: 16, stroke: 2, children: P("M15 18l-6-6 6-6") }),
+  chevronRight: () => /* @__PURE__ */ jsx(Icon, { size: 16, stroke: 2, children: P("M9 18l6-6-6-6") }),
+  submenu: () => /* @__PURE__ */ jsx(Icon, { size: 14, stroke: 2, children: P("M9 18l6-6-6-6") }),
+  undo: () => /* @__PURE__ */ jsxs(Icon, { children: [
+    P("M9 14L4 9l5-5"),
+    P("M4 9h10.5a5.5 5.5 0 010 11H11")
+  ] }),
+  redo: () => /* @__PURE__ */ jsxs(Icon, { children: [
+    P("M15 14l5-5-5-5"),
+    P("M20 9H9.5a5.5 5.5 0 000 11H13")
+  ] }),
+  zoom: () => /* @__PURE__ */ jsxs(Icon, { children: [
+    /* @__PURE__ */ jsx("circle", { cx: "11", cy: "11", r: "7" }),
+    P("M20 20l-3.5-3.5M11 8v6M8 11h6")
+  ] }),
+  cursor: () => /* @__PURE__ */ jsx(Icon, { size: 16, fill: "currentColor", stroke: 0, children: P("M5 3l14 8-6 2-2 6z") }),
+  text: () => /* @__PURE__ */ jsx(Icon, { children: P("M5 6V4h14v2M12 4v16M9 20h6") }),
+  image: () => /* @__PURE__ */ jsxs(Icon, { children: [
+    /* @__PURE__ */ jsx("rect", { x: "3", y: "4", width: "18", height: "16", rx: "2" }),
+    /* @__PURE__ */ jsx("circle", { cx: "9", cy: "10", r: "2" }),
+    P("M21 17l-5-5-9 8")
+  ] }),
+  shape: () => /* @__PURE__ */ jsxs(Icon, { children: [
+    /* @__PURE__ */ jsx("rect", { x: "3", y: "3", width: "10", height: "10", rx: "1" }),
+    /* @__PURE__ */ jsx("circle", { cx: "15.5", cy: "15.5", r: "5.5" })
+  ] }),
+  rectangle: () => /* @__PURE__ */ jsx(Icon, { children: /* @__PURE__ */ jsx("rect", { x: "4", y: "5", width: "16", height: "14", rx: "1" }) }),
+  ellipse: () => /* @__PURE__ */ jsx(Icon, { children: /* @__PURE__ */ jsx("circle", { cx: "12", cy: "12", r: "8" }) }),
+  diamond: () => /* @__PURE__ */ jsx(Icon, { children: P("M12 3l9 9-9 9-9-9z") }),
+  line: () => /* @__PURE__ */ jsx(Icon, { stroke: 1.8, children: P("M5 19L19 5") }),
+  arrow: () => /* @__PURE__ */ jsx(Icon, { stroke: 1.8, children: P("M5 19L19 5M10 5h9v9") }),
+  comment: () => /* @__PURE__ */ jsxs(Icon, { children: [
+    P("M4 5h16v11H9l-5 4z"),
+    P("M12 8v5M9.5 10.5h5")
+  ] }),
+  grid: () => /* @__PURE__ */ jsxs(Icon, { children: [
+    /* @__PURE__ */ jsx("rect", { x: "4", y: "4", width: "6.5", height: "6.5", rx: "1" }),
+    /* @__PURE__ */ jsx("rect", { x: "13.5", y: "4", width: "6.5", height: "6.5", rx: "1" }),
+    /* @__PURE__ */ jsx("rect", { x: "4", y: "13.5", width: "6.5", height: "6.5", rx: "1" }),
+    /* @__PURE__ */ jsx("rect", { x: "13.5", y: "13.5", width: "6.5", height: "6.5", rx: "1" })
+  ] }),
+  close: () => /* @__PURE__ */ jsx(Icon, { stroke: 1.8, children: P("M6 6l12 12M18 6L6 18") }),
+  play: () => /* @__PURE__ */ jsx(Icon, { size: 14, fill: "currentColor", stroke: 0, children: P("M7 4.5l13 7.5-13 7.5z") }),
+  duplicate: () => /* @__PURE__ */ jsxs(Icon, { children: [
+    /* @__PURE__ */ jsx("rect", { x: "8", y: "8", width: "12", height: "12", rx: "2" }),
+    P("M14 11v6M11 14h6"),
+    P("M16 8V4H4v12h4")
+  ] }),
+  copy: () => /* @__PURE__ */ jsxs(Icon, { children: [
+    /* @__PURE__ */ jsx("rect", { x: "8", y: "8", width: "12", height: "12", rx: "2" }),
+    P("M16 8V4H4v12h4")
+  ] }),
+  trash: () => /* @__PURE__ */ jsx(Icon, { children: P("M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3") }),
+  eye: () => /* @__PURE__ */ jsxs(Icon, { children: [
+    P("M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"),
+    /* @__PURE__ */ jsx("circle", { cx: "12", cy: "12", r: "3" })
+  ] }),
+  eyeOff: () => /* @__PURE__ */ jsx(Icon, { children: P("M3 3l18 18M10.6 5.1A10 10 0 0112 5c6.5 0 10 7 10 7a17 17 0 01-3.2 4.1M6.6 6.6C3.7 8.4 2 12 2 12s3.5 7 10 7a9.7 9.7 0 005.4-1.6") }),
+  move: () => /* @__PURE__ */ jsx(Icon, { children: P("M8 4v16M4 8l4-4 4 4M16 20V4M12 16l4 4 4-4") }),
+  toStart: () => /* @__PURE__ */ jsx(Icon, { children: P("M5 4h14M12 20V9M7 13l5-5 5 5") }),
+  toEnd: () => /* @__PURE__ */ jsx(Icon, { children: P("M5 20h14M12 4v11M7 11l5 5 5-5") }),
+  background: () => /* @__PURE__ */ jsx(Icon, { children: P("M12 3s6 6.5 6 11a6 6 0 01-12 0c0-4.5 6-11 6-11z") }),
+  layout: () => /* @__PURE__ */ jsxs(Icon, { children: [
+    /* @__PURE__ */ jsx("rect", { x: "3", y: "4", width: "18", height: "16", rx: "1" }),
+    P("M3 10h18M10 10v10")
+  ] }),
+  transition: () => /* @__PURE__ */ jsxs(Icon, { children: [
+    /* @__PURE__ */ jsx("circle", { cx: "9", cy: "12", r: "6" }),
+    P("M15 6.5a6 6 0 010 11")
+  ] }),
+  size: () => /* @__PURE__ */ jsx(Icon, { children: /* @__PURE__ */ jsx("rect", { x: "3", y: "6", width: "18", height: "12", rx: "1" }) }),
+  brand: () => /* @__PURE__ */ jsx(Icon, { children: P("M6 3h12v18l-6-4-6 4z") }),
+  components: () => /* @__PURE__ */ jsxs(Icon, { stroke: 1.6, children: [
+    /* @__PURE__ */ jsx("rect", { x: "3", y: "3", width: "8", height: "8" }),
+    /* @__PURE__ */ jsx("rect", { x: "13", y: "3", width: "8", height: "5" }),
+    /* @__PURE__ */ jsx("rect", { x: "13", y: "10", width: "8", height: "11" }),
+    /* @__PURE__ */ jsx("rect", { x: "3", y: "13", width: "8", height: "8" })
+  ] }),
+  elements: () => /* @__PURE__ */ jsxs(Icon, { stroke: 1.6, children: [
+    /* @__PURE__ */ jsx("rect", { x: "4", y: "4", width: "7", height: "7" }),
+    /* @__PURE__ */ jsx("circle", { cx: "17.5", cy: "7.5", r: "3.5" }),
+    P("M7.5 13.5L11 20H4z"),
+    /* @__PURE__ */ jsx("rect", { x: "14", y: "14", width: "7", height: "7", rx: "3.5" })
+  ] }),
+  layers: () => /* @__PURE__ */ jsxs(Icon, { stroke: 1.6, children: [
+    P("M12 3l9 5-9 5-9-5z"),
+    P("M3 13l9 5 9-5")
+  ] }),
+  library: () => /* @__PURE__ */ jsx(Icon, { stroke: 1.6, children: P("M3 6h7l2 2h9v12H3z") }),
+  page: () => /* @__PURE__ */ jsxs(Icon, { stroke: 1.6, children: [
+    P("M6 3h8l4 4v14H6z"),
+    P("M14 3v4h4")
+  ] }),
+  agent: () => /* @__PURE__ */ jsx(Icon, { stroke: 1.6, children: P("M12 3l2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5z") }),
+  details: () => /* @__PURE__ */ jsxs(Icon, { stroke: 1.6, children: [
+    /* @__PURE__ */ jsx("rect", { x: "3", y: "4", width: "18", height: "16", rx: "2" }),
+    P("M15 4v16")
+  ] }),
+  notes: () => /* @__PURE__ */ jsxs(Icon, { children: [
+    P("M5 4h14v16H5z"),
+    P("M8 9h8M8 13h8M8 17h5")
+  ] }),
+  presenter: () => /* @__PURE__ */ jsxs(Icon, { children: [
+    /* @__PURE__ */ jsx("rect", { x: "3", y: "4", width: "18", height: "12", rx: "1.5" }),
+    P("M8 20h8M12 16v4")
+  ] }),
+  check: () => /* @__PURE__ */ jsx(Icon, { size: 16, stroke: 2, children: P("M5 12l5 5 9-10") }),
+  upload: () => /* @__PURE__ */ jsxs(Icon, { children: [
+    P("M12 16V4M7 9l5-5 5 5"),
+    P("M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3")
+  ] })
+};
+function panelIcon(id) {
+  const map = {
+    components: SlidesIcon.components,
+    elements: SlidesIcon.elements,
+    text: SlidesIcon.text,
+    brand: SlidesIcon.brand,
+    layers: SlidesIcon.layers,
+    library: SlidesIcon.library,
+    design: SlidesIcon.page,
+    agent: SlidesIcon.agent
+  };
+  return (map[id] ?? SlidesIcon.components)();
+}
+const slideSelector = (id) => `[data-slide-id="${typeof CSS !== "undefined" && CSS.escape ? CSS.escape(id) : id.replace(/"/g, '\\"')}"]`;
+function Filmstrip({
+  slides,
+  activeId,
+  thumbs,
+  labels,
+  viewMode,
+  onSelect,
+  onContextMenu,
+  onMove,
+  onNewAfter,
+  onDuplicate,
+  onDelete,
+  onMoveBy,
+  onGrid,
+  onCollapse
+}) {
+  const L = labels.slides;
+  const listRef = useRef(null);
+  const [drag, setDrag] = useState(null);
+  const followUntil = useRef(0);
+  useEffect(() => {
+    var _a, _b;
+    if (!activeId) return;
+    (_b = (_a = listRef.current) == null ? void 0 : _a.querySelector(slideSelector(activeId))) == null ? void 0 : _b.scrollIntoView({ block: "nearest" });
+  }, [activeId]);
+  const focusSlide = (id) => {
+    var _a, _b;
+    return (_b = (_a = listRef.current) == null ? void 0 : _a.querySelector(`${slideSelector(id)} button`)) == null ? void 0 : _b.focus({ preventScroll: true });
+  };
+  useEffect(() => {
+    if (!activeId || Date.now() > followUntil.current) return;
+    followUntil.current = 0;
+    focusSlide(activeId);
+  }, [activeId, slides]);
+  const onKeyDown = (e, slide, index) => {
+    const ctrl = e.ctrlKey || e.metaKey;
+    const go = (i) => {
+      const target = slides[Math.min(slides.length - 1, Math.max(0, i))];
+      if (target && target.id !== slide.id) {
+        onSelect(target.id);
+        focusSlide(target.id);
+      }
+    };
+    let handled = true;
+    const follow = () => {
+      followUntil.current = Date.now() + 600;
+    };
+    const first = index === 0, last = index === slides.length - 1;
+    if (ctrl && e.shiftKey && e.key === "ArrowUp") {
+      if (!viewMode && !first) {
+        follow();
+        onMoveBy(slide.id, "up");
+      }
+    } else if (ctrl && e.shiftKey && e.key === "ArrowDown") {
+      if (!viewMode && !last) {
+        follow();
+        onMoveBy(slide.id, "down");
+      }
+    } else if (e.key === "ArrowUp" || e.key === "ArrowLeft") go(index - 1);
+    else if (e.key === "ArrowDown" || e.key === "ArrowRight") go(index + 1);
+    else if (e.key === "Home") go(0);
+    else if (e.key === "End") go(slides.length - 1);
+    else if (ctrl && e.key.toLowerCase() === "d") {
+      if (!viewMode) {
+        follow();
+        onDuplicate(slide.id);
+      }
+    } else if (ctrl && e.key.toLowerCase() === "m") {
+      if (!viewMode) {
+        follow();
+        onNewAfter(slide.id);
+      }
+    } else if (e.key === "Delete" || e.key === "Backspace") {
+      if (!viewMode && slides.length > 1) {
+        follow();
+        onDelete(slide.id);
+      }
+    } else if (e.key === "ContextMenu" || e.shiftKey && e.key === "F10") {
+      const r = e.currentTarget.getBoundingClientRect();
+      onContextMenu(slide.id, { x: r.right - 8, y: r.top + 12 });
+    } else handled = false;
+    if (handled) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  };
+  const dropIndexAt = (clientY) => {
+    var _a;
+    const items = Array.from(((_a = listRef.current) == null ? void 0 : _a.querySelectorAll("[data-slide-id]")) ?? []);
+    for (let i = 0; i < items.length; i++) {
+      const r = items[i].getBoundingClientRect();
+      if (clientY < r.top + r.height / 2) return i;
+    }
+    return items.length;
+  };
+  return /* @__PURE__ */ jsxs("aside", { className: "canvas2-slides-filmstrip", "aria-label": L.slides, children: [
+    /* @__PURE__ */ jsx(
+      "ol",
+      {
+        ref: listRef,
+        className: "canvas2-slides-filmstrip-list",
+        onDragOver: (e) => {
+          if (!drag) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+          const over = dropIndexAt(e.clientY);
+          if (over !== drag.over) setDrag({ ...drag, over });
+        },
+        onDrop: (e) => {
+          if (!drag) return;
+          e.preventDefault();
+          const from = slides.findIndex((s) => s.id === drag.id);
+          const to = drag.over > from ? drag.over - 1 : drag.over;
+          if (from >= 0 && to !== from) onMove(drag.id, to);
+          setDrag(null);
+        },
+        children: slides.map((slide, index) => {
+          const active = slide.id === activeId;
+          const thumb = thumbs[slide.id];
+          return /* @__PURE__ */ jsxs(
+            "li",
+            {
+              "data-slide-id": slide.id,
+              className: "canvas2-slides-filmstrip-item",
+              "data-drop-before": drag && drag.over === index && drag.id !== slide.id ? "" : void 0,
+              "data-drop-after": drag && drag.over === slides.length && index === slides.length - 1 ? "" : void 0,
+              children: [
+                /* @__PURE__ */ jsx("span", { className: "canvas2-slides-filmstrip-number", "aria-hidden": "true", children: index + 1 }),
+                /* @__PURE__ */ jsxs(
+                  "button",
+                  {
+                    type: "button",
+                    className: "canvas2-slides-thumb",
+                    "aria-label": slide.skipped ? `${L.slideN(index + 1)} · ${L.skipped}` : L.slideN(index + 1),
+                    "aria-current": active ? "true" : void 0,
+                    "data-skipped": slide.skipped ? "" : void 0,
+                    style: { aspectRatio: `${slide.width} / ${slide.height}` },
+                    draggable: !viewMode,
+                    onDragStart: (e) => {
+                      e.dataTransfer.effectAllowed = "move";
+                      e.dataTransfer.setData("text/plain", slide.id);
+                      setDrag({ id: slide.id, over: index });
+                    },
+                    onDragEnd: () => setDrag(null),
+                    onClick: () => onSelect(slide.id),
+                    onContextMenu: (e) => {
+                      if (viewMode) return;
+                      e.preventDefault();
+                      onSelect(slide.id);
+                      onContextMenu(slide.id, { x: e.clientX, y: e.clientY });
+                    },
+                    onKeyDown: (e) => onKeyDown(e, slide, index),
+                    children: [
+                      thumb ? /* @__PURE__ */ jsx("img", { src: thumb, alt: "", draggable: false }) : null,
+                      slide.skipped && /* @__PURE__ */ jsx("span", { className: "canvas2-slides-thumb-skip", children: /* @__PURE__ */ jsx(SlidesIcon.eyeOff, {}) })
+                    ]
+                  }
+                )
+              ]
+            },
+            slide.id
+          );
+        })
+      }
+    ),
+    /* @__PURE__ */ jsxs("div", { className: "canvas2-slides-filmstrip-foot", children: [
+      /* @__PURE__ */ jsx("button", { type: "button", className: "canvas2-slides-icon-btn", "aria-label": L.gridView, title: L.gridView, onClick: onGrid, children: /* @__PURE__ */ jsx(SlidesIcon.grid, {}) }),
+      /* @__PURE__ */ jsx("button", { type: "button", className: "canvas2-slides-icon-btn", "aria-label": L.hideFilmstrip, title: L.hideFilmstrip, onClick: onCollapse, children: /* @__PURE__ */ jsx(SlidesIcon.chevronLeft, {}) })
+    ] })
+  ] });
+}
+const ITEMS = ':scope > [role^="menuitem"]:not([disabled]), :scope > .canvas2-slides-menu-subwrap > [role^="menuitem"]:not([disabled])';
+function SlidesMenu({ label, items, onClose, style, autoFocus = true, keepOpenWithin, focusRequest }) {
+  const ref = useRef(null);
+  const [openSub, setOpenSub] = useState(null);
+  const [fitStyle, setFitStyle] = useState({});
+  useLayoutEffect(() => {
+    var _a;
+    const el = ref.current;
+    const box = (_a = (el == null ? void 0 : el.closest(".canvas2-slides")) ?? (el == null ? void 0 : el.offsetParent)) == null ? void 0 : _a.getBoundingClientRect();
+    if (!el || !box) return;
+    const r = el.getBoundingClientRect();
+    const overflow = r.bottom - box.bottom + 8;
+    if (overflow > 0) setFitStyle({ transform: `translateY(-${Math.min(overflow, Math.max(0, r.top - box.top - 8))}px)` });
+  }, []);
+  useEffect(() => {
+    var _a, _b;
+    if (autoFocus || focusRequest) (_b = (_a = ref.current) == null ? void 0 : _a.querySelector(ITEMS)) == null ? void 0 : _b.focus();
+  }, [focusRequest]);
+  useEffect(() => {
+    var _a;
+    const opener = document.activeElement;
+    const host = (_a = ref.current) == null ? void 0 : _a.closest("[data-canvas2]");
+    const count = Number((host == null ? void 0 : host.dataset.slidesMenu) ?? 0) + 1;
+    if (host) host.dataset.slidesMenu = String(count);
+    const menu = ref.current;
+    return () => {
+      if (host) {
+        const left = Number(host.dataset.slidesMenu ?? 1) - 1;
+        if (left > 0) host.dataset.slidesMenu = String(left);
+        else delete host.dataset.slidesMenu;
+      }
+      const focusLost = !document.activeElement || document.activeElement === document.body || (menu == null ? void 0 : menu.contains(document.activeElement));
+      if (focusLost && (opener == null ? void 0 : opener.isConnected) && opener !== document.body) opener.focus({ preventScroll: true });
+    };
+  }, []);
+  useEffect(() => {
+    const onDown = (e) => {
+      var _a;
+      const target = e.target;
+      if (!ref.current || ref.current.contains(target)) return;
+      if ((_a = keepOpenWithin == null ? void 0 : keepOpenWithin()) == null ? void 0 : _a.contains(target)) return;
+      onClose();
+    };
+    document.addEventListener("pointerdown", onDown, true);
+    return () => document.removeEventListener("pointerdown", onDown, true);
+  }, [onClose, keepOpenWithin]);
+  const onKeyDown = (e) => {
+    var _a, _b, _c;
+    const list = Array.from(((_a = ref.current) == null ? void 0 : _a.querySelectorAll(ITEMS)) ?? []);
+    const at = list.indexOf(document.activeElement);
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      onClose();
+    } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      e.stopPropagation();
+      const step = e.key === "ArrowDown" ? 1 : -1;
+      (_b = list[(at + step + list.length) % list.length]) == null ? void 0 : _b.focus();
+    } else if (e.key === "Home" || e.key === "End") {
+      e.preventDefault();
+      e.stopPropagation();
+      (_c = list[e.key === "Home" ? 0 : list.length - 1]) == null ? void 0 : _c.focus();
+    }
+  };
+  return /* @__PURE__ */ jsx(
+    "div",
+    {
+      ref,
+      className: "canvas2-slides-menu",
+      role: "menu",
+      "aria-label": label,
+      style: { ...style, ...fitStyle },
+      onKeyDown,
+      children: items.map((entry, i) => {
+        if (entry.kind === "separator") return /* @__PURE__ */ jsx("div", { className: "canvas2-slides-menu-sep", role: "separator" }, i);
+        if (entry.kind === "submenu") {
+          return /* @__PURE__ */ jsxs(
+            "div",
+            {
+              className: "canvas2-slides-menu-subwrap",
+              onPointerEnter: () => setOpenSub(i),
+              onPointerLeave: () => setOpenSub((s) => s === i ? null : s),
+              children: [
+                /* @__PURE__ */ jsxs(
+                  "button",
+                  {
+                    type: "button",
+                    role: "menuitem",
+                    "aria-haspopup": "menu",
+                    "aria-expanded": openSub === i,
+                    disabled: entry.disabled,
+                    onClick: () => setOpenSub((s) => s === i ? null : i),
+                    onKeyDown: (e) => {
+                      if (e.key === "ArrowRight" || e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setOpenSub(i);
+                      }
+                    },
+                    children: [
+                      /* @__PURE__ */ jsx("span", { className: "canvas2-slides-menu-icon", children: entry.icon }),
+                      /* @__PURE__ */ jsx("span", { className: "canvas2-slides-menu-label", children: entry.label }),
+                      /* @__PURE__ */ jsx("span", { className: "canvas2-slides-menu-end", children: /* @__PURE__ */ jsx(SlidesIcon.submenu, {}) })
+                    ]
+                  }
+                ),
+                openSub === i && /* @__PURE__ */ jsx(
+                  SubMenu,
+                  {
+                    label: entry.label,
+                    items: entry.items,
+                    onClose,
+                    onBack: () => setOpenSub(null)
+                  }
+                )
+              ]
+            },
+            i
+          );
+        }
+        return /* @__PURE__ */ jsx(MenuItem, { entry, onClose }, i);
+      })
+    }
+  );
+}
+function MenuItem({ entry, onClose }) {
+  return /* @__PURE__ */ jsxs(
+    "button",
+    {
+      type: "button",
+      role: entry.checked === void 0 ? "menuitem" : "menuitemcheckbox",
+      "aria-checked": entry.checked,
+      disabled: entry.disabled,
+      onClick: () => {
+        onClose();
+        entry.onSelect();
+      },
+      children: [
+        /* @__PURE__ */ jsx("span", { className: "canvas2-slides-menu-icon", children: entry.checked ? /* @__PURE__ */ jsx(SlidesIcon.check, {}) : entry.icon }),
+        /* @__PURE__ */ jsx("span", { className: "canvas2-slides-menu-label", children: entry.label }),
+        entry.shortcut && /* @__PURE__ */ jsx("span", { className: "canvas2-slides-menu-end", children: entry.shortcut })
+      ]
+    }
+  );
+}
+function SubMenu({ label, items, onClose, onBack }) {
+  const ref = useRef(null);
+  const [flip, setFlip] = useState(false);
+  useLayoutEffect(() => {
+    var _a;
+    const el = ref.current;
+    const box = (_a = el == null ? void 0 : el.closest(".canvas2-slides")) == null ? void 0 : _a.getBoundingClientRect();
+    if (el && box && el.getBoundingClientRect().right > box.right - 4) setFlip(true);
+  }, []);
+  useEffect(() => {
+    var _a, _b;
+    (_b = (_a = ref.current) == null ? void 0 : _a.querySelector('[role^="menuitem"]:not([disabled])')) == null ? void 0 : _b.focus({ preventScroll: true });
+  }, []);
+  return /* @__PURE__ */ jsx(
+    "div",
+    {
+      ref,
+      className: "canvas2-slides-menu canvas2-slides-submenu",
+      role: "menu",
+      "aria-label": label,
+      "data-flip": flip ? "" : void 0,
+      onKeyDown: (e) => {
+        var _a, _b;
+        const list = Array.from(((_a = ref.current) == null ? void 0 : _a.querySelectorAll(':scope > [role^="menuitem"]:not([disabled])')) ?? []);
+        const at = list.indexOf(document.activeElement);
+        if (e.key === "ArrowLeft" || e.key === "Escape") {
+          e.preventDefault();
+          e.stopPropagation();
+          onBack();
+        } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+          e.preventDefault();
+          e.stopPropagation();
+          (_b = list[(at + (e.key === "ArrowDown" ? 1 : -1) + list.length) % list.length]) == null ? void 0 : _b.focus();
+        }
+      },
+      children: items.map(
+        (entry, i) => entry.kind === "separator" ? /* @__PURE__ */ jsx("div", { className: "canvas2-slides-menu-sep", role: "separator" }, i) : entry.kind === "submenu" ? null : /* @__PURE__ */ jsx(MenuItem, { entry, onClose }, i)
+      )
+    }
+  );
+}
+const SHAPES = ["rectangle", "ellipse", "diamond"];
+const LINES = ["line", "arrow"];
+function SlidesToolbar(props) {
+  const { labels, activeTool, formatting, zoom, openPanel, available, menusHidden, viewMode } = props;
+  const L = labels.slides;
+  const fixedRef = useRef(null);
+  const [dropdown, setDropdown] = useState(null);
+  const [lastShape, setLastShape] = useState("rectangle");
+  const [lastLine, setLastLine] = useState("line");
+  const pillRef = useRef(null);
+  const closeDropdown = useCallback(() => setDropdown(null), []);
+  const pillElement = useCallback(() => pillRef.current, []);
+  useLayoutEffect(() => {
+    const el = fixedRef.current;
+    if (!el) return;
+    const report = () => props.onFixedWidth(el.getBoundingClientRect().width);
+    report();
+    const ro = new ResizeObserver(report);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const open = (id, button) => {
+    var _a;
+    const bar = (_a = button.closest(".canvas2-slides-toolbar")) == null ? void 0 : _a.getBoundingClientRect();
+    const r = button.getBoundingClientRect();
+    setDropdown((d) => (d == null ? void 0 : d.id) === id ? null : { id, left: r.left - ((bar == null ? void 0 : bar.left) ?? 0) });
+  };
+  const toolButton = (tool, label, icon) => /* @__PURE__ */ jsx(
+    "button",
+    {
+      type: "button",
+      className: "canvas2-slides-icon-btn",
+      "aria-label": label,
+      title: label,
+      "aria-pressed": activeTool === tool,
+      onClick: () => props.onTool(tool),
+      children: icon
+    }
+  );
+  const shapeIcon = (tool) => tool === "ellipse" ? /* @__PURE__ */ jsx(SlidesIcon.ellipse, {}) : tool === "diamond" ? /* @__PURE__ */ jsx(SlidesIcon.diamond, {}) : /* @__PURE__ */ jsx(SlidesIcon.shape, {});
+  const shapeLabel = (tool) => tool === "ellipse" ? L.ellipse : tool === "diamond" ? L.diamond : L.rectangle;
+  const dropdownItems = {
+    new: [
+      { label: L.newSlide, icon: /* @__PURE__ */ jsx(SlidesIcon.plus, {}), onSelect: props.onNewSlide },
+      ...available.components ? [{ label: L.applyComponent, icon: /* @__PURE__ */ jsx(SlidesIcon.layout, {}), onSelect: () => props.onPanel("components") }] : []
+    ],
+    zoom: [
+      { label: L.zoomFit, onSelect: props.onZoomFit },
+      { kind: "separator" },
+      ...[0.5, 1, 2].map((z) => ({ label: `${z * 100} %`, checked: Math.abs(zoom - z) < 5e-3, onSelect: () => props.onZoomTo(z) })),
+      { kind: "separator" },
+      { label: L.zoomIn, onSelect: () => props.onZoomStep(1) },
+      { label: L.zoomOut, onSelect: () => props.onZoomStep(-1) }
+    ],
+    shape: SHAPES.map((tool) => ({
+      label: shapeLabel(tool),
+      icon: shapeIcon(tool),
+      checked: activeTool === tool,
+      onSelect: () => {
+        setLastShape(tool);
+        props.onTool(tool);
+      }
+    })),
+    line: LINES.map((tool) => ({
+      label: tool === "arrow" ? L.arrow : L.line,
+      icon: tool === "arrow" ? /* @__PURE__ */ jsx(SlidesIcon.arrow, {}) : /* @__PURE__ */ jsx(SlidesIcon.line, {}),
+      checked: activeTool === tool,
+      onSelect: () => {
+        setLastLine(tool);
+        props.onTool(tool);
+      }
+    }))
+  };
+  const panelButton = (panel, label) => available[panel] ? /* @__PURE__ */ jsx(
+    "button",
+    {
+      type: "button",
+      className: "canvas2-slides-text-btn",
+      "aria-pressed": openPanel === panel,
+      onClick: () => props.onPanel(panel),
+      children: label
+    },
+    panel
+  ) : null;
+  const rightGroup = [
+    panelButton("design", L.background),
+    panelButton("components", L.components),
+    panelButton("brand", L.theme),
+    panelButton("transition", L.transition)
+  ].filter(Boolean);
+  return /* @__PURE__ */ jsxs("div", { className: "canvas2-slides-toolbar", "data-menus-hidden": menusHidden ? "" : void 0, children: [
+    /* @__PURE__ */ jsxs("div", { ref: pillRef, className: "canvas2-slides-pill", role: "toolbar", "aria-label": L.toolbar, children: [
+      /* @__PURE__ */ jsxs("div", { ref: fixedRef, className: "canvas2-slides-pill-fixed", children: [
+        available.search && /* @__PURE__ */ jsx("button", { type: "button", className: "canvas2-slides-icon-btn", "aria-label": L.search, title: L.search, onClick: props.onSearch, children: /* @__PURE__ */ jsx(SlidesIcon.search, {}) }),
+        !viewMode && /* @__PURE__ */ jsxs("span", { className: "canvas2-slides-split", children: [
+          /* @__PURE__ */ jsx("button", { type: "button", className: "canvas2-slides-icon-btn", "aria-label": L.newSlide, title: L.newSlide, onClick: props.onNewSlide, children: /* @__PURE__ */ jsx(SlidesIcon.plus, {}) }),
+          /* @__PURE__ */ jsx(
+            "button",
+            {
+              type: "button",
+              className: "canvas2-slides-caret-btn",
+              "aria-label": L.newSlide,
+              "aria-haspopup": "menu",
+              "aria-expanded": (dropdown == null ? void 0 : dropdown.id) === "new",
+              onClick: (e) => open("new", e.currentTarget),
+              children: /* @__PURE__ */ jsx(SlidesIcon.caret, {})
+            }
+          )
+        ] }),
+        !viewMode && /* @__PURE__ */ jsxs(Fragment$1, { children: [
+          /* @__PURE__ */ jsx("button", { type: "button", className: "canvas2-slides-icon-btn", "aria-label": L.undo, title: L.undo, onClick: props.onUndo, children: /* @__PURE__ */ jsx(SlidesIcon.undo, {}) }),
+          /* @__PURE__ */ jsx("button", { type: "button", className: "canvas2-slides-icon-btn", "aria-label": L.redo, title: L.redo, onClick: props.onRedo, children: /* @__PURE__ */ jsx(SlidesIcon.redo, {}) })
+        ] }),
+        /* @__PURE__ */ jsx("span", { className: "canvas2-slides-divider", "aria-hidden": "true" }),
+        /* @__PURE__ */ jsxs(
+          "button",
+          {
+            type: "button",
+            className: "canvas2-slides-zoom-btn",
+            "aria-haspopup": "menu",
+            "aria-expanded": (dropdown == null ? void 0 : dropdown.id) === "zoom",
+            onClick: (e) => open("zoom", e.currentTarget),
+            children: [
+              /* @__PURE__ */ jsx(SlidesIcon.zoom, {}),
+              /* @__PURE__ */ jsx("span", { children: L.zoomFit }),
+              /* @__PURE__ */ jsx(SlidesIcon.caret, {})
+            ]
+          }
+        ),
+        !viewMode && /* @__PURE__ */ jsxs(Fragment$1, { children: [
+          /* @__PURE__ */ jsx("span", { className: "canvas2-slides-divider", "aria-hidden": "true" }),
+          /* @__PURE__ */ jsx(
+            "button",
+            {
+              type: "button",
+              className: "canvas2-slides-icon-btn canvas2-slides-tool-select",
+              "aria-label": L.select,
+              title: L.select,
+              "aria-pressed": activeTool === "selection",
+              onClick: () => props.onTool("selection"),
+              children: /* @__PURE__ */ jsx(SlidesIcon.cursor, {})
+            }
+          ),
+          toolButton("text", L.textBox, /* @__PURE__ */ jsx(SlidesIcon.text, {})),
+          available.library && /* @__PURE__ */ jsx(
+            "button",
+            {
+              type: "button",
+              className: "canvas2-slides-icon-btn",
+              "aria-label": L.image,
+              title: L.image,
+              "aria-pressed": openPanel === "library",
+              onClick: props.onImage,
+              children: /* @__PURE__ */ jsx(SlidesIcon.image, {})
+            }
+          ),
+          /* @__PURE__ */ jsxs("span", { className: "canvas2-slides-split", children: [
+            toolButton(lastShape, shapeLabel(lastShape), shapeIcon(lastShape)),
+            /* @__PURE__ */ jsx(
+              "button",
+              {
+                type: "button",
+                className: "canvas2-slides-caret-btn",
+                "aria-label": L.shape,
+                "aria-haspopup": "menu",
+                "aria-expanded": (dropdown == null ? void 0 : dropdown.id) === "shape",
+                onClick: (e) => open("shape", e.currentTarget),
+                children: /* @__PURE__ */ jsx(SlidesIcon.caret, {})
+              }
+            )
+          ] }),
+          /* @__PURE__ */ jsxs("span", { className: "canvas2-slides-split", children: [
+            toolButton(lastLine, lastLine === "arrow" ? L.arrow : L.line, lastLine === "arrow" ? /* @__PURE__ */ jsx(SlidesIcon.arrow, {}) : /* @__PURE__ */ jsx(SlidesIcon.line, {})),
+            /* @__PURE__ */ jsx(
+              "button",
+              {
+                type: "button",
+                className: "canvas2-slides-caret-btn",
+                "aria-label": L.line,
+                "aria-haspopup": "menu",
+                "aria-expanded": (dropdown == null ? void 0 : dropdown.id) === "line",
+                onClick: (e) => open("line", e.currentTarget),
+                children: /* @__PURE__ */ jsx(SlidesIcon.caret, {})
+              }
+            )
+          ] }),
+          available.comment && props.onComment && /* @__PURE__ */ jsxs(Fragment$1, { children: [
+            /* @__PURE__ */ jsx("span", { className: "canvas2-slides-divider", "aria-hidden": "true" }),
+            /* @__PURE__ */ jsx("button", { type: "button", className: "canvas2-slides-icon-btn", "aria-label": L.comment, title: L.comment, onClick: props.onComment, children: /* @__PURE__ */ jsx(SlidesIcon.comment, {}) })
+          ] }),
+          /* @__PURE__ */ jsx("span", { className: "canvas2-slides-divider", "aria-hidden": "true" })
+        ] })
+      ] }),
+      !viewMode && !formatting && rightGroup.length > 0 && /* @__PURE__ */ jsx("div", { className: "canvas2-slides-pill-context", children: rightGroup.map((button, i) => /* @__PURE__ */ jsxs("span", { className: "canvas2-slides-pill-context-item", children: [
+        i > 0 && /* @__PURE__ */ jsx("span", { className: "canvas2-slides-divider canvas2-slides-divider--tight", "aria-hidden": "true" }),
+        button
+      ] }, i)) }),
+      /* @__PURE__ */ jsx(
+        "button",
+        {
+          type: "button",
+          className: "canvas2-slides-icon-btn canvas2-slides-pill-end",
+          "aria-label": menusHidden ? L.showMenus : L.hideMenus,
+          title: menusHidden ? L.showMenus : L.hideMenus,
+          onClick: props.onToggleMenus,
+          children: menusHidden ? /* @__PURE__ */ jsx(SlidesIcon.chevronDown, {}) : /* @__PURE__ */ jsx(SlidesIcon.chevronUp, {})
+        }
+      )
+    ] }),
+    dropdown && /* @__PURE__ */ jsx(
+      SlidesMenu,
+      {
+        label: { new: L.newSlide, zoom: L.zoomFit, shape: L.shape, line: L.line }[dropdown.id],
+        items: dropdownItems[dropdown.id],
+        onClose: closeDropdown,
+        keepOpenWithin: pillElement,
+        style: { position: "absolute", top: 44, left: dropdown.left }
+      }
+    )
+  ] });
+}
+function SlidesMenuBar({ title, menus, label, status, end }) {
+  const [open, setOpen] = useState(null);
+  const barRef = useRef(null);
+  const openAt = (id, byKey = false) => {
+    var _a, _b;
+    const button = (_a = barRef.current) == null ? void 0 : _a.querySelector(`[data-menu-id="${id}"]`);
+    const bar = (_b = barRef.current) == null ? void 0 : _b.getBoundingClientRect();
+    const r = button == null ? void 0 : button.getBoundingClientRect();
+    setOpen((prev) => ({ id, left: r && bar ? r.left - bar.left : 0, byKey, focus: byKey ? ((prev == null ? void 0 : prev.focus) ?? 0) + 1 : 0 }));
+  };
+  const step = (from, dir) => {
+    const i = menus.findIndex((m) => m.id === from);
+    const next = menus[(i + dir + menus.length) % menus.length];
+    openAt(next.id, true);
+  };
+  const current = open ? menus.find((m) => m.id === open.id) : null;
+  const closeMenu = useCallback(() => setOpen(null), []);
+  const barElement = useCallback(() => barRef.current, []);
+  return /* @__PURE__ */ jsxs(
+    "div",
+    {
+      ref: barRef,
+      className: "canvas2-slides-menubar",
+      role: "menubar",
+      "aria-label": label,
+      onKeyDown: (e) => {
+        if (!open) return;
+        if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+          e.preventDefault();
+          step(open.id, e.key === "ArrowRight" ? 1 : -1);
+        }
+      },
+      children: [
+        title && /* @__PURE__ */ jsx("span", { className: "canvas2-slides-title", children: title }),
+        menus.map((menu) => /* @__PURE__ */ jsx(
+          "button",
+          {
+            type: "button",
+            role: "menuitem",
+            "data-menu-id": menu.id,
+            "aria-haspopup": "menu",
+            "aria-expanded": (open == null ? void 0 : open.id) === menu.id,
+            onClick: () => (open == null ? void 0 : open.id) === menu.id ? setOpen(null) : openAt(menu.id),
+            onPointerEnter: () => {
+              if (open && open.id !== menu.id) openAt(menu.id);
+            },
+            onKeyDown: (e) => {
+              if (e.key === "ArrowDown") {
+                e.preventDefault();
+                openAt(menu.id, true);
+              }
+            },
+            children: menu.label
+          },
+          menu.id
+        )),
+        /* @__PURE__ */ jsx("span", { className: "canvas2-slides-status", "aria-live": "polite", children: status }),
+        end,
+        current && open && /* @__PURE__ */ jsx(
+          SlidesMenu,
+          {
+            label: current.label,
+            items: current.items,
+            onClose: closeMenu,
+            autoFocus: open.byKey,
+            keepOpenWithin: barElement,
+            focusRequest: open.focus,
+            style: { position: "absolute", top: 32, left: open.left }
+          },
+          current.id
+        )
+      ]
+    }
+  );
+}
+const RAIL_ORDER = ["components", "elements", "text", "library", "brand", "layers", "agent"];
+function SlidesPanels({
+  api,
+  activePageId,
+  panels,
+  openPanel,
+  onOpenPanel,
+  labels,
+  onDetails,
+  detailsOpen,
+  onImportTheme
+}) {
+  const L = labels.slides;
+  const rail = [
+    ...RAIL_ORDER.map((id) => panels.find((p) => p.id === id)).filter((p) => Boolean(p)),
+    ...panels.filter((p) => !RAIL_ORDER.includes(p.id) && p.id !== "design")
+  ];
+  const titleOf = (id, fallback) => id === "brand" ? L.theme : id === "design" ? L.background : id === "transition" ? L.transition : fallback;
+  let open = null;
+  if (openPanel === "transition") {
+    open = { id: "transition", title: L.transition, content: /* @__PURE__ */ jsx(TransitionPanel, { api, pageId: activePageId, labels }) };
+  } else if (openPanel) {
+    const panel = panels.find((p) => p.id === openPanel);
+    if (panel) open = { id: panel.id, title: titleOf(panel.id, panel.title), content: panel.content };
+  }
+  return /* @__PURE__ */ jsxs(Fragment$1, { children: [
+    open && /* @__PURE__ */ jsxs("section", { className: "canvas2-slides-panel", "aria-label": open.title, children: [
+      /* @__PURE__ */ jsxs("header", { className: "canvas2-slides-panel-head", children: [
+        /* @__PURE__ */ jsx("span", { className: "canvas2-slides-panel-icon", children: open.id === "transition" ? /* @__PURE__ */ jsx(SlidesIcon.transition, {}) : open.id === "design" ? /* @__PURE__ */ jsx(SlidesIcon.background, {}) : panelIcon(open.id) }),
+        /* @__PURE__ */ jsx("h2", { children: open.title }),
+        /* @__PURE__ */ jsx(
+          "button",
+          {
+            type: "button",
+            className: "canvas2-slides-icon-btn",
+            "aria-label": L.closePanel,
+            title: L.closePanel,
+            onClick: () => onOpenPanel(null),
+            children: /* @__PURE__ */ jsx(SlidesIcon.close, {})
+          }
+        )
+      ] }),
+      /* @__PURE__ */ jsx("div", { className: "canvas2-slides-panel-body", children: open.content }),
+      open.id === "brand" && onImportTheme && /* @__PURE__ */ jsxs("footer", { className: "canvas2-slides-panel-foot", children: [
+        /* @__PURE__ */ jsx("button", { type: "button", className: "canvas2-slides-primary", onClick: onImportTheme, children: L.importTheme }),
+        /* @__PURE__ */ jsx("span", { children: L.importThemeHint })
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxs("nav", { className: "canvas2-slides-rail", "aria-label": L.panels, children: [
+      rail.map((panel) => /* @__PURE__ */ jsxs(
+        "button",
+        {
+          type: "button",
+          "aria-pressed": openPanel === panel.id,
+          onClick: () => onOpenPanel(openPanel === panel.id ? null : panel.id),
+          children: [
+            RAIL_ORDER.includes(panel.id) ? panelIcon(panel.id) : panel.icon ?? panelIcon(panel.id),
+            /* @__PURE__ */ jsx("span", { children: panel.id === "brand" ? labels.workspace.brand : panel.title })
+          ]
+        },
+        panel.id
+      )),
+      onDetails && /* @__PURE__ */ jsxs("button", { type: "button", className: "canvas2-slides-rail-end", "aria-pressed": detailsOpen ?? void 0, onClick: onDetails, children: [
+        /* @__PURE__ */ jsx(SlidesIcon.details, {}),
+        /* @__PURE__ */ jsx("span", { children: L.details })
+      ] })
+    ] })
+  ] });
+}
+function TransitionPanel({ api, pageId, labels }) {
+  const L = labels.slides;
+  const [value, setValue] = useState(() => pageId ? getPageTransition(api, pageId) : "none");
+  useEffect(() => {
+    if (!pageId) return;
+    let lastElements = null;
+    const read = () => {
+      const elements = api.getSceneElements();
+      if (elements === lastElements) return;
+      lastElements = elements;
+      setValue(getPageTransition(api, pageId));
+    };
+    read();
+    return api.onChange(read);
+  }, [api, pageId]);
+  const names = { none: L.transitionNone, fade: L.transitionFade };
+  return /* @__PURE__ */ jsxs("div", { className: "canvas2-slides-transition", children: [
+    /* @__PURE__ */ jsx("div", { role: "radiogroup", "aria-label": L.transition, children: SLIDE_TRANSITIONS.map((t) => /* @__PURE__ */ jsxs("label", { className: "canvas2-slides-radio", children: [
+      /* @__PURE__ */ jsx(
+        "input",
+        {
+          type: "radio",
+          name: "canvas2-slide-transition",
+          checked: value === t,
+          disabled: !pageId,
+          onChange: () => {
+            if (pageId) setPageTransition(api, pageId, t);
+          }
+        }
+      ),
+      /* @__PURE__ */ jsx("span", { children: names[t] })
+    ] }, t)) }),
+    /* @__PURE__ */ jsx("button", { type: "button", className: "canvas2-slides-secondary", onClick: () => setPageTransition(api, null, value), children: L.transitionApplyAll })
+  ] });
+}
+function SlidesGrid({ slides, activeId, thumbs, labels, onOpen, onSelect, onContextMenu, onBack }) {
+  const L = labels.slides;
+  const ref = useRef(null);
+  useEffect(() => {
+    var _a, _b;
+    (_b = (_a = ref.current) == null ? void 0 : _a.querySelector('[aria-current="true"]')) == null ? void 0 : _b.focus({ preventScroll: false });
+  }, []);
+  return /* @__PURE__ */ jsxs(
+    "div",
+    {
+      ref,
+      className: "canvas2-slides-grid",
+      role: "region",
+      "aria-label": L.gridView,
+      onKeyDown: (e) => {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          e.stopPropagation();
+          onBack();
+        }
+      },
+      children: [
+        /* @__PURE__ */ jsxs("div", { className: "canvas2-slides-grid-head", children: [
+          /* @__PURE__ */ jsx("h2", { children: L.slideCount(slides.length) }),
+          /* @__PURE__ */ jsx("button", { type: "button", className: "canvas2-slides-secondary", onClick: onBack, children: L.backToSlide })
+        ] }),
+        /* @__PURE__ */ jsx("ol", { className: "canvas2-slides-grid-list", children: slides.map((slide, i) => /* @__PURE__ */ jsxs("li", { children: [
+          /* @__PURE__ */ jsxs(
+            "button",
+            {
+              type: "button",
+              className: "canvas2-slides-thumb",
+              "aria-label": slide.skipped ? `${L.slideN(i + 1)} · ${L.skipped}` : L.slideN(i + 1),
+              "aria-current": slide.id === activeId ? "true" : void 0,
+              "data-skipped": slide.skipped ? "" : void 0,
+              style: { aspectRatio: `${slide.width} / ${slide.height}` },
+              onClick: () => onSelect(slide.id),
+              onDoubleClick: () => onOpen(slide.id),
+              onKeyDown: (e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  onOpen(slide.id);
+                }
+              },
+              onContextMenu: (e) => {
+                e.preventDefault();
+                onSelect(slide.id);
+                onContextMenu(slide.id, { x: e.clientX, y: e.clientY });
+              },
+              children: [
+                thumbs[slide.id] ? /* @__PURE__ */ jsx("img", { src: thumbs[slide.id], alt: "", draggable: false }) : null,
+                slide.skipped && /* @__PURE__ */ jsx("span", { className: "canvas2-slides-thumb-skip", children: /* @__PURE__ */ jsx(SlidesIcon.eyeOff, {}) })
+              ]
+            }
+          ),
+          /* @__PURE__ */ jsx("span", { className: "canvas2-slides-grid-number", children: i + 1 })
+        ] }, slide.id)) })
+      ]
+    }
+  );
+}
+function SpeakerNotes({ api, pageId, label, placeholder, readOnly, style }) {
+  const [text, setText] = useState(() => pageId ? getPageNotes(api, pageId) : "");
+  const focused = useRef(false);
+  const dirty = useRef(null);
+  const flush = () => {
+    const pending = dirty.current;
+    dirty.current = null;
+    if (pending) setPageNotes(api, pending.pageId, pending.text);
+  };
+  useEffect(() => {
+    flush();
+    setText(pageId ? getPageNotes(api, pageId) : "");
+  }, [api, pageId]);
+  useEffect(() => {
+    if (!pageId) return;
+    let lastElements = api.getSceneElements();
+    return api.onChange(() => {
+      const elements = api.getSceneElements();
+      if (focused.current || elements === lastElements) return;
+      lastElements = elements;
+      const live = getPageNotes(api, pageId);
+      setText((current) => current === live ? current : live);
+    });
+  }, [api, pageId]);
+  useEffect(() => () => flush(), []);
+  return /* @__PURE__ */ jsxs("label", { className: "canvas2-slides-notes", style, children: [
+    /* @__PURE__ */ jsx("span", { className: "canvas2-slides-visually-hidden", children: label }),
+    /* @__PURE__ */ jsx(
+      "textarea",
+      {
+        value: text,
+        placeholder: readOnly ? "" : placeholder,
+        readOnly: readOnly || !pageId,
+        onFocus: () => {
+          focused.current = true;
+        },
+        onBlur: () => {
+          focused.current = false;
+          flush();
+        },
+        onChange: (e) => {
+          setText(e.target.value);
+          if (pageId) dirty.current = { pageId, text: e.target.value };
+        },
+        onKeyDown: (e) => {
+          if (e.key === "Escape") e.currentTarget.blur();
+        }
+      }
+    )
+  ] });
+}
+const IDLE_MS = 2500;
+function PresentMode({ api, slides, startId, labels, onExit, presenter: presenterAtStart }) {
+  const L = labels.slides;
+  const shown = useMemo(() => slides.filter((s) => !s.skipped), [slides]);
+  const [index, setIndex] = useState(() => {
+    const from = Math.max(0, slides.findIndex((s) => s.id === startId));
+    const next = slides.slice(from).find((s) => !s.skipped) ?? null;
+    const at = next ? shown.indexOf(next) : -1;
+    return at >= 0 ? at : 0;
+  });
+  const [svgs, setSvgs] = useState({});
+  const [idle, setIdle] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
+  const [presenterWin, setPresenterWin] = useState(null);
+  const [blocked, setBlocked] = useState(false);
+  const [startedAt] = useState(() => Date.now());
+  const rootRef = useRef(null);
+  const idleTimer = useRef(void 0);
+  const wasFull = useRef(false);
+  const current = shown[index] ?? null;
+  const nextSlide = shown[index + 1] ?? null;
+  const total = shown.length;
+  const requested = useRef(/* @__PURE__ */ new Set());
+  const render = useCallback(async (id) => {
+    if (requested.current.has(id)) return;
+    requested.current.add(id);
+    try {
+      const svg = await exportSceneSvg(api, { pageId: id });
+      svg.setAttribute("width", "100%");
+      svg.setAttribute("height", "100%");
+      svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+      const markup = new XMLSerializer().serializeToString(svg);
+      setSvgs((m) => m[id] ? m : { ...m, [id]: markup });
+    } catch (err) {
+      requested.current.delete(id);
+      console.error("[canvas2] presentar: no se pudo pintar la diapositiva", err);
+    }
+  }, [api]);
+  useEffect(() => {
+    if (current) void render(current.id);
+    if (nextSlide) void render(nextSlide.id);
+  }, [current == null ? void 0 : current.id, nextSlide == null ? void 0 : nextSlide.id, render]);
+  const presenterRef = useRef(null);
+  presenterRef.current = presenterWin;
+  const exited = useRef(false);
+  const exit = useCallback(() => {
+    var _a, _b;
+    if (exited.current) return;
+    exited.current = true;
+    if (document.fullscreenElement) void document.exitFullscreen().catch(() => {
+    });
+    (_a = presenterRef.current) == null ? void 0 : _a.close();
+    onExit((current == null ? void 0 : current.id) ?? null);
+    if ((_b = opener.current) == null ? void 0 : _b.isConnected) opener.current.focus({ preventScroll: true });
+  }, [onExit, current == null ? void 0 : current.id]);
+  const exitRef = useRef(exit);
+  exitRef.current = exit;
+  const go = useCallback((step) => {
+    setIndex((i) => Math.min(total, Math.max(0, i + step)));
+  }, [total]);
+  const opener = useRef(typeof document !== "undefined" ? document.activeElement : null);
+  useEffect(() => {
+    var _a;
+    if (presenterAtStart) openPresenter();
+    const el = rootRef.current;
+    (_a = el == null ? void 0 : el.requestFullscreen) == null ? void 0 : _a.call(el).catch(() => {
+    });
+    el == null ? void 0 : el.focus();
+    const onChange = () => {
+      if (!document.fullscreenElement && wasFull.current) exitRef.current();
+      wasFull.current = Boolean(document.fullscreenElement);
+    };
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+  useEffect(() => {
+    const onKey = (e) => {
+      const k = e.key;
+      e.stopPropagation();
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const target = e.target;
+      if ((k === "Enter" || k === " ") && (target == null ? void 0 : target.closest(".canvas2-slides-present-bar, button[data-presenter]"))) return;
+      if (["ArrowRight", "ArrowDown", "PageDown", " ", "Enter", "n", "N"].includes(k)) go(1);
+      else if (["ArrowLeft", "ArrowUp", "PageUp", "Backspace", "p", "P"].includes(k)) go(-1);
+      else if (k === "Home") setIndex(0);
+      else if (k === "End") setIndex(Math.max(0, total - 1));
+      else if (k === "Escape") exit();
+      else if (k === "s" || k === "S") setShowNotes((v) => !v);
+      else return;
+      e.preventDefault();
+    };
+    window.addEventListener("keydown", onKey, true);
+    presenterWin == null ? void 0 : presenterWin.addEventListener("keydown", onKey, true);
+    return () => {
+      window.removeEventListener("keydown", onKey, true);
+      presenterWin == null ? void 0 : presenterWin.removeEventListener("keydown", onKey, true);
+    };
+  }, [go, exit, total, presenterWin]);
+  const wake = () => {
+    setIdle(false);
+    clearTimeout(idleTimer.current);
+    idleTimer.current = setTimeout(() => setIdle(true), IDLE_MS);
+  };
+  useEffect(() => {
+    wake();
+    return () => clearTimeout(idleTimer.current);
+  }, []);
+  const openPresenter = () => {
+    if (presenterWin && !presenterWin.closed) {
+      presenterWin.focus();
+      return;
+    }
+    const win = window.open("", "canvas2-presenter", "width=1100,height=720");
+    if (!win) {
+      setBlocked(true);
+      return;
+    }
+    win.document.title = L.presenterView;
+    win.document.body.style.margin = "0";
+    for (const sheet of document.querySelectorAll('style, link[rel="stylesheet"]')) {
+      win.document.head.appendChild(sheet.cloneNode(true));
+    }
+    win.addEventListener("beforeunload", () => setPresenterWin(null));
+    setPresenterWin(win);
+  };
+  useEffect(() => () => {
+    var _a;
+    return (_a = presenterRef.current) == null ? void 0 : _a.close();
+  }, []);
+  const transition = current ? getPageTransition(api, current.id) : "none";
+  const notes = current ? getPageNotes(api, current.id) : "";
+  const finished = index >= total;
+  return createPortal(
+    /* @__PURE__ */ jsxs(
+      "div",
+      {
+        ref: rootRef,
+        className: "canvas2-slides-present",
+        tabIndex: -1,
+        role: "dialog",
+        "aria-modal": "true",
+        "aria-label": L.presenting,
+        "data-idle": idle ? "" : void 0,
+        onPointerMove: wake,
+        children: [
+          finished ? /* @__PURE__ */ jsx("button", { type: "button", className: "canvas2-slides-present-end", onClick: exit, children: L.presenterEnd }) : /* @__PURE__ */ jsx("button", { type: "button", className: "canvas2-slides-present-stage", "aria-label": L.next, onClick: () => go(1), children: current && svgs[current.id] ? /* @__PURE__ */ jsx(
+            "span",
+            {
+              className: "canvas2-slides-present-slide",
+              "data-transition": transition,
+              dangerouslySetInnerHTML: { __html: svgs[current.id] }
+            },
+            current.id
+          ) : null }),
+          /* @__PURE__ */ jsx("span", { className: "canvas2-slides-present-hint", "aria-hidden": "true", children: L.escToExit }),
+          showNotes && !finished && /* @__PURE__ */ jsxs("div", { className: "canvas2-slides-present-notes", children: [
+            /* @__PURE__ */ jsxs("span", { children: [
+              L.notes,
+              " · ",
+              L.slideN(index + 1)
+            ] }),
+            /* @__PURE__ */ jsx("p", { children: notes })
+          ] }),
+          blocked && /* @__PURE__ */ jsx("p", { className: "canvas2-slides-present-blocked", role: "alert", children: L.presenterBlocked }),
+          /* @__PURE__ */ jsxs("div", { className: "canvas2-slides-present-bar", role: "toolbar", "aria-label": L.presenting, children: [
+            /* @__PURE__ */ jsx("button", { type: "button", "aria-label": L.previous, title: L.previous, onClick: () => go(-1), disabled: index === 0, children: /* @__PURE__ */ jsx(SlidesIcon.chevronLeft, {}) }),
+            /* @__PURE__ */ jsx("span", { className: "canvas2-slides-present-count", children: L.counter(Math.min(index + 1, total), total) }),
+            /* @__PURE__ */ jsx("button", { type: "button", "aria-label": L.next, title: L.next, onClick: () => go(1), disabled: finished, children: /* @__PURE__ */ jsx(SlidesIcon.chevronRight, {}) }),
+            /* @__PURE__ */ jsx("span", { className: "canvas2-slides-present-sep", "aria-hidden": "true" }),
+            /* @__PURE__ */ jsxs("button", { type: "button", "aria-pressed": showNotes, onClick: () => setShowNotes((v) => !v), children: [
+              /* @__PURE__ */ jsx(SlidesIcon.notes, {}),
+              /* @__PURE__ */ jsx("span", { children: L.notes })
+            ] }),
+            /* @__PURE__ */ jsxs("button", { type: "button", "aria-pressed": Boolean(presenterWin), onClick: openPresenter, children: [
+              /* @__PURE__ */ jsx(SlidesIcon.presenter, {}),
+              /* @__PURE__ */ jsx("span", { children: L.presenterView })
+            ] }),
+            /* @__PURE__ */ jsx("span", { className: "canvas2-slides-present-sep", "aria-hidden": "true" }),
+            /* @__PURE__ */ jsxs("button", { type: "button", onClick: exit, children: [
+              /* @__PURE__ */ jsx(SlidesIcon.close, {}),
+              /* @__PURE__ */ jsx("span", { children: L.exit })
+            ] })
+          ] }),
+          presenterWin && createPortal(
+            /* @__PURE__ */ jsx(
+              PresenterView,
+              {
+                labels,
+                index,
+                total,
+                startedAt,
+                currentSvg: current ? svgs[current.id] : void 0,
+                nextSvg: nextSlide ? svgs[nextSlide.id] : void 0,
+                notes,
+                onPrev: () => go(-1),
+                onNext: () => go(1)
+              }
+            ),
+            presenterWin.document.body
+          )
+        ]
+      }
+    ),
+    document.body
+  );
+}
+function PresenterView({ labels, index, total, startedAt, currentSvg, nextSvg, notes, onPrev, onNext }) {
+  const L = labels.slides;
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1e3);
+    return () => clearInterval(t);
+  }, []);
+  const secs = Math.floor((now - startedAt) / 1e3);
+  const clock = `${String(Math.floor(secs / 60)).padStart(2, "0")}:${String(secs % 60).padStart(2, "0")}`;
+  const ink = "#f7f4ed";
+  const box = { background: "#000", borderRadius: 3, overflow: "hidden", aspectRatio: "16 / 9" };
+  const btn = {
+    height: 36,
+    padding: "0 14px",
+    border: 0,
+    borderRadius: 8,
+    background: "#3a3833",
+    color: ink,
+    font: "500 14px system-ui, sans-serif",
+    cursor: "pointer"
+  };
+  return /* @__PURE__ */ jsxs("div", { style: {
+    boxSizing: "border-box",
+    minHeight: "100vh",
+    padding: 24,
+    background: "#1c1b19",
+    color: ink,
+    font: "400 14px system-ui, sans-serif",
+    display: "grid",
+    gridTemplateColumns: "2fr 1fr",
+    gap: 20
+  }, children: [
+    /* @__PURE__ */ jsxs("div", { style: { display: "flex", flexDirection: "column", gap: 12 }, children: [
+      /* @__PURE__ */ jsx("div", { style: box, dangerouslySetInnerHTML: currentSvg ? { __html: currentSvg } : void 0 }),
+      /* @__PURE__ */ jsxs("div", { style: { display: "flex", alignItems: "center", gap: 8 }, children: [
+        /* @__PURE__ */ jsx("button", { type: "button", "data-presenter": "", style: btn, onClick: onPrev, children: L.previous }),
+        /* @__PURE__ */ jsx("span", { style: { minWidth: 64, textAlign: "center" }, children: L.counter(Math.min(index + 1, total), total) }),
+        /* @__PURE__ */ jsx("button", { type: "button", "data-presenter": "", style: btn, onClick: onNext, children: L.next }),
+        /* @__PURE__ */ jsxs("span", { style: { marginLeft: "auto", fontVariantNumeric: "tabular-nums" }, children: [
+          L.presenterTimer,
+          " ",
+          clock
+        ] })
+      ] }),
+      /* @__PURE__ */ jsxs("div", { style: {
+        flex: 1,
+        background: "#28261f",
+        borderRadius: 12,
+        padding: "16px 20px",
+        whiteSpace: "pre-wrap",
+        fontSize: 18,
+        lineHeight: 1.5,
+        overflow: "auto"
+      }, children: [
+        /* @__PURE__ */ jsx("div", { style: { fontSize: 12, letterSpacing: ".06em", textTransform: "uppercase", color: "#a39e96", marginBottom: 8 }, children: L.notes }),
+        notes
+      ] })
+    ] }),
+    /* @__PURE__ */ jsxs("div", { style: { display: "flex", flexDirection: "column", gap: 8 }, children: [
+      /* @__PURE__ */ jsx("span", { style: { fontSize: 12, letterSpacing: ".06em", textTransform: "uppercase", color: "#a39e96" }, children: L.presenterNext }),
+      nextSvg ? /* @__PURE__ */ jsx("div", { style: box, dangerouslySetInnerHTML: { __html: nextSvg } }) : /* @__PURE__ */ jsx("div", { style: { ...box, display: "grid", placeItems: "center", color: "#a39e96" }, children: L.presenterEnd })
+    ] })
+  ] });
+}
+function PresentButton({ labels, shortcut, onPresent }) {
+  const L = labels.slides;
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const close = useCallback(() => setOpen(false), []);
+  const within = useCallback(() => ref.current, []);
+  return /* @__PURE__ */ jsxs("div", { ref, className: "canvas2-slides-present-btn", children: [
+    /* @__PURE__ */ jsxs(
+      "button",
+      {
+        type: "button",
+        className: "canvas2-slides-present-main",
+        title: `${L.present} (${shortcut})`,
+        onClick: () => onPresent({ fromStart: false, presenter: false }),
+        children: [
+          /* @__PURE__ */ jsx(SlidesIcon.play, {}),
+          /* @__PURE__ */ jsx("span", { children: L.present })
+        ]
+      }
+    ),
+    /* @__PURE__ */ jsx("span", { className: "canvas2-slides-present-split", "aria-hidden": "true" }),
+    /* @__PURE__ */ jsx(
+      "button",
+      {
+        type: "button",
+        className: "canvas2-slides-present-caret",
+        "aria-label": L.presentOptions,
+        "aria-haspopup": "menu",
+        "aria-expanded": open,
+        onClick: () => setOpen((v) => !v),
+        children: /* @__PURE__ */ jsx(SlidesIcon.caret, {})
+      }
+    ),
+    open && /* @__PURE__ */ jsx(
+      SlidesMenu,
+      {
+        label: L.presentOptions,
+        onClose: close,
+        keepOpenWithin: within,
+        style: { position: "absolute", top: 34, right: 0 },
+        items: [
+          { label: L.present, icon: /* @__PURE__ */ jsx(SlidesIcon.play, {}), shortcut, onSelect: () => onPresent({ fromStart: false, presenter: false }) },
+          { label: L.presentFromStart, onSelect: () => onPresent({ fromStart: true, presenter: false }) },
+          { label: L.presenterView, icon: /* @__PURE__ */ jsx(SlidesIcon.presenter, {}), onSelect: () => onPresent({ fromStart: false, presenter: true }) }
+        ]
+      }
+    )
+  ] });
+}
+function SlideMask({ api, rootRef, activePageId, stage, limits }) {
+  const [slide, setSlide] = useState(null);
+  const layer = useRef(null);
+  useEffect(() => {
+    let lastElements = null;
+    let box = activePageId ? pageBox(api, activePageId) : null;
+    const track = (fromChange) => {
+      if (fromChange) {
+        const elements = api.getSceneElements();
+        if (elements !== lastElements) {
+          lastElements = elements;
+          box = activePageId ? pageBox(api, activePageId) : null;
+        }
+      }
+      const next = box ? boxOnScreen(box, currentViewport(api)) : null;
+      setSlide(
+        (prev) => prev && next && Math.abs(prev.left - next.left) < 0.5 && Math.abs(prev.top - next.top) < 0.5 && Math.abs(prev.width - next.width) < 0.5 ? prev : next
+      );
+    };
+    track(true);
+    const offScroll = api.onScrollChange(() => track(false));
+    const offChange = api.onChange(() => track(true));
+    return () => {
+      offScroll();
+      offChange();
+    };
+  }, [api, activePageId]);
+  useEffect(() => {
+    const el = layer.current;
+    if (!el) return;
+    const onWheel = (e) => {
+      var _a, _b;
+      if (!((_b = (_a = e.target) == null ? void 0 : _a.closest) == null ? void 0 : _b.call(_a, ".canvas2-slides-mask"))) return;
+      e.preventDefault();
+      forwardWheel(rootRef.current, e);
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [rootRef]);
+  const bands = slide ? maskBands(stage, slide, limits) : [];
+  return /* @__PURE__ */ jsx("div", { ref: layer, className: "canvas2-slides-mask-layer", "aria-hidden": "true", children: bands.map((band, i) => /* @__PURE__ */ jsx(
+    "div",
+    {
+      className: "canvas2-slides-mask",
+      style: band,
+      onPointerDown: () => api.updateScene({ appState: { selectedElementIds: {} }, captureUpdate: CaptureUpdateAction.NEVER })
+    },
+    i
+  )) });
+}
+function maskBands(stage, slide, limits) {
+  const right = stage.left + stage.width;
+  const bottom = stage.top + stage.height;
+  const sTop = Math.max(stage.top, slide.top);
+  const sBottom = Math.min(bottom, slide.top + slide.height);
+  const sLeft = Math.max(stage.left, slide.left);
+  const sRight = Math.min(right, slide.left + slide.width);
+  const bands = [
+    // Arriba y abajo, a lo ancho del hueco: desde las barras hasta el borde
+    // del editor (las notas van encima de la de abajo).
+    { left: stage.left, top: limits.top, width: stage.width, height: Math.max(0, sTop - limits.top) },
+    { left: stage.left, top: sBottom, width: stage.width, height: Math.max(0, limits.bottom - sBottom) },
+    // Izquierda y derecha, a la altura de la diapositiva.
+    { left: stage.left, top: sTop, width: Math.max(0, sLeft - stage.left), height: Math.max(0, sBottom - sTop) },
+    { left: sRight, top: sTop, width: Math.max(0, right - sRight), height: Math.max(0, sBottom - sTop) }
+  ];
+  return bands.filter((b) => b.width > 0 && b.height > 0);
+}
+function forwardWheel(root, e) {
+  var _a;
+  const target = (root == null ? void 0 : root.querySelector(".excalidraw__canvas.interactive")) ?? (root == null ? void 0 : root.querySelector("canvas"));
+  if (!target) return;
+  const View = ((_a = target.ownerDocument.defaultView) == null ? void 0 : _a.WheelEvent) ?? WheelEvent;
+  target.dispatchEvent(new View("wheel", e));
+}
+const CONTROL_KEYS = /* @__PURE__ */ new Set([
+  "Enter",
+  " ",
+  "Spacebar",
+  "Escape",
+  "Tab",
+  "ArrowLeft",
+  "ArrowRight",
+  "ArrowUp",
+  "ArrowDown",
+  "Delete",
+  "Backspace",
+  "Home",
+  "End",
+  "PageUp",
+  "PageDown"
+]);
+const MODIFIERS = /* @__PURE__ */ new Set(["Shift", "Control", "Alt", "Meta", "AltGraph", "CapsLock"]);
+function isTypingTarget(target) {
+  if (!(target instanceof Element)) return false;
+  const tag = target.tagName;
+  if (tag === "TEXTAREA" || tag === "SELECT") return true;
+  if (tag === "INPUT") {
+    const type = target.type;
+    return !["button", "checkbox", "radio", "range", "color", "submit", "reset", "file", "image"].includes(type);
+  }
+  return target.isContentEditable === true;
+}
+function shouldForwardKey(event, canvas, scope) {
+  if (!canvas || event.defaultPrevented || event.isComposing) return false;
+  if (MODIFIERS.has(event.key)) return false;
+  if (event.key === "PageUp" || event.key === "PageDown") return false;
+  const target = event.target;
+  const doc = canvas.ownerDocument;
+  const nowhere = target === doc.body || target === doc.documentElement || target === doc || target === doc.defaultView;
+  if (!nowhere) {
+    if (!(target instanceof Node)) return false;
+    if (canvas.contains(target)) return false;
+    if (!scope || !scope.contains(target)) return false;
+  }
+  if (isTypingTarget(target)) return false;
+  if (event.key === "Tab") return false;
+  if (!nowhere && CONTROL_KEYS.has(event.key) && !event.ctrlKey && !event.metaKey) return false;
+  return true;
+}
+function forwardKey(event, canvas) {
+  var _a;
+  const doc = canvas.ownerDocument;
+  const View = ((_a = doc.defaultView) == null ? void 0 : _a.KeyboardEvent) ?? KeyboardEvent;
+  const copy = new View("keydown", {
+    key: event.key,
+    code: event.code,
+    location: event.location,
+    repeat: event.repeat,
+    ctrlKey: event.ctrlKey,
+    shiftKey: event.shiftKey,
+    altKey: event.altKey,
+    metaKey: event.metaKey,
+    bubbles: true,
+    cancelable: true
+  });
+  canvas.focus({ preventScroll: true });
+  const body = doc.body;
+  const stop = (e) => {
+    if (e === copy) e.stopImmediatePropagation();
+  };
+  body == null ? void 0 : body.addEventListener("keydown", stop);
+  try {
+    canvas.dispatchEvent(copy);
+  } finally {
+    body == null ? void 0 : body.removeEventListener("keydown", stop);
+  }
+  if (copy.defaultPrevented) event.preventDefault();
+}
+function installKeyRouting(win, getCanvas, getScope) {
+  const onKey = (event) => {
+    const canvas = getCanvas();
+    if (!canvas || !shouldForwardKey(event, canvas, getScope())) return;
+    forwardKey(event, canvas);
+  };
+  win.addEventListener("keydown", onKey);
+  return () => win.removeEventListener("keydown", onKey);
+}
+function newSlide(api, afterId, size, names, activate) {
+  const id = addPage(api, size, { ...afterId ? { afterPageId: afterId } : {}, names });
+  activate(id);
+}
+function duplicateSlide(api, id, names, activate) {
+  const copy = duplicatePage(api, id, names);
+  if (copy) activate(copy);
+}
+function deleteSlide(api, id, activate) {
+  const before = listPages(api);
+  if (before.length < 2) return;
+  const index = before.findIndex((p) => p.id === id);
+  if (!deletePage(api, id)) return;
+  const after = listPages(api);
+  const next = after[Math.min(Math.max(0, index), after.length - 1)];
+  if (next) activate(next.id);
+}
+function moveSlide(api, id, where) {
+  if (where === "up" || where === "down") {
+    movePage(api, id, where === "up" ? -1 : 1);
+    return;
+  }
+  const count = listPages(api).length;
+  movePageTo(api, id, where === "start" ? 0 : count - 1);
+}
+function toggleSkip(api, id) {
+  setPageSkipped(api, id, !isPageSkipped(api, id));
+}
+function resizeAllSlides(api, size) {
+  const ids = listPages(api).filter((page) => page.width !== size.width || page.height !== size.height).map((page) => page.id);
+  if (ids.length) resizePages(api, ids, size);
+}
+function selectAllInSlide(api, pageId) {
+  if (!pageId) return;
+  const ids = api.getSceneElements().filter((e) => e.frameId === pageId && !e.locked && !isPageBackground(e)).map((e) => [e.id, true]);
+  api.updateScene({
+    appState: { selectedElementIds: Object.fromEntries(ids), selectedGroupIds: {} },
+    captureUpdate: CaptureUpdateAction.NEVER
+  });
+}
+function canDeleteSlide(pages) {
+  return pages.length > 1;
+}
+function sendCanvasKey(root, key, mods = {}, code) {
+  var _a;
+  const canvas = root == null ? void 0 : root.querySelector(".excalidraw");
+  if (!canvas) return;
+  const isMac2 = IS_MAC;
+  const View = ((_a = canvas.ownerDocument.defaultView) == null ? void 0 : _a.KeyboardEvent) ?? KeyboardEvent;
+  const event = new View("keydown", {
+    key,
+    code: code ?? (key.length === 1 && /[a-z]/i.test(key) ? `Key${key.toUpperCase()}` : key),
+    ctrlKey: Boolean(mods.ctrl) && !isMac2,
+    metaKey: Boolean(mods.ctrl) && isMac2,
+    shiftKey: Boolean(mods.shift),
+    altKey: Boolean(mods.alt),
+    bubbles: true,
+    cancelable: true
+  });
+  forwardKey(event, canvas);
+}
+const IS_MAC = typeof navigator !== "undefined" && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+const CANVAS_KEYS = {
+  undo: ["z", { ctrl: true }],
+  redo: ["z", { ctrl: true, shift: true }],
+  duplicate: ["d", { ctrl: true }],
+  delete: ["Delete", {}],
+  group: ["g", { ctrl: true }],
+  ungroup: ["g", { ctrl: true, shift: true }],
+  bringToFront: ["]", IS_MAC ? { ctrl: true, alt: true } : { ctrl: true, shift: true }],
+  bringForward: ["]", { ctrl: true }],
+  sendBackward: ["[", { ctrl: true }],
+  sendToBack: ["[", IS_MAC ? { ctrl: true, alt: true } : { ctrl: true, shift: true }],
+  zoomIn: ["=", { ctrl: true }],
+  zoomOut: ["-", { ctrl: true }]
+};
+const KEY_CODES = { "]": "BracketRight", "[": "BracketLeft", "=": "Equal", "-": "Minus" };
+function runCanvasKey(root, name) {
+  const [key, mods] = CANVAS_KEYS[name];
+  sendCanvasKey(root, key, mods, KEY_CODES[key]);
+}
+function shortcutLabel(name, words) {
+  const ctrl = IS_MAC ? "⌘" : "Ctrl+";
+  const shift = IS_MAC ? "⇧" : `${words.shift}+`;
+  const alt = IS_MAC ? "⌥" : "Alt+";
+  if (name === "newSlide") return `${ctrl}M`;
+  if (name === "selectAll") return `${ctrl}A`;
+  if (name === "present") return `${ctrl}${IS_MAC ? "↩" : words.enter}`;
+  if (name === "moveUp") return `${ctrl}${shift}↑`;
+  if (name === "moveDown") return `${ctrl}${shift}↓`;
+  const [key, mods] = CANVAS_KEYS[name];
+  const shown = key === "Delete" ? words.del : key.length === 1 ? key.toUpperCase() : key;
+  return `${mods.ctrl ? ctrl : ""}${mods.alt ? alt : ""}${mods.shift ? shift : ""}${shown}`;
+}
+const MENUBAR_H = 34;
+const TOOLBAR_H = 52;
+const FILMSTRIP_W = 224;
+const RAIL_W = 68;
+const PANEL_W = 336;
+const NOTES_H = 96;
+const STAGE_PAD = 16;
+const NO_PROPS_TOOLS = /* @__PURE__ */ new Set(["selection", "hand", "eraser", "laser"]);
+const PILL_INSET = 16 + 8;
+function SlidesWorkspace(props) {
+  const {
+    api,
+    rootRef,
+    activePageId,
+    onActiveChange,
+    panels,
+    labels,
+    pageSize,
+    thumbnailFiles,
+    hydrateFiles,
+    fontFaces,
+    viewMode,
+    workspace,
+    onWorkspaceChange,
+    workspaces,
+    onSaveComponent,
+    host,
+    lang
+  } = props;
+  const L = labels.slides;
+  const deck = useDeck(api, labels.pages);
+  const thumbs = usePageThumbnails(api, { files: thumbnailFiles, width: 336 });
+  const [openPanel, setOpenPanel] = useState(null);
+  const [view, setView] = useState("slide");
+  const [menusHidden, setMenusHidden] = useState(false);
+  const [filmstripHidden, setFilmstripHidden] = useState(false);
+  const [showNotes, setShowNotes] = useState(true);
+  const [presenting, setPresenting] = useState(null);
+  const [ctx, setCtx] = useState(null);
+  const [notice, setNotice] = useState(null);
+  const noticeTimer = useRef(void 0);
+  const busy = useRef(false);
+  const say = useCallback((text, ms = 0) => {
+    clearTimeout(noticeTimer.current);
+    setNotice(text);
+    if (text && ms) noticeTimer.current = setTimeout(() => setNotice(null), ms);
+  }, []);
+  useEffect(() => () => clearTimeout(noticeTimer.current), []);
+  const fileInput = useRef(null);
+  const [size, setSize] = useState({ w: 0, h: 0 });
+  const [fixedWidth, setFixedWidth] = useState(0);
+  const activeIndex = deck.slides.findIndex((s) => s.id === activePageId);
+  const active = deck.slides[activeIndex] ?? null;
+  const lastIndex = useRef(0);
+  if (activeIndex >= 0) lastIndex.current = activeIndex;
+  const activate = useCallback((id) => onActiveChange(id), [onActiveChange]);
+  useEffect(() => {
+    if (!deck.slides.length || activeIndex >= 0) return;
+    if (activePageId && pageBox(api, activePageId)) return;
+    const fallback = deck.slides[Math.min(lastIndex.current, deck.slides.length - 1)];
+    if (fallback) onActiveChange(fallback.id);
+  }, [api, deck.slides, activeIndex, activePageId, onActiveChange]);
+  const newSize = active ? { width: active.width, height: active.height } : pageSize ?? DEFAULT_PAGE_SIZE;
+  const root = () => rootRef.current;
+  useLayoutEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const measure = () => setSize({ w: el.clientWidth, h: el.clientHeight });
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [rootRef]);
+  const topH = (menusHidden ? 0 : MENUBAR_H) + TOOLBAR_H;
+  const leftW = filmstripHidden ? 0 : FILMSTRIP_W;
+  const rightW = RAIL_W + (openPanel ? PANEL_W : 0);
+  const bottomH = showNotes ? NOTES_H : STAGE_PAD;
+  const stage = useMemo(() => ({
+    left: leftW,
+    top: topH + STAGE_PAD,
+    width: Math.max(0, size.w - leftW - rightW),
+    height: Math.max(0, size.h - topH - STAGE_PAD - bottomH)
+  }), [leftW, topH, rightW, bottomH, size.w, size.h]);
+  const fit = useCallback(() => {
+    if (activePageId && view === "slide") fitPageInRect(api, activePageId, stage);
+  }, [api, activePageId, view, stage]);
+  useEffect(() => {
+    fit();
+  }, [fit, active == null ? void 0 : active.width, active == null ? void 0 : active.height, active == null ? void 0 : active.x, active == null ? void 0 : active.y]);
+  const fitRef = useRef(fit);
+  fitRef.current = fit;
+  const seenIds = useRef(null);
+  useEffect(() => {
+    const ids = deck.slides.map((s) => s.id);
+    const before = seenIds.current;
+    seenIds.current = new Set(ids);
+    if (!(before == null ? void 0 : before.size)) return;
+    const added = ids.filter((id) => !before.has(id));
+    if (!added.length) return;
+    if (!activePageId || !added.includes(activePageId)) onActiveChange(added[0]);
+    const later = setTimeout(() => fitRef.current(), 360);
+    return () => clearTimeout(later);
+  }, [deck.slides]);
+  useEffect(() => {
+    var _a;
+    const el = rootRef.current;
+    if (!el) return;
+    const box = el.getBoundingClientRect();
+    const side = (_a = el.querySelector(".FixedSideContainer_side_top")) == null ? void 0 : _a.getBoundingClientRect();
+    const dx = side ? side.left - box.left : 16;
+    const dy = side ? side.top - box.top : 16;
+    const dr = side ? box.right - side.right : 16;
+    el.style.setProperty("--slides-props-top", `${(menusHidden ? 0 : MENUBAR_H) + 4 - dy}px`);
+    el.style.setProperty("--slides-props-left", `${PILL_INSET + fixedWidth - dx}px`);
+    el.style.setProperty("--slides-props-right", `${PILL_INSET + 40 - dr}px`);
+    el.style.setProperty("--slides-top", `${topH}px`);
+    el.style.setProperty("--slides-left", `${leftW}px`);
+    el.style.setProperty("--slides-right", `${rightW}px`);
+    el.style.setProperty("--slides-bottom", `${bottomH}px`);
+    return () => {
+      for (const p of [
+        "--slides-props-top",
+        "--slides-props-left",
+        "--slides-props-right",
+        "--slides-top",
+        "--slides-left",
+        "--slides-right",
+        "--slides-bottom"
+      ]) {
+        el.style.removeProperty(p);
+      }
+    };
+  }, [rootRef, menusHidden, fixedWidth, size.w, topH, leftW, rightW, bottomH]);
+  const setTool = (tool) => api.setActiveTool({ type: tool });
+  const togglePanel = (id) => setOpenPanel((p) => p === id ? null : id);
+  const has = (id) => panels.some((p) => p.id === id);
+  const fitZoom = () => {
+    setView("slide");
+    fit();
+  };
+  const zoomTo = (z) => {
+    const s = currentViewport(api);
+    const cx = stage.left + stage.width / 2;
+    const cy = stage.top + stage.height / 2;
+    const sceneX = cx / s.zoom - s.scrollX;
+    const sceneY = cy / s.zoom - s.scrollY;
+    api.updateScene({
+      appState: { zoom: { value: z }, scrollX: cx / z - sceneX, scrollY: cy / z - sceneY },
+      captureUpdate: CaptureUpdateAction.NEVER
+    });
+  };
+  const doExport = async (kind) => {
+    if (busy.current) return;
+    busy.current = true;
+    say(labels.menu.exporting);
+    try {
+      await runCanvasExport(api, kind, {
+        activePageId,
+        hydrateFiles,
+        fontFaces,
+        fallbackName: labels.menu.exportName,
+        pageNames: labels.pages,
+        title: host == null ? void 0 : host.title,
+        lang
+      });
+      say(null);
+    } catch (err) {
+      console.error("[canvas2] export failed", err);
+      say(labels.menu.exportFailed, 4e3);
+    } finally {
+      busy.current = false;
+    }
+  };
+  const doImport = async (file) => {
+    const importer = host == null ? void 0 : host.importSlides;
+    if (!importer || busy.current) return;
+    busy.current = true;
+    say(L.importing);
+    try {
+      const pages = await importer.load(file);
+      if (!pages) {
+        say(null);
+        return;
+      }
+      const ids = insertPagesIntoScene(api, pages, { afterPageId: activePageId });
+      if (ids[0]) onActiveChange(ids[0]);
+      say(L.imported(ids.length), 4e3);
+    } catch (err) {
+      console.error("[canvas2] import failed", err);
+      say(L.importFailed, 6e3);
+    } finally {
+      busy.current = false;
+    }
+  };
+  const present = (fromStart, presenter = false) => {
+    var _a;
+    return setPresenting({ startId: fromStart ? ((_a = deck.slides[0]) == null ? void 0 : _a.id) ?? null : activePageId, presenter });
+  };
+  const keyWords = L.keys;
+  const sizeLabel = (s) => {
+    const preset = PAGE_SIZE_PRESETS.find((p) => p.width === s.width && p.height === s.height);
+    return preset ? labels.sizes[preset.key] ?? preset.label : `${s.width} × ${s.height}`;
+  };
+  const currentSize = active ?? deck.slides[0] ?? null;
+  const sizeItems = PAGE_SIZE_PRESETS.map((p) => ({
+    label: sizeLabel(p),
+    checked: Boolean(currentSize && currentSize.width === p.width && currentSize.height === p.height),
+    onSelect: () => resizeAllSlides(api, { width: p.width, height: p.height })
+  }));
+  const slideItems = (id, withSize) => {
+    const i = deck.slides.findIndex((s) => s.id === id);
+    const slide = deck.slides[i];
+    const panelItem = (panel, label, icon) => panel === "transition" || has(panel) ? [{ label, icon, onSelect: () => {
+      activate(id);
+      setOpenPanel(panel);
+    } }] : [];
+    return [
+      { label: L.newSlide, icon: /* @__PURE__ */ jsx(SlidesIcon.plus, {}), shortcut: shortcutLabel("newSlide", keyWords), onSelect: () => newSlide(api, id, newSize, labels.pages, activate) },
+      { label: L.duplicateSlide, icon: /* @__PURE__ */ jsx(SlidesIcon.duplicate, {}), onSelect: () => duplicateSlide(api, id, labels.pages, activate) },
+      { label: L.deleteSlide, icon: /* @__PURE__ */ jsx(SlidesIcon.trash, {}), disabled: !canDeleteSlide(deck.slides), onSelect: () => deleteSlide(api, id, activate) },
+      { label: (slide == null ? void 0 : slide.skipped) ? L.unskipSlide : L.skipSlide, icon: (slide == null ? void 0 : slide.skipped) ? /* @__PURE__ */ jsx(SlidesIcon.eye, {}) : /* @__PURE__ */ jsx(SlidesIcon.eyeOff, {}), onSelect: () => toggleSkip(api, id) },
+      {
+        kind: "submenu",
+        label: L.moveSlide,
+        icon: /* @__PURE__ */ jsx(SlidesIcon.move, {}),
+        items: [
+          { label: L.moveToStart, icon: /* @__PURE__ */ jsx(SlidesIcon.toStart, {}), disabled: i <= 0, onSelect: () => moveSlide(api, id, "start") },
+          { label: L.moveUp, shortcut: shortcutLabel("moveUp", keyWords), disabled: i <= 0, onSelect: () => moveSlide(api, id, "up") },
+          { label: L.moveDown, shortcut: shortcutLabel("moveDown", keyWords), disabled: i >= deck.slides.length - 1, onSelect: () => moveSlide(api, id, "down") },
+          { label: L.moveToEnd, icon: /* @__PURE__ */ jsx(SlidesIcon.toEnd, {}), disabled: i >= deck.slides.length - 1, onSelect: () => moveSlide(api, id, "end") }
+        ]
+      },
+      { kind: "separator" },
+      ...panelItem("design", L.changeBackground, /* @__PURE__ */ jsx(SlidesIcon.background, {})),
+      ...panelItem("components", L.applyComponent, /* @__PURE__ */ jsx(SlidesIcon.layout, {})),
+      ...panelItem("transition", L.transition, /* @__PURE__ */ jsx(SlidesIcon.transition, {})),
+      ...withSize ? [{ kind: "separator" }, { kind: "submenu", label: L.pageSizeCurrent(currentSize ? sizeLabel(currentSize) : ""), icon: /* @__PURE__ */ jsx(SlidesIcon.size, {}), items: sizeItems }] : [],
+      ...has("brand") ? [{ kind: "separator" }, ...panelItem("brand", L.changeTheme, /* @__PURE__ */ jsx(SlidesIcon.brand, {}))] : []
+    ];
+  };
+  const keyItem = (label, name, extra = {}) => ({
+    label,
+    shortcut: shortcutLabel(name, keyWords),
+    onSelect: () => runCanvasKey(root(), name),
+    ...extra
+  });
+  const workspaceName = (w) => labels.workspace[w] ?? w;
+  const menus = viewMode ? [
+    { id: "file", label: L.file, items: exportItems() },
+    { id: "view", label: L.view, items: viewItems() }
+  ] : [
+    {
+      id: "file",
+      label: L.file,
+      items: [
+        { label: L.newSlide, icon: /* @__PURE__ */ jsx(SlidesIcon.plus, {}), shortcut: shortcutLabel("newSlide", keyWords), onSelect: () => newSlide(api, activePageId, newSize, labels.pages, activate) },
+        ...(host == null ? void 0 : host.importSlides) ? [{ label: L.importSlides, icon: /* @__PURE__ */ jsx(SlidesIcon.upload, {}), onSelect: () => {
+          var _a;
+          return (_a = fileInput.current) == null ? void 0 : _a.click();
+        } }] : [],
+        { kind: "separator" },
+        ...exportItems(),
+        ...onSaveComponent ? [{ kind: "separator" }, { label: labels.components.save, onSelect: onSaveComponent }] : [],
+        { kind: "separator" },
+        { kind: "submenu", label: L.pageSize, icon: /* @__PURE__ */ jsx(SlidesIcon.size, {}), items: sizeItems }
+      ]
+    },
+    {
+      id: "edit",
+      label: L.edit,
+      items: [
+        keyItem(L.undo, "undo", { icon: /* @__PURE__ */ jsx(SlidesIcon.undo, {}) }),
+        keyItem(L.redo, "redo", { icon: /* @__PURE__ */ jsx(SlidesIcon.redo, {}) }),
+        { kind: "separator" },
+        keyItem(L.duplicate, "duplicate", { icon: /* @__PURE__ */ jsx(SlidesIcon.copy, {}), disabled: !deck.hasSelection }),
+        keyItem(L.delete, "delete", { icon: /* @__PURE__ */ jsx(SlidesIcon.trash, {}), disabled: !deck.hasSelection }),
+        { kind: "separator" },
+        { label: L.selectAll, shortcut: shortcutLabel("selectAll", keyWords), onSelect: () => selectAllInSlide(api, activePageId) }
+      ]
+    },
+    { id: "view", label: L.view, items: viewItems() },
+    {
+      id: "insert",
+      label: L.insert,
+      items: [
+        { label: L.textBox, icon: /* @__PURE__ */ jsx(SlidesIcon.text, {}), onSelect: () => setTool("text") },
+        ...has("library") ? [{ label: L.image, icon: /* @__PURE__ */ jsx(SlidesIcon.image, {}), onSelect: () => setOpenPanel("library") }] : [],
+        {
+          kind: "submenu",
+          label: L.shape,
+          icon: /* @__PURE__ */ jsx(SlidesIcon.shape, {}),
+          items: [
+            { label: L.rectangle, icon: /* @__PURE__ */ jsx(SlidesIcon.rectangle, {}), onSelect: () => setTool("rectangle") },
+            { label: L.ellipse, icon: /* @__PURE__ */ jsx(SlidesIcon.ellipse, {}), onSelect: () => setTool("ellipse") },
+            { label: L.diamond, icon: /* @__PURE__ */ jsx(SlidesIcon.diamond, {}), onSelect: () => setTool("diamond") }
+          ]
+        },
+        {
+          kind: "submenu",
+          label: L.line,
+          icon: /* @__PURE__ */ jsx(SlidesIcon.line, {}),
+          items: [
+            { label: L.line, icon: /* @__PURE__ */ jsx(SlidesIcon.line, {}), onSelect: () => setTool("line") },
+            { label: L.arrow, icon: /* @__PURE__ */ jsx(SlidesIcon.arrow, {}), onSelect: () => setTool("arrow") }
+          ]
+        },
+        { kind: "separator" },
+        { label: L.newSlide, icon: /* @__PURE__ */ jsx(SlidesIcon.plus, {}), shortcut: shortcutLabel("newSlide", keyWords), onSelect: () => newSlide(api, activePageId, newSize, labels.pages, activate) },
+        ...has("components") ? [{ label: L.applyComponent, icon: /* @__PURE__ */ jsx(SlidesIcon.layout, {}), onSelect: () => setOpenPanel("components") }] : []
+      ]
+    },
+    {
+      id: "format",
+      label: L.format,
+      items: [
+        ...has("design") ? [{ label: L.changeBackground, icon: /* @__PURE__ */ jsx(SlidesIcon.background, {}), onSelect: () => setOpenPanel("design") }] : [],
+        ...has("brand") ? [{ label: L.changeTheme, icon: /* @__PURE__ */ jsx(SlidesIcon.brand, {}), onSelect: () => setOpenPanel("brand") }] : [],
+        { label: L.transition, icon: /* @__PURE__ */ jsx(SlidesIcon.transition, {}), onSelect: () => setOpenPanel("transition") }
+      ]
+    },
+    { id: "slide", label: L.slide, items: activePageId ? slideItems(activePageId, true) : [] },
+    {
+      id: "arrange",
+      label: L.arrange,
+      items: [
+        {
+          kind: "submenu",
+          label: L.order,
+          disabled: !deck.hasSelection,
+          items: [
+            keyItem(L.bringToFront, "bringToFront"),
+            keyItem(L.bringForward, "bringForward"),
+            keyItem(L.sendBackward, "sendBackward"),
+            keyItem(L.sendToBack, "sendToBack")
+          ]
+        },
+        {
+          kind: "submenu",
+          label: L.align,
+          disabled: !deck.hasSelection || !activePageId,
+          items: PAGE_ALIGNMENTS.map((a) => ({
+            label: labels.align[a.key],
+            onSelect: () => {
+              if (activePageId) alignToPage(api, activePageId, a.key);
+            }
+          }))
+        },
+        { kind: "separator" },
+        keyItem(L.group, "group", { disabled: !deck.hasSelection }),
+        keyItem(L.ungroup, "ungroup", { disabled: !deck.hasSelection })
+      ]
+    }
+  ];
+  function exportItems() {
+    return [{
+      kind: "submenu",
+      label: labels.menu.export,
+      items: [
+        { label: labels.menu.exportPngPage, onSelect: () => void doExport("png") },
+        { label: labels.menu.exportPngAll, onSelect: () => void doExport("png-all") },
+        { label: labels.menu.exportSvg, onSelect: () => void doExport("svg") },
+        { label: labels.menu.exportPdf, onSelect: () => void doExport("pdf") },
+        { kind: "separator" },
+        { label: labels.menu.exportPptx, onSelect: () => void doExport("pptx") },
+        { label: labels.menu.exportPotx, onSelect: () => void doExport("potx") }
+      ]
+    }];
+  }
+  function viewItems() {
+    return [
+      { label: L.present, icon: /* @__PURE__ */ jsx(SlidesIcon.play, {}), shortcut: shortcutLabel("present", keyWords), onSelect: () => present(false) },
+      { label: L.presentFromStart, onSelect: () => present(true) },
+      { label: L.presenterView, icon: /* @__PURE__ */ jsx(SlidesIcon.presenter, {}), onSelect: () => present(false, true) },
+      { kind: "separator" },
+      { label: L.gridView, checked: view === "grid", onSelect: () => setView((v) => v === "grid" ? "slide" : "grid") },
+      { label: L.showNotes, checked: showNotes, onSelect: () => setShowNotes((v) => !v) },
+      { label: L.showFilmstrip, checked: !filmstripHidden, onSelect: () => setFilmstripHidden((v) => !v) },
+      { kind: "separator" },
+      { label: L.zoomFit, onSelect: fitZoom },
+      keyItem(L.zoomIn, "zoomIn"),
+      keyItem(L.zoomOut, "zoomOut"),
+      ...onWorkspaceChange && !viewMode ? [
+        { kind: "separator" },
+        {
+          kind: "submenu",
+          label: L.workspace,
+          items: workspaces.map((w) => ({
+            label: workspaceName(w),
+            checked: w === workspace,
+            onSelect: () => onWorkspaceChange(w)
+          }))
+        }
+      ] : []
+    ];
+  }
+  const shortcuts = useRef({ newSlide: () => {
+  }, selectAll: () => {
+  }, present: () => {
+  }, presenting: false, viewMode: false });
+  shortcuts.current = {
+    newSlide: () => newSlide(api, activePageId, newSize, labels.pages, activate),
+    selectAll: () => selectAllInSlide(api, activePageId),
+    present: (fromStart) => present(fromStart),
+    presenting: Boolean(presenting),
+    viewMode: Boolean(viewMode)
+  };
+  useEffect(() => {
+    const onKey = (e) => {
+      var _a;
+      const now = shortcuts.current;
+      if (now.presenting || e.defaultPrevented) return;
+      const target = e.target;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
+      const scope = (_a = rootRef.current) == null ? void 0 : _a.closest(".canvas2-workspace");
+      if (target && target !== document.body && scope && !scope.contains(target)) return;
+      const ctrl = e.ctrlKey || e.metaKey;
+      const key = e.key.toLowerCase();
+      if (ctrl && !e.altKey && e.key === "Enter") now.present(e.shiftKey);
+      else if (now.viewMode) return;
+      else if (ctrl && !e.shiftKey && !e.altKey && key === "m") now.newSlide();
+      else if (ctrl && !e.shiftKey && !e.altKey && key === "a") now.selectAll();
+      else return;
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [rootRef]);
+  const status = notice ?? void 0;
+  const fitted = active && stage.width > 0 ? boxOnScreen(
+    { x: 0, y: 0, width: active.width, height: active.height },
+    { ...fitBoxInRect({ x: 0, y: 0, width: active.width, height: active.height }, stage), scrollX: 0, scrollY: 0 }
+  ) : null;
+  const notesWidth = Math.round((fitted == null ? void 0 : fitted.width) ?? stage.width * 0.9);
+  return /* @__PURE__ */ jsxs(
+    "div",
+    {
+      className: "canvas2-slides",
+      "data-menus-hidden": menusHidden ? "" : void 0,
+      "data-filmstrip-hidden": filmstripHidden ? "" : void 0,
+      style: {
+        ["--slides-top"]: `${topH}px`,
+        ["--slides-left"]: `${leftW}px`,
+        ["--slides-right"]: `${rightW}px`,
+        // La máscara y la cuadrícula, del color de la mesa que pinta el lienzo.
+        ["--slides-stage"]: api.getAppState().viewBackgroundColor
+      },
+      children: [
+        view === "slide" && /* @__PURE__ */ jsx(
+          SlideMask,
+          {
+            api,
+            rootRef,
+            activePageId,
+            stage,
+            limits: { top: topH, bottom: size.h }
+          }
+        ),
+        (host == null ? void 0 : host.importSlides) && !viewMode && /* @__PURE__ */ jsx(
+          "input",
+          {
+            ref: fileInput,
+            type: "file",
+            hidden: true,
+            accept: host.importSlides.accept,
+            onChange: (e) => {
+              var _a;
+              const file = (_a = e.currentTarget.files) == null ? void 0 : _a[0];
+              e.currentTarget.value = "";
+              if (file) void doImport(file);
+            }
+          }
+        ),
+        !menusHidden && /* @__PURE__ */ jsx(
+          SlidesMenuBar,
+          {
+            title: host == null ? void 0 : host.title,
+            menus,
+            label: L.menubar,
+            status,
+            end: /* @__PURE__ */ jsx(
+              PresentButton,
+              {
+                labels,
+                shortcut: shortcutLabel("present", keyWords),
+                onPresent: ({ fromStart, presenter }) => present(fromStart, presenter)
+              }
+            )
+          }
+        ),
+        /* @__PURE__ */ jsx(
+          SlidesToolbar,
+          {
+            labels,
+            activeTool: deck.activeTool,
+            formatting: deck.hasSelection || !NO_PROPS_TOOLS.has(deck.activeTool),
+            zoom: deck.zoom,
+            openPanel,
+            available: {
+              design: has("design"),
+              components: has("components"),
+              brand: has("brand"),
+              transition: true,
+              library: has("library"),
+              search: typeof api.toggleSidebar === "function",
+              comment: Boolean(host == null ? void 0 : host.onComment)
+            },
+            menusHidden,
+            viewMode,
+            onSearch: () => api.toggleSidebar({ name: "default", tab: "search" }),
+            onNewSlide: () => newSlide(api, activePageId, newSize, labels.pages, activate),
+            onUndo: () => runCanvasKey(root(), "undo"),
+            onRedo: () => runCanvasKey(root(), "redo"),
+            onZoomFit: fitZoom,
+            onZoomTo: zoomTo,
+            onZoomStep: (dir) => runCanvasKey(root(), dir > 0 ? "zoomIn" : "zoomOut"),
+            onTool: setTool,
+            onImage: () => togglePanel("library"),
+            onComment: host == null ? void 0 : host.onComment,
+            onPanel: (panel) => togglePanel(panel),
+            onToggleMenus: () => setMenusHidden((v) => !v),
+            onFixedWidth: setFixedWidth
+          }
+        ),
+        view === "slide" && !filmstripHidden && /* @__PURE__ */ jsx(
+          Filmstrip,
+          {
+            slides: deck.slides,
+            activeId: activePageId,
+            thumbs,
+            labels,
+            viewMode,
+            onSelect: activate,
+            onContextMenu: (id, at) => {
+              var _a;
+              const box = (_a = root()) == null ? void 0 : _a.getBoundingClientRect();
+              setCtx({ id, left: at.x - ((box == null ? void 0 : box.left) ?? 0), top: at.y - ((box == null ? void 0 : box.top) ?? 0) });
+            },
+            onMove: (id, to) => movePageTo(api, id, to),
+            onNewAfter: (id) => newSlide(api, id, newSize, labels.pages, activate),
+            onDuplicate: (id) => duplicateSlide(api, id, labels.pages, activate),
+            onDelete: (id) => deleteSlide(api, id, activate),
+            onMoveBy: (id, where) => moveSlide(api, id, where),
+            onGrid: () => setView("grid"),
+            onCollapse: () => setFilmstripHidden(true)
+          }
+        ),
+        view === "slide" && filmstripHidden && /* @__PURE__ */ jsx(
+          "button",
+          {
+            type: "button",
+            className: "canvas2-slides-icon-btn canvas2-slides-filmstrip-show",
+            "aria-label": L.showFilmstrip,
+            title: L.showFilmstrip,
+            onClick: () => setFilmstripHidden(false),
+            children: /* @__PURE__ */ jsx(SlidesIcon.chevronRight, {})
+          }
+        ),
+        view === "slide" && showNotes && /* @__PURE__ */ jsxs("div", { className: "canvas2-slides-notes-wrap", style: { left: stage.left, width: stage.width, height: NOTES_H }, children: [
+          /* @__PURE__ */ jsx("span", { className: "canvas2-slides-notes-handle", "aria-hidden": "true" }),
+          /* @__PURE__ */ jsx(
+            SpeakerNotes,
+            {
+              api,
+              pageId: activePageId,
+              label: L.notes,
+              placeholder: L.notesPlaceholder,
+              readOnly: viewMode,
+              style: { width: notesWidth }
+            }
+          )
+        ] }),
+        view === "grid" && /* @__PURE__ */ jsx(
+          SlidesGrid,
+          {
+            slides: deck.slides,
+            activeId: activePageId,
+            thumbs,
+            labels,
+            onSelect: activate,
+            onOpen: (id) => {
+              activate(id);
+              setView("slide");
+            },
+            onContextMenu: (id, at) => {
+              var _a;
+              const box = (_a = root()) == null ? void 0 : _a.getBoundingClientRect();
+              setCtx({ id, left: at.x - ((box == null ? void 0 : box.left) ?? 0), top: at.y - ((box == null ? void 0 : box.top) ?? 0) });
+            },
+            onBack: () => setView("slide")
+          }
+        ),
+        /* @__PURE__ */ jsx(
+          SlidesPanels,
+          {
+            api,
+            activePageId,
+            panels,
+            openPanel,
+            onOpenPanel: setOpenPanel,
+            labels,
+            onDetails: host == null ? void 0 : host.onDetails,
+            detailsOpen: host == null ? void 0 : host.detailsOpen,
+            onImportTheme: host == null ? void 0 : host.onImportTheme
+          }
+        ),
+        ctx && !viewMode && /* @__PURE__ */ jsx(
+          SlidesMenu,
+          {
+            label: L.slideN(deck.slides.findIndex((s) => s.id === ctx.id) + 1),
+            items: slideItems(ctx.id, false),
+            onClose: () => setCtx(null),
+            style: { position: "absolute", left: ctx.left, top: ctx.top }
+          }
+        ),
+        presenting && /* @__PURE__ */ jsx(
+          PresentMode,
+          {
+            api,
+            slides: deck.slides,
+            startId: presenting.startId,
+            labels,
+            presenter: presenting.presenter,
+            onExit: (lastId) => {
+              setPresenting(null);
+              if (lastId) activate(lastId);
+            }
+          }
+        )
+      ]
+    }
+  );
+}
 const WORKSPACE_STORAGE_KEY = "pm-canvas-workspace-v2";
 function readWorkspace(fallback = "excalidraw") {
   try {
     const saved = localStorage.getItem(WORKSPACE_STORAGE_KEY);
-    if (saved === "excalidraw" || saved === "design" || saved === "advanced") return saved;
+    if (CANVAS_WORKSPACES.includes(saved ?? "")) return saved;
   } catch {
   }
   return fallback;
@@ -5062,89 +8138,6 @@ function canvaGestureActions() {
 }
 function installCanvaGestures(api) {
   for (const action of canvaGestureActions()) api.registerAction(action);
-}
-const CONTROL_KEYS = /* @__PURE__ */ new Set([
-  "Enter",
-  " ",
-  "Spacebar",
-  "Escape",
-  "Tab",
-  "ArrowLeft",
-  "ArrowRight",
-  "ArrowUp",
-  "ArrowDown",
-  "Delete",
-  "Backspace",
-  "Home",
-  "End",
-  "PageUp",
-  "PageDown"
-]);
-const MODIFIERS = /* @__PURE__ */ new Set(["Shift", "Control", "Alt", "Meta", "AltGraph", "CapsLock"]);
-function isTypingTarget(target) {
-  if (!(target instanceof Element)) return false;
-  const tag = target.tagName;
-  if (tag === "TEXTAREA" || tag === "SELECT") return true;
-  if (tag === "INPUT") {
-    const type = target.type;
-    return !["button", "checkbox", "radio", "range", "color", "submit", "reset", "file", "image"].includes(type);
-  }
-  return target.isContentEditable === true;
-}
-function shouldForwardKey(event, canvas, scope) {
-  if (!canvas || event.defaultPrevented || event.isComposing) return false;
-  if (MODIFIERS.has(event.key)) return false;
-  if (event.key === "PageUp" || event.key === "PageDown") return false;
-  const target = event.target;
-  const doc = canvas.ownerDocument;
-  const nowhere = target === doc.body || target === doc.documentElement || target === doc || target === doc.defaultView;
-  if (!nowhere) {
-    if (!(target instanceof Node)) return false;
-    if (canvas.contains(target)) return false;
-    if (!scope || !scope.contains(target)) return false;
-  }
-  if (isTypingTarget(target)) return false;
-  if (event.key === "Tab") return false;
-  if (!nowhere && CONTROL_KEYS.has(event.key) && !event.ctrlKey && !event.metaKey) return false;
-  return true;
-}
-function forwardKey(event, canvas) {
-  var _a;
-  const doc = canvas.ownerDocument;
-  const View = ((_a = doc.defaultView) == null ? void 0 : _a.KeyboardEvent) ?? KeyboardEvent;
-  const copy = new View("keydown", {
-    key: event.key,
-    code: event.code,
-    location: event.location,
-    repeat: event.repeat,
-    ctrlKey: event.ctrlKey,
-    shiftKey: event.shiftKey,
-    altKey: event.altKey,
-    metaKey: event.metaKey,
-    bubbles: true,
-    cancelable: true
-  });
-  canvas.focus({ preventScroll: true });
-  const body = doc.body;
-  const stop = (e) => {
-    if (e === copy) e.stopImmediatePropagation();
-  };
-  body == null ? void 0 : body.addEventListener("keydown", stop);
-  try {
-    canvas.dispatchEvent(copy);
-  } finally {
-    body == null ? void 0 : body.removeEventListener("keydown", stop);
-  }
-  if (copy.defaultPrevented) event.preventDefault();
-}
-function installKeyRouting(win, getCanvas, getScope) {
-  const onKey = (event) => {
-    const canvas = getCanvas();
-    if (!canvas || !shouldForwardKey(event, canvas, getScope())) return;
-    forwardKey(event, canvas);
-  };
-  win.addEventListener("keydown", onKey);
-  return () => win.removeEventListener("keydown", onKey);
 }
 const HANDLE_ZONE_PX = 16;
 function boxOf(el) {
@@ -5798,6 +8791,11 @@ function Canvas2Editor({
   library,
   componentsPanel,
   agentPanel,
+  panels: hostPanels,
+  openPanel: openPanelProp,
+  onOpenPanelChange,
+  slides: slidesHost,
+  stageOverlay,
   onSaveComponent,
   themeChoice,
   onActivePageChange,
@@ -5814,7 +8812,19 @@ function Canvas2Editor({
 }) {
   var _a;
   const [localWorkspace, setLocalWorkspace] = useState(() => readWorkspace(defaultWorkspace));
-  const [openPanel, setOpenPanel] = useState(null);
+  const [localOpenPanel, setLocalOpenPanel] = useState(null);
+  const openPanel = openPanelProp !== void 0 ? openPanelProp : localOpenPanel;
+  const openPanelRef = useRef(openPanel);
+  openPanelRef.current = openPanel;
+  const setOpenPanel = useCallback(
+    (next) => {
+      const value = typeof next === "function" ? next(openPanelRef.current) : next;
+      if (value === openPanelRef.current) return;
+      setLocalOpenPanel(value);
+      onOpenPanelChange == null ? void 0 : onOpenPanelChange(value);
+    },
+    [onOpenPanelChange]
+  );
   const workspace = workspaceProp ?? localWorkspace;
   const theme = themeProp;
   const sceneTheme = pages && theme === "dark" ? "light" : theme;
@@ -5857,6 +8867,10 @@ ${css}` : css;
   const [api, setApi] = useState(null);
   const rootRef = useRef(null);
   const narrow = useIsNarrow(rootRef);
+  const slidesActive = workspace === "slides" && Boolean(pages) && !narrow;
+  const layoutWorkspace = workspace === "slides" && !slidesActive ? "design" : workspace;
+  const slidesActiveRef = useRef(slidesActive);
+  slidesActiveRef.current = slidesActive;
   const [activePageId, setActivePageId] = useState(null);
   const activePageIdRef = useRef(activePageId);
   activePageIdRef.current = activePageId;
@@ -5903,7 +8917,10 @@ ${css}` : css;
         // corners, hairline border) is the page's visual instead.
         // Al mirar (`viewMode`) sin el «Página N»: se fija ya aquí porque
         // Excalidraw aplica `initialData` después del primer efecto y lo pisaría.
-        frameRendering: { enabled: true, clip: true, name: !viewMode, outline: false },
+        // Con páginas el rótulo lo pinta `PageActions` en HTML (número, nombre con
+        // la letra del Studio, doble clic para renombrar): el de Excalidraw iba
+        // en Helvetica gris y con los botones encima.
+        frameRendering: { enabled: true, clip: true, name: !viewMode && !pages, outline: false },
         ...brandDefaults(brand),
         ...(base == null ? void 0 : base.appState) ?? {},
         // La mesa: papel cálido (el escenario del Studio), no el gris acero de antes.
@@ -5975,6 +8992,7 @@ ${css}` : css;
     const live = apiRef.current;
     if (!live || !openingPageId) return;
     if (activePageId !== openingPageId) return;
+    if (slidesActiveRef.current) return;
     goToPage(live, openingPageId);
   }, [openingPageId]);
   useEffect(() => {
@@ -6022,9 +9040,9 @@ ${css}` : css;
     var _a2;
     if (!pages || !api) return;
     const current = (_a2 = api.getAppState()) == null ? void 0 : _a2.frameRendering;
-    if (!current || current.name === !viewMode) return;
+    if (!current || current.name === false) return;
     api.updateScene({
-      appState: { frameRendering: { ...current, name: !viewMode } },
+      appState: { frameRendering: { ...current, name: false } },
       captureUpdate: CaptureUpdateAction.NEVER
     });
   }, [pages, api, viewMode]);
@@ -6032,6 +9050,7 @@ ${css}` : css;
     if (!pages || !api) return;
     let timer = null;
     const unsub = api.onScrollChange(() => {
+      if (slidesActiveRef.current) return;
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
         const id = pageInView(
@@ -6065,7 +9084,7 @@ ${css}` : css;
       const next = list[(idx + step + list.length) % list.length];
       activePageIdRef.current = next.id;
       setActivePageId(next.id);
-      goToPage(api, next.id);
+      if (!slidesActiveRef.current) goToPage(api, next.id);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -6073,7 +9092,7 @@ ${css}` : css;
   const workspacePanels = [];
   if (!viewMode && componentsPanel) workspacePanels.push({ id: "components", title: L.components.title, content: componentsPanel, inToolbar: true });
   if (!viewMode && api) {
-    if (workspace !== "excalidraw") {
+    if (layoutWorkspace !== "excalidraw") {
       workspacePanels.push({
         id: "elements",
         title: L.workspace.elements,
@@ -6112,25 +9131,27 @@ ${css}` : css;
     title: L.dock.layers,
     content: /* @__PURE__ */ jsx(LayersPanel, { api, activePageId, theme, labels: L, embedded: true })
   });
-  for (const panel of workspacePanels) panel.icon = /* @__PURE__ */ jsx(WorkspaceIcon, { name: panel.id });
-  const pillPanels = workspace === "excalidraw" ? workspacePanels.filter((panel) => panel.inToolbar) : [];
+  for (const panel of hostPanels ?? []) workspacePanels.push({ ...panel });
+  for (const panel of workspacePanels) panel.icon ?? (panel.icon = /* @__PURE__ */ jsx(WorkspaceIcon, { name: panel.id }));
+  const pillPanels = layoutWorkspace === "excalidraw" ? workspacePanels.filter((panel) => panel.inToolbar) : [];
   const pillActions = [
     ...pillPanels.map((panel) => ({
       id: panel.id,
       label: panel.title,
       pressed: openPanel === panel.id,
-      onSelect: () => setOpenPanel((current) => current === panel.id ? null : panel.id)
+      onSelect: () => setOpenPanel((current) => current === panel.id ? null : panel.id),
+      icon: panel.icon
     })),
-    ...workspace === "excalidraw" && !viewMode ? toolbarActions ?? [] : []
+    ...layoutWorkspace === "excalidraw" && !viewMode ? toolbarActions ?? [] : []
   ];
   return /* @__PURE__ */ jsx(
     WorkspaceLayout,
     {
       className,
-      workspace,
+      workspace: layoutWorkspace,
       panels: workspacePanels,
       narrow,
-      actions: narrow && workspace === "excalidraw" && !viewMode ? (toolbarActions ?? []).map((action) => ({ ...action, icon: action.icon ?? /* @__PURE__ */ jsx(WorkspaceIcon, { name: "library" }) })) : void 0,
+      actions: narrow && layoutWorkspace === "excalidraw" && !viewMode ? (toolbarActions ?? []).map((action) => ({ ...action, icon: action.icon ?? /* @__PURE__ */ jsx(WorkspaceIcon, { name: "library" }) })) : void 0,
       theme,
       labels: L,
       openPanel,
@@ -6206,7 +9227,7 @@ ${css}` : css;
                 initialData,
                 viewModeEnabled: viewMode,
                 autoFocus: !viewMode,
-                gridModeEnabled: workspace === "advanced" ? false : void 0,
+                gridModeEnabled: layoutWorkspace === "advanced" || slidesActive ? false : void 0,
                 langCode,
                 aiEnabled: false,
                 UIOptions: {
@@ -6265,7 +9286,8 @@ ${css}` : css;
                     fontFaces: fuentes.faces,
                     onSaveComponent,
                     themeChoice,
-                    labels: L
+                    labels: L,
+                    lang: langCode
                   }
                 )
               }
@@ -6316,7 +9338,7 @@ ${css}` : css;
                 labels: L
               }
             ),
-            pages && api && /* @__PURE__ */ jsx(
+            pages && api && !slidesActive && /* @__PURE__ */ jsx(
               PageNavigator,
               {
                 api,
@@ -6333,19 +9355,23 @@ ${css}` : css;
             ),
             pillActions.length > 0 && !narrow ? /* @__PURE__ */ jsxs(ToolbarSlot, { root: rootRef, children: [
               /* @__PURE__ */ jsx("span", { className: "canvas2-toolbar-divider", "aria-hidden": "true" }),
-              pillActions.map((action) => /* @__PURE__ */ jsx(
+              pillActions.map((action) => /* @__PURE__ */ jsxs(
                 "button",
                 {
                   type: "button",
                   className: "canvas2-toolbar-text",
+                  title: action.label,
                   "aria-pressed": action.pressed ?? void 0,
                   onClick: action.onSelect,
-                  children: action.label
+                  children: [
+                    action.icon ?? /* @__PURE__ */ jsx(WorkspaceIcon, { name: "library" }),
+                    /* @__PURE__ */ jsx("span", { className: "canvas2-toolbar-label", children: action.label })
+                  ]
                 },
                 action.id
               ))
             ] }) : null,
-            rightEdge && !narrow ? /* @__PURE__ */ jsx(
+            rightEdge && !narrow && !slidesActive ? /* @__PURE__ */ jsx(
               "div",
               {
                 "data-canvas2-right-edge": "",
@@ -6361,8 +9387,31 @@ ${css}` : css;
                 children: rightEdge
               }
             ) : null,
+            slidesActive && api ? /* @__PURE__ */ jsx(
+              SlidesWorkspace,
+              {
+                api,
+                rootRef,
+                activePageId,
+                onActiveChange: setActivePageId,
+                panels: workspacePanels,
+                labels: L,
+                pageSize,
+                thumbnailFiles: pageThumbnailFiles,
+                hydrateFiles,
+                fontFaces: fuentes.faces,
+                viewMode,
+                workspace,
+                onWorkspaceChange: changeWorkspace,
+                workspaces: CANVAS_WORKSPACES,
+                onSaveComponent,
+                host: slidesHost,
+                lang: langCode
+              }
+            ) : null,
+            stageOverlay ? /* @__PURE__ */ jsx("div", { className: "canvas2-stage-overlay", children: stageOverlay }) : null,
             modeControl ? /* @__PURE__ */ jsx(ModeSwitch, { ...modeControl, theme, narrow, labels: L.mode }) : null,
-            pages && api && !viewMode && /* @__PURE__ */ jsx(
+            pages && api && !viewMode && !slidesActive && /* @__PURE__ */ jsx(
               PageActions,
               {
                 api,
@@ -6532,46 +9581,52 @@ export {
   focusLayer as a4,
   fontFamilyId as a5,
   getPageBackground as a6,
-  getPageSize as a7,
-  getSelectedVideo as a8,
-  getVideoMeta as a9,
-  resolveBrandKit as aA,
-  resolveInsertPageId as aB,
-  restoreScene as aC,
-  sendMemberToBack as aD,
-  serializeScene as aE,
-  setAsBackground as aF,
-  setPageBackgroundColor as aG,
-  setPageLocked as aH,
-  setVideoPoster as aI,
-  storedScenePageCount as aJ,
-  usePageThumbnails as aK,
-  hasUploadsInFlight as aa,
-  hideNativeDragImage as ab,
-  imageAtScenePoint as ac,
-  insertImageFromBlob as ad,
-  insertImageFromUrl as ae,
-  insertImageWithPreview as af,
-  insertTextPreset as ag,
-  insertVideo as ah,
-  isInlineDataUrl as ai,
-  isPageBackground as aj,
-  isPageLocked as ak,
-  isVideoElement as al,
-  listPages as am,
-  looseElements as an,
-  movePage as ao,
-  movePageTo as ap,
-  paginateSceneInArray as aq,
-  parseScene as ar,
-  patchElement as as,
-  registerCustomFont as at,
-  registerCustomFonts as au,
-  relayoutPages as av,
-  renamePage as aw,
-  reorderPageMembers as ax,
-  replaceImageFromUrl as ay,
-  resizePage as az,
+  getPageNotes as a7,
+  getPageSize as a8,
+  getPageTransition as a9,
+  reorderPageMembers as aA,
+  replaceImageFromUrl as aB,
+  resizePage as aC,
+  resolveBrandKit as aD,
+  resolveInsertPageId as aE,
+  restoreScene as aF,
+  sendMemberToBack as aG,
+  serializeScene as aH,
+  setAsBackground as aI,
+  setPageBackgroundColor as aJ,
+  setPageLocked as aK,
+  setPageNotes as aL,
+  setPageSkipped as aM,
+  setPageTransition as aN,
+  setVideoPoster as aO,
+  storedScenePageCount as aP,
+  usePageThumbnails as aQ,
+  getSelectedVideo as aa,
+  getVideoMeta as ab,
+  hasUploadsInFlight as ac,
+  hideNativeDragImage as ad,
+  imageAtScenePoint as ae,
+  insertImageFromBlob as af,
+  insertImageFromUrl as ag,
+  insertImageWithPreview as ah,
+  insertPagesIntoScene as ai,
+  insertTextPreset as aj,
+  insertVideo as ak,
+  isInlineDataUrl as al,
+  isPageLocked as am,
+  isPageSkipped as an,
+  isVideoElement as ao,
+  listPages as ap,
+  looseElements as aq,
+  movePage as ar,
+  movePageTo as as,
+  paginateSceneInArray as at,
+  parseScene as au,
+  patchElement as av,
+  registerCustomFont as aw,
+  registerCustomFonts as ax,
+  relayoutPages as ay,
+  renamePage as az,
   CanvasMenu as b,
   DesignPanel as c,
   DragPreview as d,
@@ -6598,4 +9653,4 @@ export {
   adoptStrayFramesInArray as y,
   alignToPage as z
 };
-//# sourceMappingURL=LibraryPanel-BmXiKJff.js.map
+//# sourceMappingURL=LibraryPanel-CH50RYoP.js.map

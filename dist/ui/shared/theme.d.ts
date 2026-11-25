@@ -40,6 +40,11 @@ export interface Palette {
     warnText: string;
 }
 export declare const palette: Record<Canvas2Theme, Palette>;
+/** La sombra de TODAS las islas del cromo (riel, tira de páginas, píldora de
+ *  deshacer y zoom, inspector, propiedades): pequeña y sin filo. Sin borde, una
+ *  isla blanca sobre una página blanca desaparecía; con esto se despega sin
+ *  ensuciar. canvas2.css repite los mismos valores en `--shadow-island`. */
+export declare const ISLAND_SHADOW: Record<Canvas2Theme, string>;
 /** Fuente fija de los paneles; independiente de las fuentes del documento. */
 export declare const PANEL_FONT = "\"Polimake Funnel Sans\", sans-serif";
 //# sourceMappingURL=theme.d.ts.map

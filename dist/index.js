@@ -1,6 +1,6 @@
 "use client";
-import { h as pageElementsInOrder, i as buildPersistableFiles, j as packPagesInArray, r as renumberPagesInArray, k as commitElements, n as goToPage } from "./chunks/LibraryPanel-BmXiKJff.js";
-import { B, C, a, b, D, o, c, d, q, E, I, L, e, s, t, u, P, f, g, T, v, w, x, y, z, A, F, G, H, J, K, N, a as a2, O, Q, R, S, U, W, X, Y, Z, _, $, a0, a1, a2 as a22, a3, a4, a5, a6, a7, a8, a9, aa, ab, ac, ad, ae, af, ag, ah, ai, aj, ak, al, l, am, an, m, ao, ap, aq, p, ar, as, at, au, av, aw, ax, ay, az, aA, aB, aC, aD, aE, aF, aG, aH, aI, aJ, aK } from "./chunks/LibraryPanel-BmXiKJff.js";
+import { h as pageElementsInOrder, i as buildPersistableFiles, j as packPagesInArray, r as renumberPagesInArray, k as commitElements, n as goToPage } from "./chunks/LibraryPanel-CH50RYoP.js";
+import { B, C, a, b, D, o, c, d, q, E, I, L, e, s, t, u, P, f, g, T, v, w, x, y, z, A, F, G, H, J, K, N, a as a2, O, Q, R, S, U, W, X, Y, Z, _, $, a0, a1, a2 as a22, a3, a4, a5, a6, a7, a8, a9, aa, ab, ac, ad, ae, af, ag, ah, ai, aj, ak, al, am, an, ao, l, ap, aq, m, ar, as, at, p, au, av, aw, ax, ay, az, aA, aB, aC, aD, aE, aF, aG, aH, aI, aJ, aK, aL, aM, aN, aO, aP, aQ } from "./chunks/LibraryPanel-CH50RYoP.js";
 import { P as P2 } from "./chunks/layout-BEpoNps2.js";
 import "@excalidraw/excalidraw/index.css";
 import { convertToExcalidrawElements } from "@excalidraw/excalidraw";
@@ -8,12 +8,13 @@ import { D as D2, P as P3, c as c2, f as f2, g as g2, l as l2, a as a10, p as p2
 import { EXCALIDRAW_BUILTIN_FAMILIES, buildFontFaceCss, customFontFamilyId, dedupeFontFaces, fontFamilyAlias, normalizeFontName } from "./fonts.js";
 import { instantiateComponent } from "./components.js";
 import { appendComponentToEditorConfig, cloneSceneElements, deriveComponentMeta, extractComponentFragment, fitImageInBox, listSlots, measureWrappedText } from "./components.js";
+import { i } from "./chunks/documentToPptx-XCLs01g1.js";
 async function blobToDataUrl(blob, fallbackMime) {
   const bytes = new Uint8Array(await blob.arrayBuffer());
   const CHUNK = 32768;
   let binary = "";
-  for (let i = 0; i < bytes.length; i += CHUNK) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  for (let i2 = 0; i2 < bytes.length; i2 += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(i2, i2 + CHUNK));
   }
   return `data:${blob.type || fallbackMime};base64,${btoa(binary)}`;
 }
@@ -234,65 +235,72 @@ export {
   fontFamilyAlias,
   a5 as fontFamilyId,
   a6 as getPageBackground,
-  a7 as getPageSize,
-  a8 as getSelectedVideo,
-  a9 as getVideoMeta,
+  a7 as getPageNotes,
+  a8 as getPageSize,
+  a9 as getPageTransition,
+  aa as getSelectedVideo,
+  ab as getVideoMeta,
   goToPage,
   g2 as groupStyleRuns,
-  aa as hasUploadsInFlight,
-  ab as hideNativeDragImage,
-  ac as imageAtScenePoint,
+  ac as hasUploadsInFlight,
+  ad as hideNativeDragImage,
+  ae as imageAtScenePoint,
   insertComponentIntoScene,
-  ad as insertImageFromBlob,
-  ae as insertImageFromUrl,
-  af as insertImageWithPreview,
-  ag as insertTextPreset,
-  ah as insertVideo,
+  af as insertImageFromBlob,
+  ag as insertImageFromUrl,
+  ah as insertImageWithPreview,
+  ai as insertPagesIntoScene,
+  aj as insertTextPreset,
+  ak as insertVideo,
   instantiateComponent,
-  ai as isInlineDataUrl,
-  aj as isPageBackground,
-  ak as isPageLocked,
-  al as isVideoElement,
+  al as isInlineDataUrl,
+  i as isPageBackground,
+  am as isPageLocked,
+  an as isPageSkipped,
+  ao as isVideoElement,
   l as labelsFor,
   l2 as legacyToScene,
   a10 as listImagePlaceholders,
-  am as listPages,
+  ap as listPages,
   listSlots,
-  an as looseElements,
+  aq as looseElements,
   measureWrappedText,
   m as mergeLabels,
-  ao as movePage,
-  ap as movePageTo,
+  ar as movePage,
+  as as movePageTo,
   normalizeFontName,
   packPagesInArray,
-  aq as paginateSceneInArray,
+  at as paginateSceneInArray,
   p as palette,
   p2 as parseLegacyText,
-  ar as parseScene,
-  as as patchElement,
+  au as parseScene,
+  av as patchElement,
   b2 as postScriptStyleToCss,
   d2 as psdColorToHex,
   e2 as psdToScene,
-  at as registerCustomFont,
-  au as registerCustomFonts,
-  av as relayoutPages,
-  aw as renamePage,
+  aw as registerCustomFont,
+  ax as registerCustomFonts,
+  ay as relayoutPages,
+  az as renamePage,
   renumberPagesInArray,
-  ax as reorderPageMembers,
-  ay as replaceImageFromUrl,
+  aA as reorderPageMembers,
+  aB as replaceImageFromUrl,
   h as resetPsdIdCounter,
-  az as resizePage,
-  aA as resolveBrandKit,
-  aB as resolveInsertPageId,
-  aC as restoreScene,
-  aD as sendMemberToBack,
-  aE as serializeScene,
-  aF as setAsBackground,
-  aG as setPageBackgroundColor,
-  aH as setPageLocked,
-  aI as setVideoPoster,
+  aC as resizePage,
+  aD as resolveBrandKit,
+  aE as resolveInsertPageId,
+  aF as restoreScene,
+  aG as sendMemberToBack,
+  aH as serializeScene,
+  aI as setAsBackground,
+  aJ as setPageBackgroundColor,
+  aK as setPageLocked,
+  aL as setPageNotes,
+  aM as setPageSkipped,
+  aN as setPageTransition,
+  aO as setVideoPoster,
   s2 as splitPostScriptFont,
-  aJ as storedScenePageCount,
-  aK as usePageThumbnails
+  aP as storedScenePageCount,
+  aQ as usePageThumbnails
 };
 //# sourceMappingURL=index.js.map

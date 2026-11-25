@@ -4,7 +4,8 @@ import { type ExcalidrawImperativeAPI } from '../../core/excal';
 import { PageNavigator } from '../navigation/PageNavigator';
 import { type CanvasThemeChoice } from '../navigation/CanvasMenu';
 import { type Canvas2ModeControl } from '../navigation/ModeSwitch';
-import type { CanvasWorkspace } from '../workspaces/types';
+import { type CanvasWorkspace } from '../workspaces/types';
+import { type SlidesHostOptions } from '../workspaces/slides/SlidesWorkspace';
 import type { FilesMap } from '../hooks/pageThumbnails';
 import { type PageSize } from '../../core/pages';
 import { type BrandKitInput } from '../../core/brand';
@@ -171,6 +172,33 @@ export interface Canvas2EditorProps {
      */
     agentPanel?: ReactNode;
     /**
+     * Paneles del HOST que van como pestañas del inspector de la derecha, junto a
+     * Página · Capas · Marca: Comentarios, IA, Plantilla… El host trae el
+     * contenido; canvas2 le da el sitio, la pestaña y la flecha que lo abre. Así
+     * el mismo panel sirve en Studio y en el escritorio sin barras propias.
+     */
+    panels?: Canvas2HostPanel[];
+    /**
+     * El panel abierto (id), si lo controla el host: p. ej. abrir Comentarios al
+     * pinchar en un pin del lienzo. Sin él, lo lleva canvas2.
+     */
+    openPanel?: string | null;
+    /** Avisa cada vez que se abre, se cambia o se cierra un panel. */
+    onOpenPanelChange?: (id: string | null) => void;
+    /**
+     * Lo que el host añade al espacio Presentación: el nombre de la presentación,
+     * «Detalles», «Importar tema», comentar. Todo opcional (ver SlidesWorkspace).
+     */
+    slides?: SlidesHostOptions;
+    /**
+     * Contenido del host centrado sobre el ESCENARIO (donde está la página), no
+     * sobre toda la caja del editor: el lienzo sabe qué ocupan la barra lateral de
+     * Diseño o las tiras de Presentación, el host no. Para avisos sobre un diseño
+     * vacío («Trae tu material»). No bloquea el lienzo: solo lo que el contenido
+     * marque con `pointer-events: auto` recibe clics.
+     */
+    stageOverlay?: ReactNode;
+    /**
      * "Guardar página como componente" del menú. La subida es cosa del host
      * (POST a su API + miniatura); canvas2 solo ofrece la entrada de menú.
      */
@@ -266,6 +294,16 @@ export interface Canvas2EditorProps {
      */
     toolbarActions?: Canvas2ToolbarAction[];
 }
+/** Un panel del host en el inspector (ver `panels`). */
+export interface Canvas2HostPanel {
+    id: string;
+    title: string;
+    /** Icono para la tira de móvil. Sin él, uno genérico. */
+    icon?: ReactNode;
+    content: ReactNode;
+    /** El contenido trae su propio relleno y su scroll: el panel no le pone el suyo. */
+    bleed?: boolean;
+}
 export interface Canvas2ToolbarAction {
     id: string;
     label: string;
@@ -296,7 +334,7 @@ export declare const MEDIA_DROP_TYPE = "application/x-canvas2-media";
  * this behind a `next/dynamic(..., { ssr: false })` boundary in the host app
  * (see apps/web/src/app/canvas/page.tsx).
  */
-export declare function Canvas2Editor({ workspace: workspaceProp, defaultWorkspace, onWorkspaceChange, className, initialScene, onSceneChange, viewMode, theme: themeProp, langCode, onReady, nativeImageExport, fontOverrides, changeDebounceMs, pages, pageSize, initialPageIndex, layers, pageThumbnails, pageThumbnailFiles, brandKit, hydrateFiles, dockedSidebarBreakpoint, library, componentsPanel, agentPanel, onSaveComponent, themeChoice, onActivePageChange, onMediaDrop, mediaDropType, onFilesDrop, labels, resolveVideoSrc, releaseVideoSrc, onPickVideoFrame, rightEdge, modeControl, toolbarActions, }: Canvas2EditorProps): import("react").JSX.Element;
+export declare function Canvas2Editor({ workspace: workspaceProp, defaultWorkspace, onWorkspaceChange, className, initialScene, onSceneChange, viewMode, theme: themeProp, langCode, onReady, nativeImageExport, fontOverrides, changeDebounceMs, pages, pageSize, initialPageIndex, layers, pageThumbnails, pageThumbnailFiles, brandKit, hydrateFiles, dockedSidebarBreakpoint, library, componentsPanel, agentPanel, panels: hostPanels, openPanel: openPanelProp, onOpenPanelChange, slides: slidesHost, stageOverlay, onSaveComponent, themeChoice, onActivePageChange, onMediaDrop, mediaDropType, onFilesDrop, labels, resolveVideoSrc, releaseVideoSrc, onPickVideoFrame, rightEdge, modeControl, toolbarActions, }: Canvas2EditorProps): import("react").JSX.Element;
 /** Backwards-compatible alias — the bare wrapper is now a controlled editor. */
 export declare const Canvas2: typeof Canvas2Editor;
 export default Canvas2Editor;
