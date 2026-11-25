@@ -1338,6 +1338,8 @@ export function Canvas2Editor({
           onSaveComponent={onSaveComponent}
           host={slidesHost}
           lang={langCode}
+          openPanel={openPanel}
+          onOpenPanelChange={setOpenPanel}
         />
       ) : null}
       {stageOverlay ? <div className="canvas2-stage-overlay">{stageOverlay}</div> : null}

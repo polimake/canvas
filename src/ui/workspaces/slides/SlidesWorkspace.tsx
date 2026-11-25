@@ -77,6 +77,9 @@ export interface SlidesWorkspaceProps {
   host?: SlidesHostOptions;
   /** Idioma de los textos al exportar a PowerPoint (`es-ES`). */
   lang?: string;
+  /** El panel abierto del editor (`Canvas2`), el mismo en todos los espacios. */
+  openPanel?: string | null;
+  onOpenPanelChange?: (id: string | null) => void;
 }
 
 // Medidas de la maqueta aprobada (px de pantalla).
@@ -118,7 +121,17 @@ export function SlidesWorkspace(props: SlidesWorkspaceProps) {
   const deck = useDeck(api, labels.pages);
   const thumbs = usePageThumbnails(api, { files: thumbnailFiles, width: 336 });
 
-  const [openPanel, setOpenPanel] = useState<string | null>(null);
+  // El panel abierto es el del editor (y del host, si lo lleva: Studio abre
+  // Comentarios al pulsar una chincheta). «Transición» es solo de aquí.
+  const [transitionOpen, setTransitionOpen] = useState(false);
+  const hostPanel = props.openPanel ?? null;
+  useEffect(() => { if (hostPanel) setTransitionOpen(false); }, [hostPanel]);
+  const openPanel = transitionOpen ? 'transition' : hostPanel;
+  const setOpenPanel = (next: string | null | ((p: string | null) => string | null)) => {
+    const value = typeof next === 'function' ? next(openPanel) : next;
+    setTransitionOpen(value === 'transition');
+    props.onOpenPanelChange?.(value === 'transition' ? null : value);
+  };
   const [view, setView] = useState<'slide' | 'grid'>('slide');
   const [menusHidden, setMenusHidden] = useState(false);
   const [filmstripHidden, setFilmstripHidden] = useState(false);
@@ -482,9 +495,13 @@ export function SlidesWorkspace(props: SlidesWorkspaceProps) {
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
       // Solo con el foco en el editor (o en ninguna parte): no robar atajos a la app.
       const scope = rootRef.current?.closest('.canvas2-workspace');
-      if (target && target !== document.body && scope && !scope.contains(target)) return;
+      // Sin el espacio montado no hay a quién darle el atajo: fuera, nunca.
+      if (!scope) return;
+      if (target && target !== document.body && !scope.contains(target)) return;
       const ctrl = e.ctrlKey || e.metaKey;
       const key = e.key.toLowerCase();
+      // La tira de diapositivas tiene su Ctrl+M, que además lleva el foco a la nueva.
+      if (ctrl && key === 'm' && target?.closest?.('.canvas2-slides-filmstrip')) return;
       // Presentar también en lectura; crear y seleccionar, solo editando.
       if (ctrl && !e.altKey && e.key === 'Enter') now.present(e.shiftKey);
       else if (now.viewMode) return;

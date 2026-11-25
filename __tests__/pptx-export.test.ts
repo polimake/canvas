@@ -116,6 +116,8 @@ describe('documento → PowerPoint', () => {
     const t2 = back.pages[1].elements.find((e) => e.kind === 'text');
     expect(t2?.text).toBe('Ctrl fuera');
     expect(t2?.fontFamily).toBe('Funnel Sans');
+    // El interlineado vuelve igual: no crece 1,2× en cada ida y vuelta.
+    expect(t2?.lineHeight).toBeCloseTo(1.25, 2);
     expect(back.assets).toHaveLength(1);
     expect(back.assets[0].mimeType).toBe('image/png');
   });

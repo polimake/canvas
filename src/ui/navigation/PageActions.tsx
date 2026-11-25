@@ -82,8 +82,14 @@ export function PageActions({
   const c = palette.light;
   const [placed, setPlaced] = useState<Placed[]>([]);
   const [armedDelete, setArmedDelete] = useState(false);
-  const [renaming, setRenaming] = useState<{ id: string; value: string } | null>(null);
+  const [renaming, setRenaming] = useState<{ id: string; value: string; original: string } | null>(null);
+  // Esc cancela: al quitar el campo, el navegador manda un blur que, sin esto,
+  // guardaba el nombre a medio escribir.
+  const renameDone = useRef(false);
   const confirmRef = useRef<HTMLButtonElement>(null);
+  // Lo último pintado: si nada cambia (el caso de cada movimiento del ratón al
+  // dibujar), no se repintan las etiquetas de todas las páginas.
+  const placedKey = useRef('');
 
   // La posición depende del scroll y del zoom, que cambian en CADA tick de
   // onChange (incluido el simple paneo). Recalcular es aritmética pura sobre
@@ -93,14 +99,16 @@ export function PageActions({
       const pages = listPages(api, L.pages);
       const { scrollX, scrollY, zoom } = api.getAppState();
       const z = zoom?.value ?? 1;
-      setPlaced(
-        pages.map((page) => ({
-          left: (page.x + scrollX) * z,
-          top: (page.y + scrollY) * z - OFFSET_Y,
-          width: page.width * z,
-          page,
-        })),
-      );
+      const next = pages.map((page) => ({
+        left: (page.x + scrollX) * z,
+        top: (page.y + scrollY) * z - OFFSET_Y,
+        width: page.width * z,
+        page,
+      }));
+      const key = next.map((p) => `${p.page.id}:${p.page.name}:${p.page.locked ? 1 : 0}:${Math.round(p.left)}:${Math.round(p.top)}:${Math.round(p.width)}`).join('|');
+      if (key === placedKey.current) return;
+      placedKey.current = key;
+      setPlaced(next);
     };
     recompute();
     return api.onChange(recompute);
@@ -130,9 +138,15 @@ export function PageActions({
   };
 
   const commitRename = () => {
-    if (!renaming) return;
+    if (!renaming || renameDone.current) return;
+    renameDone.current = true;
     const name = renaming.value.trim();
-    if (name) renamePage(api, renaming.id, name);
+    // Sin cambios no hay nada que deshacer ni que guardar.
+    if (name && name !== renaming.original) renamePage(api, renaming.id, name);
+    setRenaming(null);
+  };
+  const cancelRename = () => {
+    renameDone.current = true;
     setRenaming(null);
   };
 
@@ -177,7 +191,7 @@ export function PageActions({
               data-active={isActive ? '' : undefined}
               title={editing || page.locked ? undefined : L.layers.renameHint}
               onClick={() => { if (!isActive) onActiveChange?.(page.id); }}
-              onDoubleClick={() => { if (!page.locked) setRenaming({ id: page.id, value: page.name }); }}
+              onDoubleClick={() => { if (!page.locked) { renameDone.current = false; setRenaming({ id: page.id, value: page.name, original: page.name }); } }}
               style={{
                 position: 'absolute',
                 left,
@@ -221,11 +235,11 @@ export function PageActions({
                   autoFocus
                   aria-label={L.pages.rename}
                   value={renaming.value}
-                  onChange={(e) => setRenaming({ id: page.id, value: e.target.value })}
+                  onChange={(e) => setRenaming({ id: page.id, value: e.target.value, original: renaming?.original ?? page.name })}
                   onKeyDown={(e) => {
                     e.stopPropagation();
                     if (e.key === 'Enter') commitRename();
-                    if (e.key === 'Escape') setRenaming(null);
+                    if (e.key === 'Escape') cancelRename();
                   }}
                   onBlur={commitRename}
                   onFocus={(e) => e.currentTarget.select()}

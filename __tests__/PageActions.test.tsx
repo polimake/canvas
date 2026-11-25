@@ -43,6 +43,27 @@ describe('PageActions', () => {
     expect(api.getSceneElements().find((e: { id: string }) => e.id === 'b')).toMatchObject({ name: 'Cierre' });
   });
 
+  it('Esc cancela el nombre a medio escribir, y renombrar sin cambiar nada no deja deshacer', () => {
+    const { api } = fakeApi([
+      frame('a', 0, 0, 1080, 1350, { name: 'Portada' }),
+      frame('b', 1128, 0, 1080, 1350, { name: 'Cierre' }),
+    ]);
+    const update = vi.spyOn(api, 'updateScene');
+    render(<PageActions api={api as never} activePageId="a" />);
+    const segunda = screen.getAllByTestId('canvas2-page-label')[1]!;
+    fireEvent.doubleClick(segunda);
+    let input = screen.getByLabelText('Renombrar página') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'A medias' } });
+    fireEvent.keyDown(input, { key: 'Escape' });
+    // El navegador manda blur al quitar el campo: no tiene que guardar.
+    fireEvent.blur(input);
+    expect(api.getSceneElements().find((e: { id: string }) => e.id === 'b')).toMatchObject({ name: 'Cierre' });
+    fireEvent.doubleClick(screen.getAllByTestId('canvas2-page-label')[1]!);
+    input = screen.getByLabelText('Renombrar página') as HTMLInputElement;
+    fireEvent.blur(input);
+    expect(update).not.toHaveBeenCalled();
+  });
+
   it('se ancla a la esquina superior DERECHA del marco', () => {
     // El nombre de la página lo dibuja Excalidraw a la izquierda; anclar ahí lo
     // taparía. El borde derecho es `x + width`, en coordenadas de pantalla.
