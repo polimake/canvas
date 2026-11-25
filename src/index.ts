@@ -1,6 +1,7 @@
 export { Canvas2Editor, Canvas2, default } from './ui/editor/Canvas2';
 export type { Canvas2EditorProps, Canvas2Scene, Canvas2Api, Canvas2HostPanel } from './ui/editor/Canvas2';
 export type { CanvasWorkspace } from './ui/workspaces/types';
+export type { SlidesHostOptions, SlidesImport } from './ui/workspaces/slides/SlidesWorkspace';
 export type { Canvas2Mode, Canvas2ModeControl } from './ui/navigation/ModeSwitch';
 // Tipo de dataTransfer para soltar media de la biblioteca sobre el lienzo.
 export { MEDIA_DROP_TYPE } from './ui/editor/Canvas2';
@@ -226,6 +227,10 @@ export type {
   SlotValues,
 } from './core/components';
 export { insertComponentIntoScene, extractPageForComponent } from './core/insertComponent';
+// Páginas de un .pptx/.pdf ya convertidas, al final de la presentación (una entrada de deshacer).
+export { insertPagesIntoScene, type IncomingPages } from './core/insertPages';
+// Notas del orador, saltar y transición de cada diapositiva (espacio Presentación).
+export { getPageNotes, setPageNotes, isPageSkipped, setPageSkipped, getPageTransition, setPageTransition } from './core/slideMeta';
 
 // ─── Text presets + page background ───────────────────────────────────────────
 export { TEXT_PRESETS, insertTextPreset, contrastTextColor } from './core/text';

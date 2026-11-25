@@ -1,7 +1,10 @@
 import type { ReactNode } from 'react';
 
 /** A UI preference, never part of the serialized document. */
-export type CanvasWorkspace = 'excalidraw' | 'design' | 'advanced';
+export type CanvasWorkspace = 'excalidraw' | 'design' | 'advanced' | 'slides';
+
+/** Todos, en el orden en que se ofrecen (menú ☰ y Ver › Espacio de trabajo). */
+export const CANVAS_WORKSPACES: readonly CanvasWorkspace[] = ['excalidraw', 'design', 'advanced', 'slides'];
 
 export interface WorkspacePanel {
   id: string;

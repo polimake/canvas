@@ -55,6 +55,10 @@ export interface DocumentPage {
   background?: string;
   elements: DocumentElement[];
   notes?: string;
+  /** Skipped when presenting (PowerPoint `show="0"`). */
+  hidden?: boolean;
+  /** How the slide enters when presenting. Anything PowerPoint has beyond a fade arrives as a fade. */
+  transition?: 'fade';
   /** Searchable source text when the page is represented by a rendered preview. */
   extractedText?: string;
 }

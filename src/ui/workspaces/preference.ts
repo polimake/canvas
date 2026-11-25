@@ -1,4 +1,4 @@
-import type { CanvasWorkspace } from './types';
+import { CANVAS_WORKSPACES, type CanvasWorkspace } from './types';
 
 // A new default must not inherit the old automatically persisted "design".
 export const WORKSPACE_STORAGE_KEY = 'pm-canvas-workspace-v2';
@@ -6,7 +6,7 @@ export const WORKSPACE_STORAGE_KEY = 'pm-canvas-workspace-v2';
 export function readWorkspace(fallback: CanvasWorkspace = 'excalidraw'): CanvasWorkspace {
   try {
     const saved = localStorage.getItem(WORKSPACE_STORAGE_KEY);
-    if (saved === 'excalidraw' || saved === 'design' || saved === 'advanced') return saved;
+    if ((CANVAS_WORKSPACES as readonly string[]).includes(saved ?? '')) return saved as CanvasWorkspace;
   } catch { /* Storage can be unavailable in an embedded editor. */ }
   return fallback;
 }

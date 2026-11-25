@@ -2,6 +2,7 @@ import type { SceneElement } from '../core/excal';
 import { PAGE_GAP } from '../core/layout';
 import { customFontFamilyId, type CustomFontFace } from '../core/fonts';
 import { estimateTextHeight, type DocumentElement, type ImportDocument, type ImportNote } from '../documents/model';
+import { PAGE_MARKER, SLIDE_NOTES_KEY, SLIDE_SKIP_KEY, SLIDE_TRANSITION_KEY } from '../core/pageModel';
 
 export interface UploadedAsset { url: string; mimeType: string }
 export interface DocumentScene {
@@ -49,8 +50,15 @@ export function documentToScene(document: ImportDocument, options: {
     frameId: null, roundness: null, seed: serial, version: 1, versionNonce: serial,
     isDeleted: false, boundElements: null, updated: 0, link: null, locked: false, ...extra,
   }) as unknown as SceneElement;
-  for (const page of document.pages) {
-    const frame = base({ type: 'frame', x: xOffset, width: page.width, height: page.height, name: page.name });
+  document.pages.forEach((page, pageIndex) => {
+    // El marco lleva el orden del documento y, como diapositiva, sus notas, si
+    // se salta y su transición (pageModel.ts): lo que el espacio Presentación
+    // lee y lo que `documentToPptx` vuelve a escribir.
+    const customData: Record<string, unknown> = { [PAGE_MARKER]: { index: pageIndex } };
+    if (page.notes?.trim()) customData[SLIDE_NOTES_KEY] = page.notes.replace(/\s+$/, '');
+    if (page.hidden) customData[SLIDE_SKIP_KEY] = true;
+    if (page.transition === 'fade') customData[SLIDE_TRANSITION_KEY] = 'fade';
+    const frame = base({ type: 'frame', x: xOffset, width: page.width, height: page.height, name: page.name, customData });
     result.elements.push(frame, base({ x: xOffset, width: page.width, height: page.height, frameId: frame.id,
       backgroundColor: page.background ?? '#ffffff', locked: true, customData: { c2: 'pageBackground' } }));
     for (const source of page.elements) {
@@ -98,6 +106,6 @@ export function documentToScene(document: ImportDocument, options: {
       } else result.elements.push(base({ ...common, type: source.kind }));
     }
     xOffset += page.width + PAGE_GAP;
-  }
+  });
   return result;
 }

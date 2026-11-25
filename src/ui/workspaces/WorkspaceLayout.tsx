@@ -44,8 +44,10 @@ export function WorkspaceLayout({ children, className, workspace,
       <aside className="canvas2-workspace-sidebar" aria-label={L.panels}
         // En la vista Excalidraw los paneles de la píldora no ocupan la tira
         // (salvo en móvil, donde la píldora no se pinta).
-        hidden={!actions.length && !panels.some(panel => workspace !== 'excalidraw' || narrow || !panel.inToolbar || panel.id === openPanel)}>
-        {workspace === 'excalidraw' ? <ExcalidrawWorkspace panels={panels} narrow={narrow} actions={actions} openPanel={openPanel} onOpenPanelChange={onOpenPanelChange} closeLabel={all.library.close} openLabel={L.openPanel} />
+        // En Presentación los paneles los abre su propia tira (slides/SlidesPanels):
+        // aquí no se montan, que montarlos dos veces duplicaría sus efectos.
+        hidden={workspace === 'slides' || (!actions.length && !panels.some(panel => workspace !== 'excalidraw' || narrow || !panel.inToolbar || panel.id === openPanel))}>
+        {workspace === 'slides' ? null : workspace === 'excalidraw' ? <ExcalidrawWorkspace panels={panels} narrow={narrow} actions={actions} openPanel={openPanel} onOpenPanelChange={onOpenPanelChange} closeLabel={all.library.close} openLabel={L.openPanel} />
           : workspace === 'design' ? <DesignWorkspace panels={panels} /> : <AdvancedWorkspace panels={panels} />}
       </aside>
       <div className="canvas2-workspace-surface">{children}</div>

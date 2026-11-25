@@ -74,6 +74,7 @@ describe('mergeLabels', () => {
       'sizes',
       'workspace',
       'mode',
+      'slides',
     ];
     for (const s of secciones) {
       expect(DEFAULT_LABELS[s], `falta la sección ${s}`).toBeTruthy();

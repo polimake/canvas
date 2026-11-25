@@ -194,3 +194,46 @@ describe('dark theme', () => {
     expect(screen.getByTestId('engine').getAttribute('data-theme')).toBe('dark');
   });
 });
+
+describe('Presentación', () => {
+  it('pone el cromo de Slides sobre el MISMO motor y guarda las notas en la página', () => {
+    // Un contenedor de escritorio: a menos de 861 px el espacio cae a Diseño (móvil).
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(
+      { x: 0, y: 0, left: 0, top: 0, right: 1600, bottom: 900, width: 1600, height: 900, toJSON: () => ({}) } as DOMRect,
+    );
+    engine = fakeApi([frame('p1', 0, 0, 1920, 1080), frame('p2', 1968, 0, 1920, 1080)]);
+    const { container } = render(<Canvas2Editor pages onWorkspaceChange={vi.fn()} />);
+    act(() => { engine.api.updateScene({ elements: engine.get() }); });
+    const surface = screen.getByTestId('engine');
+    choose('Presentación');
+    expect(container.querySelector('[data-workspace="slides"]')).toBeTruthy();
+    expect(screen.getByTestId('engine')).toBe(surface);
+    expect(mounted).toHaveBeenCalledTimes(1);
+    expect(unmounted).not.toHaveBeenCalled();
+    expect(screen.getByRole('menubar', { name: 'Menús de la presentación' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Diapositiva 1' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Diapositiva 2' })).toBeTruthy();
+    // La tira de páginas y la barra de la página son las de los otros espacios.
+    expect(container.querySelector('[data-canvas2-pages]')).toBeNull();
+    expect(container.querySelector('[data-testid="canvas2-page-actions"]')).toBeNull();
+
+    const notes = screen.getByRole('textbox', { name: 'Notas del orador' });
+    const before = engine.commits.length;
+    fireEvent.focus(notes);
+    fireEvent.change(notes, { target: { value: 'Abrir con la pregunta' } });
+    expect(engine.commits.length).toBe(before);
+    fireEvent.blur(notes);
+    expect(engine.commits.length).toBe(before + 1);
+    const withNotes = engine.get().filter((e) => e.customData?.c2notes === 'Abrir con la pregunta');
+    expect(withNotes).toHaveLength(1);
+    expect(withNotes[0].type).toBe('frame');
+  });
+
+  it('sin páginas (pizarra libre) se pinta como Diseño y conserva la elección', () => {
+    localStorage.setItem(WORKSPACE_STORAGE_KEY, 'slides');
+    const { container } = render(<Canvas2Editor />);
+    expect(container.querySelector('[data-workspace="design"]')).toBeTruthy();
+    expect(screen.queryByRole('menubar')).toBeNull();
+    expect(localStorage.getItem(WORKSPACE_STORAGE_KEY)).toBe('slides');
+  });
+});

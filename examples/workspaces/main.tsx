@@ -25,7 +25,20 @@ function Demo() {
           { id: 'comments', title: 'Comentarios', content: <p>Los comentarios del diseño</p> },
           { id: 'assist', title: 'IA', content: <p>El chat de IA</p> },
         ]}
-        toolbarActions={[{ id: 'resources', label: 'Recursos', pressed: resources, onSelect: () => setResources(v => !v) }]} />
+        toolbarActions={[{ id: 'resources', label: 'Recursos', pressed: resources, onSelect: () => setResources(v => !v) }]}
+        // Presentación: título e «Importar diapositivas» con el lector del propio
+        // paquete (las imágenes quedan como marcadores: aquí no hay almacén).
+        slides={{
+          title: 'Presentación de prueba',
+          importSlides: {
+            accept: '.pptx,.potx',
+            load: async (file) => {
+              const [{ parsePptx }, { documentToScene }] = await Promise.all([import('../../src/parsers'), import('../../src/converters')]);
+              const scene = documentToScene(parsePptx(new Uint8Array(await file.arrayBuffer())), { idPrefix: `demo${Date.now().toString(36)}` });
+              return { elements: scene.elements, files: scene.files };
+            },
+          },
+        }} />
     </div>
   </main>;
 }

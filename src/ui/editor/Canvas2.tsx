@@ -23,7 +23,8 @@ import { BrandGallery } from '../panels/BrandGallery';
 import { WorkspaceIcon } from '../workspaces/WorkspaceIcon';
 import { LayersPanel } from '../panels/LayersPanel';
 import { WorkspaceLayout } from '../workspaces/WorkspaceLayout';
-import type { CanvasWorkspace, WorkspacePanel } from '../workspaces/types';
+import { CANVAS_WORKSPACES, type CanvasWorkspace, type WorkspacePanel } from '../workspaces/types';
+import { SlidesWorkspace, type SlidesHostOptions } from '../workspaces/slides/SlidesWorkspace';
 import { readWorkspace, saveWorkspace } from '../workspaces/preference';
 import { useIsNarrow } from '../hooks/narrow';
 import { ToolbarSlot } from './ToolbarSlot';
@@ -220,6 +221,19 @@ export interface Canvas2EditorProps {
   openPanel?: string | null;
   /** Avisa cada vez que se abre, se cambia o se cierra un panel. */
   onOpenPanelChange?: (id: string | null) => void;
+  /**
+   * Lo que el host añade al espacio Presentación: el nombre de la presentación,
+   * «Detalles», «Importar tema», comentar. Todo opcional (ver SlidesWorkspace).
+   */
+  slides?: SlidesHostOptions;
+  /**
+   * Contenido del host centrado sobre el ESCENARIO (donde está la página), no
+   * sobre toda la caja del editor: el lienzo sabe qué ocupan la barra lateral de
+   * Diseño o las tiras de Presentación, el host no. Para avisos sobre un diseño
+   * vacío («Trae tu material»). No bloquea el lienzo: solo lo que el contenido
+   * marque con `pointer-events: auto` recibe clics.
+   */
+  stageOverlay?: ReactNode;
   /**
    * "Guardar página como componente" del menú. La subida es cosa del host
    * (POST a su API + miniatura); canvas2 solo ofrece la entrada de menú.
@@ -458,6 +472,8 @@ export function Canvas2Editor({
   panels: hostPanels,
   openPanel: openPanelProp,
   onOpenPanelChange,
+  slides: slidesHost,
+  stageOverlay,
   onSaveComponent,
   themeChoice,
   onActivePageChange,
@@ -567,6 +583,15 @@ export function Canvas2Editor({
   // distribución de móvil y ha puesto sus propias islas justo ahí. Ver narrow.ts.
   const rootRef = useRef<HTMLDivElement | null>(null);
   const narrow = useIsNarrow(rootRef);
+  /**
+   * Presentación necesita páginas y sitio: sin páginas (pizarra libre) o en
+   * móvil se pinta como Diseño, sin tocar la preferencia guardada, y vuelve
+   * sola al haber sitio otra vez.
+   */
+  const slidesActive = workspace === 'slides' && Boolean(pages) && !narrow;
+  const layoutWorkspace: CanvasWorkspace = workspace === 'slides' && !slidesActive ? 'design' : workspace;
+  const slidesActiveRef = useRef(slidesActive);
+  slidesActiveRef.current = slidesActive;
   // Active page, lifted here so PageNavigator, inserts and LayersPanel all
   // agree on which artboard actions target. It FOLLOWS the user: chip clicks,
   // viewport panning, and selection all update it.
@@ -796,6 +821,8 @@ export function Canvas2Editor({
     // Solo si la que se abre es la activa: cuando algo eligió otra página antes
     // de que la inicialización terminara, la vista se queda donde está.
     if (activePageId !== openingPageId) return;
+    // En Presentación encuadra el propio espacio (para el hueco entre sus barras).
+    if (slidesActiveRef.current) return;
     goToPage(live, openingPageId);
     // Depende SOLO de la página de apertura, que se fija una vez: con
     // `activePageId` entre las dependencias, cada vuelta a esa página repetiría
@@ -895,6 +922,9 @@ export function Canvas2Editor({
     if (!pages || !api) return;
     let timer: ReturnType<typeof setTimeout> | null = null;
     const unsub = api.onScrollChange(() => {
+      // En Presentación la activa la elige la tira, no lo que se ve: acercarse
+      // a un borde no puede cambiar de diapositiva.
+      if (slidesActiveRef.current) return;
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
         // La activa se queda si se ve entera o tanto como la que más
@@ -943,7 +973,7 @@ export function Canvas2Editor({
       const next = list[(idx + step + list.length) % list.length];
       activePageIdRef.current = next.id;
       setActivePageId(next.id);
-      goToPage(api, next.id);
+      if (!slidesActiveRef.current) goToPage(api, next.id);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -956,7 +986,7 @@ export function Canvas2Editor({
     // «Elementos» y «Texto» repetían la barra de herramientas de arriba: en la
     // vista Excalidraw sobran. Las otras vistas los conservan porque su barra
     // se esconde o cambia de sitio.
-    if (workspace !== 'excalidraw') {
+    if (layoutWorkspace !== 'excalidraw') {
       workspacePanels.push({ id: 'elements', title: L.workspace.elements,
         content: <InsertPanel api={api} pageId={activePageId} labels={L} /> });
       workspacePanels.push({ id: 'text', title: L.workspace.text,
@@ -980,7 +1010,7 @@ export function Canvas2Editor({
   // Tras un separador, en texto: los paneles que van en la píldora y los
   // botones del host. Fuera de la vista Excalidraw esos paneles siguen en su
   // lista de siempre.
-  const pillPanels = workspace === 'excalidraw' ? workspacePanels.filter(panel => panel.inToolbar) : [];
+  const pillPanels = layoutWorkspace === 'excalidraw' ? workspacePanels.filter(panel => panel.inToolbar) : [];
   const pillActions: Canvas2ToolbarAction[] = [
     ...pillPanels.map(panel => ({
       id: panel.id,
@@ -989,14 +1019,14 @@ export function Canvas2Editor({
       onSelect: () => setOpenPanel(current => (current === panel.id ? null : panel.id)),
       icon: panel.icon,
     })),
-    ...(workspace === 'excalidraw' && !viewMode ? toolbarActions ?? [] : []),
+    ...(layoutWorkspace === 'excalidraw' && !viewMode ? toolbarActions ?? [] : []),
   ];
 
   return (
-    <WorkspaceLayout className={className} workspace={workspace}
+    <WorkspaceLayout className={className} workspace={layoutWorkspace}
       panels={workspacePanels} narrow={narrow}
       // En móvil la píldora no se pinta: los botones del host van a la tira.
-      actions={narrow && workspace === 'excalidraw' && !viewMode
+      actions={narrow && layoutWorkspace === 'excalidraw' && !viewMode
         ? (toolbarActions ?? []).map(action => ({ ...action, icon: action.icon ?? <WorkspaceIcon name="library" /> }))
         : undefined}
       theme={theme} labels={L} openPanel={openPanel} onOpenPanelChange={setOpenPanel}>
@@ -1098,7 +1128,7 @@ export function Canvas2Editor({
         // Al abrir para editar, el teclado ya es del lienzo: la T, Ctrl+Z o Supr
         // sin un clic antes en él, como en Canva.
         autoFocus={!viewMode}
-        gridModeEnabled={workspace === 'advanced' ? false : undefined}
+        gridModeEnabled={layoutWorkspace === 'advanced' || slidesActive ? false : undefined}
         langCode={langCode}
         aiEnabled={false}
         UIOptions={{
@@ -1185,6 +1215,7 @@ export function Canvas2Editor({
             onSaveComponent={onSaveComponent}
             themeChoice={themeChoice}
             labels={L}
+            lang={langCode}
           />
       </Excalidraw>
       {/* Marco de «suelta aquí y sustituyo esta». Es lo ÚNICO que anuncia que
@@ -1229,6 +1260,8 @@ export function Canvas2Editor({
       />
       {/* Aviso de elementos fuera de toda página. Va aquí y no dentro del
           navegador de páginas porque habla del documento entero, no de una. */}
+      {/* También en Presentación: lo que se suelta fuera de la diapositiva queda
+          tapado por la máscara, y el aviso es la forma de traerlo de vuelta. */}
       {pages && (
         <LooseWarning
           api={api}
@@ -1239,7 +1272,8 @@ export function Canvas2Editor({
           labels={L}
         />
       )}
-      {pages && api && (
+      {/* En Presentación la tira de páginas es la de diapositivas (SlidesWorkspace). */}
+      {pages && api && !slidesActive && (
         <PageNavigator
           api={api}
           theme={theme}
@@ -1269,7 +1303,7 @@ export function Canvas2Editor({
           ))}
         </ToolbarSlot>
       ) : null}
-      {rightEdge && !narrow ? (
+      {rightEdge && !narrow && !slidesActive ? (
         <div
           data-canvas2-right-edge=""
           style={{
@@ -1285,10 +1319,32 @@ export function Canvas2Editor({
           {rightEdge}
         </div>
       ) : null}
+      {slidesActive && api ? (
+        <SlidesWorkspace
+          api={api}
+          rootRef={rootRef}
+          activePageId={activePageId}
+          onActiveChange={setActivePageId}
+          panels={workspacePanels}
+          labels={L}
+          pageSize={pageSize}
+          thumbnailFiles={pageThumbnailFiles}
+          hydrateFiles={hydrateFiles}
+          fontFaces={fuentes.faces}
+          viewMode={viewMode}
+          workspace={workspace}
+          onWorkspaceChange={changeWorkspace}
+          workspaces={CANVAS_WORKSPACES}
+          onSaveComponent={onSaveComponent}
+          host={slidesHost}
+          lang={langCode}
+        />
+      ) : null}
+      {stageOverlay ? <div className="canvas2-stage-overlay">{stageOverlay}</div> : null}
       {modeControl ? (
         <ModeSwitch {...modeControl} theme={theme} narrow={narrow} labels={L.mode} />
       ) : null}
-      {pages && api && !viewMode && (
+      {pages && api && !viewMode && !slidesActive && (
         <PageActions
           api={api}
           activePageId={activePageId}

@@ -4,12 +4,11 @@ import { useEffect, useRef, useState } from 'react';
 import { MainMenu, type ExcalidrawImperativeAPI } from '../../core/excal';
 import { listPages, goToPage, type PageInfo } from '../../core/pages';
 import { convertToPages, looseElements } from '../../core/paginate';
-import { exportScenePng, exportSceneSvg, exportScenePdf, downloadBlob } from '../../core/export';
-import { elementosParaExportar } from '../../core/recortes';
+import { runCanvasExport, type ExportKind } from '../shared/exportActions';
 import type { FilesMap } from '../hooks/pageThumbnails';
 import type { SvgFontFace } from '../../core/svgFonts';
 import { mergeLabels, type PartialLabels } from '../shared/labels';
-import type { CanvasWorkspace } from '../workspaces/types';
+import { CANVAS_WORKSPACES, type CanvasWorkspace } from '../workspaces/types';
 
 /**
  * Menú principal del editor: acciones de DOCUMENTO —convertir en páginas,
@@ -63,6 +62,8 @@ export interface CanvasMenuProps {
   themeChoice?: CanvasThemeChoice;
   /** Textos, inyectados por el host (ver labels.ts). */
   labels?: PartialLabels;
+  /** Idioma de los textos al exportar a PowerPoint (`es-ES`). */
+  lang?: string;
 }
 
 /** «Como la app», claro u oscuro: lo que elige la persona, no el tema pintado. */
@@ -70,11 +71,6 @@ export type CanvasThemeChoiceValue = 'app' | 'light' | 'dark';
 export interface CanvasThemeChoice {
   value: CanvasThemeChoiceValue;
   onChange: (value: CanvasThemeChoiceValue) => void;
-}
-
-/** `fallback` es el nombre de serie (`labels.menu.exportName`), para cuando la página no da uno. */
-function safeFilename(name: string | undefined, fallback: string): string {
-  return (name || fallback).replace(/[\\/:*?"<>|]+/g, '-').trim() || fallback;
 }
 
 export function CanvasMenu({
@@ -89,6 +85,7 @@ export function CanvasMenu({
   onSaveComponent,
   themeChoice,
   labels: labelsProp,
+  lang,
 }: CanvasMenuProps) {
   const L = mergeLabels(labelsProp);
   // El tema del lienzo, como el espacio de trabajo: tres opciones marcables
@@ -109,7 +106,7 @@ export function CanvasMenu({
   ) : null;
   const workspaceItems = !viewMode && onWorkspaceChange ? (
     <MainMenu.Group title={L.workspace.label}>
-      {(['excalidraw', 'design', 'advanced'] as const).map((value) => (
+      {CANVAS_WORKSPACES.map((value) => (
         <MainMenu.Item key={value} role="menuitemradio" aria-checked={workspace === value}
           selected={workspace === value} onSelect={() => onWorkspaceChange(value)}>
           {L.workspace[value]}
@@ -142,52 +139,21 @@ export function CanvasMenu({
     return api.onChange(refresh);
   }, [api]);
 
-  const runExport = async (kind: 'png' | 'png-all' | 'svg' | 'pdf') => {
+  const runExport = async (kind: ExportKind) => {
     if (!api || exporting) return;
     setExporting(true);
     setExportError(false);
     try {
-      const base = safeFilename(activePage?.name, L.menu.exportName);
-      // Los bytes de las imágenes remotas, traídos por el host. Sin esto el
-      // canvas está contaminado y cualquier rasterizado muere.
-      // El SVG necesita los bytes en base64: van DENTRO del fichero, y un
-      // `blob:` moriría con la pestaña. El resto rasteriza en un canvas, donde
-      // un `blob:` vale igual y sale mucho más barato.
-      const files = hydrateFiles
-        ? await hydrateFiles(kind === 'svg' ? { output: 'dataurl' } : undefined)
-        : undefined;
-      // El host puede dar otra imagen de la misma foto (el original en vez de
-      // la vista previa): los recortes, a su tamaño (`recortes.ts`).
-      const elements = files ? await elementosParaExportar(api.getSceneElements(), files as never) : undefined;
-      if (kind === 'png') {
-        downloadBlob(
-          await exportScenePng(api, { pageId: activePageId ?? undefined, files, elements }),
-          `${base}.png`,
-        );
-      } else if (kind === 'png-all') {
-        for (const page of pages) {
-          downloadBlob(
-            await exportScenePng(api, { pageId: page.id, files, elements }),
-            `${safeFilename(page.name, L.menu.exportName)}.png`,
-          );
-        }
-      } else if (kind === 'svg') {
-        const svg = await exportSceneSvg(api, {
-          pageId: activePageId ?? undefined,
-          files,
-          elements,
-          fontFaces,
-          // Google sirve las fuentes con CORS abierto, así que un `fetch` normal
-          // basta: no hace falta el proxy del worker (que además solo permite
-          // los hosts de media). Si falla, la fuente se queda por URL y el SVG
-          // se sigue viendo bien donde haya red.
-          fontFetcher: (url) => fetch(url).then((r) => r.blob()),
-        });
-        const blob = new Blob([new XMLSerializer().serializeToString(svg)], { type: 'image/svg+xml' });
-        downloadBlob(blob, `${base}.svg`);
-      } else {
-        downloadBlob(await exportScenePdf(api, { files, elements }), `${safeFilename(pages[0]?.name, L.menu.exportName)}.pdf`);
-      }
+      // El mismo camino que Archivo › Descargar del espacio Presentación
+      // (exportActions.ts): hidratación de imágenes, recortes y fuentes.
+      await runCanvasExport(api, kind, {
+        activePageId,
+        hydrateFiles,
+        fontFaces,
+        fallbackName: L.menu.exportName,
+        pageNames: pageNames.current,
+        lang,
+      });
     } catch (err) {
       console.error('[canvas2] export failed', err);
       setExportError(true);
@@ -276,6 +242,8 @@ export function CanvasMenu({
         <MainMenu.Item onSelect={() => void runExport('png-all')}>{L.menu.exportPngAll}</MainMenu.Item>
         <MainMenu.Item onSelect={() => void runExport('svg')}>{L.menu.exportSvg}</MainMenu.Item>
         <MainMenu.Item onSelect={() => void runExport('pdf')}>{L.menu.exportPdf}</MainMenu.Item>
+        <MainMenu.Item onSelect={() => void runExport('pptx')}>{L.menu.exportPptx}</MainMenu.Item>
+        <MainMenu.Item onSelect={() => void runExport('potx')}>{L.menu.exportPotx}</MainMenu.Item>
       </MainMenu.Group>
 
       {/* Items de fábrica que se reponen: sustituir el menú los tira todos.

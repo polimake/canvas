@@ -84,6 +84,17 @@ export function fontFamilyId(name: string): number | null {
   return tabla[fontFamilyCss(alias)] ?? tabla[name] ?? null;
 }
 
+/**
+ * Nombre de la familia de un id (lo inverso de `fontFamilyId`): las de serie y
+ * las registradas. Lo usa la exportación a PowerPoint, que necesita el nombre y
+ * no el número. La clave de la tabla puede ir entre comillas (`fontFamilyCss`).
+ */
+export function fontFamilyName(id: number): string | undefined {
+  const tabla = FONT_FAMILY as unknown as Record<string, number>;
+  const clave = Object.entries(tabla).find(([, valor]) => valor === id)?.[0];
+  return clave?.replace(/^"(.*)"$/, '$1').replace(/\\(.)/g, '$1');
+}
+
 /** Solo para tests: olvida lo registrado en este proceso. */
 export function resetFontRegistry(): void {
   registradas.clear();

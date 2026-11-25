@@ -267,3 +267,8 @@
   /* En móvil tapa el lienzo: sin filo, pero con su sombra para despegarse. */
   box-shadow: 4px 6px 24px #0002;
 }
+
+/* Contenido del host centrado sobre el escenario (`stageOverlay`): ocupa la
+   superficie del lienzo, que en Diseño y Experta ya deja fuera sus paneles, y
+   en Presentación el hueco entre sus tiras (slides.css). */
+.canvas2-stage-overlay { position: absolute; inset: 0; z-index: 4; pointer-events: none; }

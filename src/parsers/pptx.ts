@@ -57,6 +57,22 @@ function styledFamily(font: string | undefined, bold: boolean, italic: boolean):
 }
 
 const placeholderOf = (shape: XmlNode) => descendants(child(shape, 'nvSpPr'), 'ph')[0];
+
+/**
+ * El texto de las notas del orador: solo el cuerpo (no el número de diapositiva
+ * ni la fecha del pie), un párrafo por línea y los fragmentos de un párrafo
+ * juntos; antes cada cambio de estilo dentro de una frase la partía en líneas.
+ */
+function notesText(notes: XmlNode): string {
+  const shapes = descendants(notes, 'sp');
+  const body = shapes.find(sp => placeholderOf(sp)?.attrs.type === 'body')
+    ?? shapes.find(sp => !placeholderOf(sp) && child(sp, 'txBody'));
+  // Un fichero sin la estructura de siempre: todo su texto, mejor que nada.
+  if (!body) return descendants(notes, 't').map(value).join('\n').replace(/\s+$/, '');
+  const paragraphs = descendants(child(body, 'txBody'), 'p').map(p =>
+    p.children.flatMap(run => (run.name === 'br' ? ['\n'] : run.name === 'r' || run.name === 'fld' ? descendants(run, 't').map(value) : [])).join(''));
+  return paragraphs.join('\n').replace(/\s+$/, '');
+}
 const masterKind = (type: string | undefined) => type === 'title' || type === 'ctrTitle' ? 'title' : !type || type === 'subTitle' || type === 'obj' || type === 'body' ? 'body' : type;
 const shapesOf = (root: XmlNode | undefined, tag: string) => children(child(child(root && child(root, tag), 'cSld'), 'spTree'), 'sp');
 
@@ -120,6 +136,8 @@ export function parsePptx(input: Uint8Array | ArrayBuffer, limits: ParseLimits =
     const slideRoot = read(rel.target), slide = child(slideRoot, 'sld');
     if (!slide) throw new DocumentImportError('invalid-file', 'Missing slide root.');
     const page: DocumentPage = { id: `slide-${pageIndex + 1}`, name: child(slide, 'cSld')?.attrs.name || `Slide ${pageIndex + 1}`, width, height, elements: [] };
+    // Oculta en PowerPoint = se salta al presentar.
+    if (slide.attrs.show === '0') page.hidden = true;
     doc.pages.push(page);
     // Indexing preserves source text even for what cannot be placed.
     page.extractedText = descendants(slide, 't').map(value).join('\n');
@@ -426,8 +444,15 @@ export function parsePptx(input: Uint8Array | ArrayBuffer, limits: ParseLimits =
     if (slide.attrs.showMasterSp !== '0' && layoutPath) tree(layout).forEach(n => shape(n, relationships(layoutPath), false, root));
     tree(slide).forEach(n => shape(n, slideRels, true, root));
     const notes = [...slideRels.values()].find(r => r.type.endsWith('/notesSlide') && !r.external);
-    if (notes && files[notes.target]) page.notes = descendants(read(notes.target), 't').map(value).join('\n');
-    if (child(slide, 'timing') || child(slide, 'transition')) warn('animation', 'Animation and transitions are not imported.', page.id);
+    if (notes && files[notes.target]) {
+      const text = notesText(read(notes.target));
+      if (text) page.notes = text;
+    }
+    // Una transición entra como fundido, la única que el editor presenta; las
+    // animaciones de los objetos no tienen equivalente y se avisa.
+    const transition = child(slide, 'transition') ?? descendants(child(slide, 'AlternateContent'), 'transition')[0];
+    if (transition && transition.children.some(c => c.name !== 'extLst' && c.name !== 'sndAc')) page.transition = 'fade';
+    if (child(slide, 'timing')) warn('animation', 'Object animations are not imported.', page.id);
   }
   return doc;
 }

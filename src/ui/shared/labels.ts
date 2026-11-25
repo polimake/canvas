@@ -33,6 +33,8 @@ export interface Canvas2Labels {
     excalidraw: string;
     design: string;
     advanced: string;
+    /** El espacio Presentación (distribución de Slides). */
+    slides: string;
     panels: string;
     /** La flecha de la derecha que abre el inspector (Página · Capas · Marca…). */
     openPanel: string;
@@ -79,6 +81,10 @@ export interface Canvas2Labels {
     exportPngAll: string;
     exportSvg: string;
     exportPdf: string;
+    /** PowerPoint editable (todas las páginas, una por diapositiva). */
+    exportPptx: string;
+    /** La misma presentación como plantilla de PowerPoint. */
+    exportPotx: string;
     /** Acción de paginar lo que está suelto en el lienzo. */
     toPages: string;
     /** Recibe cuántos elementos sueltos hay ahora mismo. */
@@ -238,6 +244,8 @@ export interface Canvas2Labels {
   };
   /** Nombres de los tamaños de página, por clave de preset. */
   sizes: Record<string, string>;
+  /** Espacio Presentación: menús, barra, tira, notas y presentar (slides/). */
+  slides: SlidesLabels;
   /** Selector de modo (Ver · Comentar · Editar) del host. */
   mode: {
     group: string;
@@ -247,6 +255,324 @@ export interface Canvas2Labels {
     done: string;
   };
 }
+
+export interface SlidesLabels {
+  /** Región de los menús (Archivo, Editar…), para el lector de pantalla. */
+  menubar: string;
+  file: string;
+  edit: string;
+  view: string;
+  insert: string;
+  format: string;
+  slide: string;
+  arrange: string;
+  /** Barra de herramientas. */
+  toolbar: string;
+  search: string;
+  newSlide: string;
+  newSlideAfter: string;
+  undo: string;
+  redo: string;
+  zoomFit: string;
+  zoomIn: string;
+  zoomOut: string;
+  select: string;
+  textBox: string;
+  image: string;
+  shape: string;
+  rectangle: string;
+  ellipse: string;
+  diamond: string;
+  line: string;
+  arrow: string;
+  comment: string;
+  background: string;
+  components: string;
+  theme: string;
+  transition: string;
+  formatOptions: string;
+  hideMenus: string;
+  showMenus: string;
+  /** Diapositiva. */
+  slides: string;
+  slideN: (n: number) => string;
+  duplicateSlide: string;
+  deleteSlide: string;
+  skipSlide: string;
+  unskipSlide: string;
+  skipped: string;
+  moveSlide: string;
+  moveToStart: string;
+  moveToEnd: string;
+  moveUp: string;
+  moveDown: string;
+  changeBackground: string;
+  applyComponent: string;
+  changeTheme: string;
+  pageSize: string;
+  pageSizeCurrent: (label: string) => string;
+  /** Editar. */
+  duplicate: string;
+  delete: string;
+  selectAll: string;
+  group: string;
+  ungroup: string;
+  /** Organizar. */
+  align: string;
+  order: string;
+  bringToFront: string;
+  bringForward: string;
+  sendBackward: string;
+  sendToBack: string;
+  /** Ver. */
+  present: string;
+  presentFromStart: string;
+  presentOptions: string;
+  gridView: string;
+  backToSlide: string;
+  showNotes: string;
+  showFilmstrip: string;
+  hideFilmstrip: string;
+  workspace: string;
+  /** Notas. */
+  notes: string;
+  notesPlaceholder: string;
+  /** Cuadrícula. */
+  slideCount: (n: number) => string;
+  /** Paneles de la derecha. */
+  panels: string;
+  details: string;
+  closePanel: string;
+  themeInPresentation: string;
+  importTheme: string;
+  importThemeHint: string;
+  transitionNone: string;
+  transitionFade: string;
+  transitionApplyAll: string;
+  /** Presentar. */
+  presenting: string;
+  previous: string;
+  next: string;
+  counter: (i: number, n: number) => string;
+  presenterView: string;
+  presenterNext: string;
+  presenterEnd: string;
+  presenterTimer: string;
+  exit: string;
+  escToExit: string;
+  presenterBlocked: string;
+  /** Archivo › Importar diapositivas (de un .pptx o un .pdf, al final de la presentación). */
+  importSlides: string;
+  importing: string;
+  imported: (count: number) => string;
+  importFailed: string;
+  /** Nombres de teclas para los atajos de los menús. */
+  keys: { shift: string; enter: string; del: string };
+}
+
+export const SLIDES_ES: SlidesLabels = {
+  menubar: 'Menús de la presentación',
+  file: 'Archivo',
+  edit: 'Editar',
+  view: 'Ver',
+  insert: 'Insertar',
+  format: 'Formato',
+  slide: 'Diapositiva',
+  arrange: 'Organizar',
+  toolbar: 'Herramientas',
+  search: 'Buscar en la presentación',
+  newSlide: 'Nueva diapositiva',
+  newSlideAfter: 'Nueva diapositiva detrás de esta',
+  undo: 'Deshacer',
+  redo: 'Rehacer',
+  zoomFit: 'Ajustar',
+  zoomIn: 'Acercar',
+  zoomOut: 'Alejar',
+  select: 'Seleccionar',
+  textBox: 'Cuadro de texto',
+  image: 'Imagen de la biblioteca',
+  shape: 'Forma',
+  rectangle: 'Rectángulo',
+  ellipse: 'Elipse',
+  diamond: 'Rombo',
+  line: 'Línea',
+  arrow: 'Flecha',
+  comment: 'Comentar',
+  background: 'Fondo',
+  components: 'Componentes',
+  theme: 'Tema',
+  transition: 'Transición',
+  formatOptions: 'Opciones de formato',
+  hideMenus: 'Ocultar los menús',
+  showMenus: 'Mostrar los menús',
+  slides: 'Diapositivas',
+  slideN: (n) => `Diapositiva ${n}`,
+  duplicateSlide: 'Duplicar diapositiva',
+  deleteSlide: 'Eliminar diapositiva',
+  skipSlide: 'Saltar diapositiva',
+  unskipSlide: 'No saltar diapositiva',
+  skipped: 'Se salta al presentar',
+  moveSlide: 'Mover diapositiva',
+  moveToStart: 'Mover al principio',
+  moveToEnd: 'Mover al final',
+  moveUp: 'Subir',
+  moveDown: 'Bajar',
+  changeBackground: 'Cambiar fondo',
+  applyComponent: 'Aplicar componente',
+  changeTheme: 'Cambiar tema (marca)',
+  pageSize: 'Tamaño',
+  pageSizeCurrent: (label) => `Tamaño: ${label}`,
+  duplicate: 'Duplicar',
+  delete: 'Eliminar',
+  selectAll: 'Seleccionar todo',
+  group: 'Agrupar',
+  ungroup: 'Desagrupar',
+  align: 'Alinear en la diapositiva',
+  order: 'Ordenar',
+  bringToFront: 'Traer al frente',
+  bringForward: 'Traer adelante',
+  sendBackward: 'Enviar atrás',
+  sendToBack: 'Enviar al fondo',
+  present: 'Presentar',
+  presentFromStart: 'Presentar desde el principio',
+  presentOptions: 'Opciones de presentación',
+  gridView: 'Vista de cuadrícula',
+  backToSlide: 'Volver a la diapositiva',
+  showNotes: 'Notas del orador',
+  showFilmstrip: 'Mostrar la tira',
+  hideFilmstrip: 'Ocultar la tira',
+  workspace: 'Espacio de trabajo',
+  notes: 'Notas del orador',
+  notesPlaceholder: 'Haz clic para añadir notas del orador',
+  slideCount: (n) => (n === 1 ? '1 diapositiva' : `${n} diapositivas`),
+  panels: 'Paneles',
+  details: 'Detalles',
+  closePanel: 'Cerrar el panel',
+  themeInPresentation: 'En esta presentación',
+  importTheme: 'Importar tema',
+  importThemeHint: 'De un .pptx o de otra marca del espacio',
+  transitionNone: 'Ninguna',
+  transitionFade: 'Fundido',
+  transitionApplyAll: 'Aplicar a todas las diapositivas',
+  presenting: 'Presentación',
+  previous: 'Anterior',
+  next: 'Siguiente',
+  counter: (i, n) => `${i} / ${n}`,
+  presenterView: 'Vista del orador',
+  presenterNext: 'Siguiente',
+  presenterEnd: 'Fin de la presentación',
+  presenterTimer: 'Tiempo',
+  exit: 'Salir',
+  escToExit: 'Esc para salir',
+  presenterBlocked: 'El navegador ha bloqueado la ventana de la vista del orador',
+  importSlides: 'Importar diapositivas…',
+  importing: 'Importando…',
+  imported: (n) => (n === 1 ? '1 diapositiva importada' : `${n} diapositivas importadas`),
+  importFailed: 'No se pudo importar el archivo',
+  keys: { shift: 'Mayús', enter: 'Intro', del: 'Supr' },
+};
+
+export const SLIDES_EN: SlidesLabels = {
+  menubar: 'Presentation menus',
+  file: 'File',
+  edit: 'Edit',
+  view: 'View',
+  insert: 'Insert',
+  format: 'Format',
+  slide: 'Slide',
+  arrange: 'Arrange',
+  toolbar: 'Tools',
+  search: 'Search the presentation',
+  newSlide: 'New slide',
+  newSlideAfter: 'New slide after this one',
+  undo: 'Undo',
+  redo: 'Redo',
+  zoomFit: 'Fit',
+  zoomIn: 'Zoom in',
+  zoomOut: 'Zoom out',
+  select: 'Select',
+  textBox: 'Text box',
+  image: 'Image from the library',
+  shape: 'Shape',
+  rectangle: 'Rectangle',
+  ellipse: 'Ellipse',
+  diamond: 'Diamond',
+  line: 'Line',
+  arrow: 'Arrow',
+  comment: 'Comment',
+  background: 'Background',
+  components: 'Components',
+  theme: 'Theme',
+  transition: 'Transition',
+  formatOptions: 'Format options',
+  hideMenus: 'Hide the menus',
+  showMenus: 'Show the menus',
+  slides: 'Slides',
+  slideN: (n) => `Slide ${n}`,
+  duplicateSlide: 'Duplicate slide',
+  deleteSlide: 'Delete slide',
+  skipSlide: 'Skip slide',
+  unskipSlide: 'Unskip slide',
+  skipped: 'Skipped when presenting',
+  moveSlide: 'Move slide',
+  moveToStart: 'Move to beginning',
+  moveToEnd: 'Move to end',
+  moveUp: 'Move up',
+  moveDown: 'Move down',
+  changeBackground: 'Change background',
+  applyComponent: 'Apply component',
+  changeTheme: 'Change theme (brand)',
+  pageSize: 'Size',
+  pageSizeCurrent: (label) => `Size: ${label}`,
+  duplicate: 'Duplicate',
+  delete: 'Delete',
+  selectAll: 'Select all',
+  group: 'Group',
+  ungroup: 'Ungroup',
+  align: 'Align on the slide',
+  order: 'Order',
+  bringToFront: 'Bring to front',
+  bringForward: 'Bring forward',
+  sendBackward: 'Send backward',
+  sendToBack: 'Send to back',
+  present: 'Present',
+  presentFromStart: 'Present from the beginning',
+  presentOptions: 'Presentation options',
+  gridView: 'Grid view',
+  backToSlide: 'Back to the slide',
+  showNotes: 'Speaker notes',
+  showFilmstrip: 'Show the filmstrip',
+  hideFilmstrip: 'Hide the filmstrip',
+  workspace: 'Workspace',
+  notes: 'Speaker notes',
+  notesPlaceholder: 'Click to add speaker notes',
+  slideCount: (n) => (n === 1 ? '1 slide' : `${n} slides`),
+  panels: 'Panels',
+  details: 'Details',
+  closePanel: 'Close the panel',
+  themeInPresentation: 'In this presentation',
+  importTheme: 'Import theme',
+  importThemeHint: 'From a .pptx or another brand in the space',
+  transitionNone: 'None',
+  transitionFade: 'Fade',
+  transitionApplyAll: 'Apply to all slides',
+  presenting: 'Presentation',
+  previous: 'Previous',
+  next: 'Next',
+  counter: (i, n) => `${i} / ${n}`,
+  presenterView: 'Presenter view',
+  presenterNext: 'Next',
+  presenterEnd: 'End of presentation',
+  presenterTimer: 'Time',
+  exit: 'Exit',
+  escToExit: 'Esc to exit',
+  presenterBlocked: 'The browser blocked the presenter view window',
+  importSlides: 'Import slides…',
+  importing: 'Importing…',
+  imported: (n) => (n === 1 ? '1 slide imported' : `${n} slides imported`),
+  importFailed: 'The file could not be imported',
+  keys: { shift: 'Shift', enter: 'Enter', del: 'Del' },
+};
 
 export const DEFAULT_LABELS: Canvas2Labels = {
   workspace: {
@@ -266,6 +592,7 @@ export const DEFAULT_LABELS: Canvas2Labels = {
     excalidraw: 'Excalidraw',
     design: 'Canva',
     advanced: 'Experta',
+    slides: 'Presentación',
     panels: 'Paneles del editor',
     openPanel: 'Abrir el panel',
     showPanels: 'Mostrar paneles',
@@ -308,6 +635,8 @@ export const DEFAULT_LABELS: Canvas2Labels = {
     exportPngAll: 'PNG · todas las páginas',
     exportSvg: 'SVG · página actual',
     exportPdf: 'PDF · todas las páginas',
+    exportPptx: 'PowerPoint (.pptx)',
+    exportPotx: 'Plantilla de PowerPoint (.potx)',
     toPages: 'Convertir en páginas',
     toPagesHint: (count) => `${count} suelto${count === 1 ? '' : 's'}`,
     toPagesDone: (count) => `${count} página${count === 1 ? '' : 's'} creada${count === 1 ? '' : 's'}`,
@@ -425,6 +754,7 @@ export const DEFAULT_LABELS: Canvas2Labels = {
     a4: 'A4',
     default: 'Lienzo clásico',
   },
+  slides: SLIDES_ES,
   mode: {
     group: 'Modo del lienzo',
     view: 'Ver',
@@ -457,6 +787,7 @@ export const EN_LABELS: Canvas2Labels = {
     excalidraw: 'Excalidraw',
     design: 'Design',
     advanced: 'Advanced',
+    slides: 'Presentation',
     panels: 'Editor panels',
     openPanel: 'Open the panel',
     showPanels: 'Show panels',
@@ -499,6 +830,8 @@ export const EN_LABELS: Canvas2Labels = {
     exportPngAll: 'PNG · all pages',
     exportSvg: 'SVG · current page',
     exportPdf: 'PDF · all pages',
+    exportPptx: 'PowerPoint (.pptx)',
+    exportPotx: 'PowerPoint template (.potx)',
     toPages: 'Turn into pages',
     toPagesHint: (count) => `${count} loose`,
     toPagesDone: (count) => `${count} page${count === 1 ? '' : 's'} created`,
@@ -618,6 +951,7 @@ export const EN_LABELS: Canvas2Labels = {
     a4: 'A4',
     default: 'Classic canvas',
   },
+  slides: SLIDES_EN,
   mode: {
     group: 'Canvas mode',
     view: 'View',

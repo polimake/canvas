@@ -54,12 +54,28 @@ La subida de imágenes es responsabilidad del consumidor. Tras subirlas, pasa su
 mapa de URL a `documentToScene(document, { assets, idPrefix })`. Los bytes no se
 incrustan en el JSON del lienzo.
 
+## Escribir un PowerPoint
+
+```ts
+import { sceneToDocument, documentToPptx } from '@pm/canvas/converters';
+
+// `files` con los bytes de cada imagen (`data:`); sin ellos, la imagen se avisa y se omite.
+const document = sceneToDocument(scene.elements, files, { fontName: (id) => familias[id] });
+const { bytes, mimeType, extension, warnings } = documentToPptx(document, { title: 'Campaña', template: false });
+```
+
+Es el camino inverso de leer, por el mismo modelo de documento: lo escrito se
+puede volver a importar. Una presentación tiene un solo tamaño (el de la primera
+página); las de otro tamaño se encajan centradas. En el editor, Archivo ›
+Exportar y el menú ☰ lo hacen con las imágenes y letras resueltas
+(`ui/shared/exportActions.ts`).
+
 ## Soporte de formatos
 
 | Formato | Soporte actual |
 | --- | --- |
 | `.psd`, `.psb` | Lectura binaria de estructura y canales comprimidos; conversión de capas, textos, formas y mesas de trabajo. Rasteres como referencias pendientes de decodificar/subir. |
-| `.pptx` | Diapositivas con su tema, patrón y diseño: textos, formas, contornos libres, conectores, tablas, imágenes y notas. Conversión editable con informe de lo que cambia. |
+| `.pptx`, `.potx` | **Leer**: diapositivas con su tema, patrón y diseño: textos, formas, contornos libres, conectores, tablas, imágenes, notas del orador, diapositivas ocultas y transiciones (como fundido). Conversión editable con informe de lo que cambia. **Escribir** (`sceneToDocument` → `documentToPptx`): cada página una diapositiva editable —formas nativas, cuadros de texto, líneas, imágenes con recorte, fondo, notas, ocultas y fundido—, como presentación o como plantilla. |
 | `.ppt` | Requiere conversión externa a `.pptx`; no es un ZIP OOXML. |
 | `.ai` compatible con PDF | Adaptador PDF: extracción de texto para búsqueda o páginas como imágenes mediante un renderizador del consumidor. |
 | `.ai` antiguo/PostScript | Requiere conversión externa; no se interpreta ni ejecuta PostScript. |
