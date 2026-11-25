@@ -2,9 +2,9 @@ import { jsxs, jsx, Fragment as Fragment$1 } from "react/jsx-runtime";
 import { useState, useRef, useEffect, Fragment, useMemo, useCallback, useId, useLayoutEffect, useReducer } from "react";
 import "@excalidraw/excalidraw/index.css";
 import { CaptureUpdateAction, newElementWith, convertToExcalidrawElements, restore, serializeAsJSON, exportToCanvas, exportToBlob, exportToSvg, FONT_FAMILY, MainMenu, useI18n, viewportCoordsToSceneCoords, getVisibleSceneBounds, Excalidraw, getNonDeletedElements } from "@excalidraw/excalidraw";
-import { i as isPageBackground, B as BG_MARKER$1, g as pageOrderOf, P as PAGE_MARKER, h as framesInDocumentOrder, s as sceneToDocument, f as documentToPptx, n as notesOf, t as transitionOf, j as isSkippedFrame, S as SLIDE_NOTES_KEY, a as SLIDE_SKIP_KEY, b as SLIDE_TRANSITION_KEY, k as SLIDE_TRANSITIONS } from "./documentToPptx-XCLs01g1.js";
+import { i as isPageBackground, B as BG_MARKER$1, g as pageOrderOf, P as PAGE_MARKER, h as framesInDocumentOrder, s as sceneToDocument, f as documentToPptx, n as notesOf, t as transitionOf, j as isSkippedFrame, S as SLIDE_NOTES_KEY, a as SLIDE_SKIP_KEY, b as SLIDE_TRANSITION_KEY, k as SLIDE_TRANSITIONS } from "./documentToPptx-CsrYYM5a.js";
 import { cloneSceneElements } from "../components.js";
-import { P as PAGE_GAP } from "./layout-BEpoNps2.js";
+import { P as PAGE_GAP } from "./layout-L5bQ5REv.js";
 import { fontFormatHint, buildFontFaceCss, fontFamilyAlias, fontFamilyCss, customFontFamilyId, normalizeFontSrc, dedupeFontFaces } from "../fonts.js";
 import { createPortal, flushSync } from "react-dom";
 const CAPTURE = {
@@ -3666,20 +3666,24 @@ function PageActions({
   const [placed, setPlaced] = useState([]);
   const [armedDelete, setArmedDelete] = useState(false);
   const [renaming, setRenaming] = useState(null);
+  const renameDone = useRef(false);
   const confirmRef = useRef(null);
+  const placedKey = useRef("");
   useEffect(() => {
     const recompute = () => {
       const pages = listPages(api, L.pages);
       const { scrollX, scrollY, zoom } = api.getAppState();
       const z = (zoom == null ? void 0 : zoom.value) ?? 1;
-      setPlaced(
-        pages.map((page) => ({
-          left: (page.x + scrollX) * z,
-          top: (page.y + scrollY) * z - OFFSET_Y,
-          width: page.width * z,
-          page
-        }))
-      );
+      const next = pages.map((page) => ({
+        left: (page.x + scrollX) * z,
+        top: (page.y + scrollY) * z - OFFSET_Y,
+        width: page.width * z,
+        page
+      }));
+      const key = next.map((p) => `${p.page.id}:${p.page.name}:${p.page.locked ? 1 : 0}:${Math.round(p.left)}:${Math.round(p.top)}:${Math.round(p.width)}`).join("|");
+      if (key === placedKey.current) return;
+      placedKey.current = key;
+      setPlaced(next);
     };
     recompute();
     return api.onChange(recompute);
@@ -3700,9 +3704,14 @@ function PageActions({
     goToPage(api, id);
   };
   const commitRename = () => {
-    if (!renaming) return;
+    if (!renaming || renameDone.current) return;
+    renameDone.current = true;
     const name = renaming.value.trim();
-    if (name) renamePage(api, renaming.id, name);
+    if (name && name !== renaming.original) renamePage(api, renaming.id, name);
+    setRenaming(null);
+  };
+  const cancelRename = () => {
+    renameDone.current = true;
     setRenaming(null);
   };
   const iconButton = (label, onClick, icon, danger = false) => /* @__PURE__ */ jsx(
@@ -3744,7 +3753,10 @@ function PageActions({
             if (!isActive) onActiveChange == null ? void 0 : onActiveChange(page.id);
           },
           onDoubleClick: () => {
-            if (!page.locked) setRenaming({ id: page.id, value: page.name });
+            if (!page.locked) {
+              renameDone.current = false;
+              setRenaming({ id: page.id, value: page.name, original: page.name });
+            }
           },
           style: {
             position: "absolute",
@@ -3791,11 +3803,11 @@ function PageActions({
                 autoFocus: true,
                 "aria-label": L.pages.rename,
                 value: renaming.value,
-                onChange: (e) => setRenaming({ id: page.id, value: e.target.value }),
+                onChange: (e) => setRenaming({ id: page.id, value: e.target.value, original: (renaming == null ? void 0 : renaming.original) ?? page.name }),
                 onKeyDown: (e) => {
                   e.stopPropagation();
                   if (e.key === "Enter") commitRename();
-                  if (e.key === "Escape") setRenaming(null);
+                  if (e.key === "Escape") cancelRename();
                 },
                 onBlur: commitRename,
                 onFocus: (e) => e.currentTarget.select(),
@@ -6532,6 +6544,7 @@ function SlidesPanels({
 }
 function TransitionPanel({ api, pageId, labels }) {
   const L = labels.slides;
+  const grupo = `canvas2-slide-transition-${useId()}`;
   const [value, setValue] = useState(() => pageId ? getPageTransition(api, pageId) : "none");
   useEffect(() => {
     if (!pageId) return;
@@ -6552,7 +6565,7 @@ function TransitionPanel({ api, pageId, labels }) {
         "input",
         {
           type: "radio",
-          name: "canvas2-slide-transition",
+          name: grupo,
           checked: value === t,
           disabled: !pageId,
           onChange: () => {
@@ -6679,6 +6692,7 @@ function SpeakerNotes({ api, pageId, label, placeholder, readOnly, style }) {
 }
 const IDLE_MS = 2500;
 function PresentMode({ api, slides, startId, labels, onExit, presenter: presenterAtStart }) {
+  var _a;
   const L = labels.slides;
   const shown = useMemo(() => slides.filter((s) => !s.skipped), [slides]);
   const [index, setIndex] = useState(() => {
@@ -6719,16 +6733,29 @@ function PresentMode({ api, slides, startId, labels, onExit, presenter: presente
     if (current) void render(current.id);
     if (nextSlide) void render(nextSlide.id);
   }, [current == null ? void 0 : current.id, nextSlide == null ? void 0 : nextSlide.id, render]);
+  useEffect(() => {
+    if (index > total) setIndex(total);
+  }, [total, index]);
+  const prevId = (_a = shown[index - 1]) == null ? void 0 : _a.id;
+  useEffect(() => {
+    const keep = new Set([prevId, current == null ? void 0 : current.id, nextSlide == null ? void 0 : nextSlide.id].filter((id) => Boolean(id)));
+    for (const id of [...requested.current]) if (!keep.has(id)) requested.current.delete(id);
+    setSvgs((m) => {
+      const ids = Object.keys(m);
+      if (ids.every((id) => keep.has(id))) return m;
+      return Object.fromEntries(ids.filter((id) => keep.has(id)).map((id) => [id, m[id]]));
+    });
+  }, [prevId, current == null ? void 0 : current.id, nextSlide == null ? void 0 : nextSlide.id]);
   const presenterRef = useRef(null);
   presenterRef.current = presenterWin;
   const exited = useRef(false);
   const exit = useCallback(() => {
-    var _a, _b;
+    var _a2, _b;
     if (exited.current) return;
     exited.current = true;
     if (document.fullscreenElement) void document.exitFullscreen().catch(() => {
     });
-    (_a = presenterRef.current) == null ? void 0 : _a.close();
+    (_a2 = presenterRef.current) == null ? void 0 : _a2.close();
     onExit((current == null ? void 0 : current.id) ?? null);
     if ((_b = opener.current) == null ? void 0 : _b.isConnected) opener.current.focus({ preventScroll: true });
   }, [onExit, current == null ? void 0 : current.id]);
@@ -6739,10 +6766,10 @@ function PresentMode({ api, slides, startId, labels, onExit, presenter: presente
   }, [total]);
   const opener = useRef(typeof document !== "undefined" ? document.activeElement : null);
   useEffect(() => {
-    var _a;
+    var _a2;
     if (presenterAtStart) openPresenter();
     const el = rootRef.current;
-    (_a = el == null ? void 0 : el.requestFullscreen) == null ? void 0 : _a.call(el).catch(() => {
+    (_a2 = el == null ? void 0 : el.requestFullscreen) == null ? void 0 : _a2.call(el).catch(() => {
     });
     el == null ? void 0 : el.focus();
     const onChange = () => {
@@ -6803,8 +6830,8 @@ function PresentMode({ api, slides, startId, labels, onExit, presenter: presente
     setPresenterWin(win);
   };
   useEffect(() => () => {
-    var _a;
-    return (_a = presenterRef.current) == null ? void 0 : _a.close();
+    var _a2;
+    return (_a2 = presenterRef.current) == null ? void 0 : _a2.close();
   }, []);
   const transition = current ? getPageTransition(api, current.id) : "none";
   const notes = current ? getPageNotes(api, current.id) : "";
@@ -7280,7 +7307,18 @@ function SlidesWorkspace(props) {
   const L = labels.slides;
   const deck = useDeck(api, labels.pages);
   const thumbs = usePageThumbnails(api, { files: thumbnailFiles, width: 336 });
-  const [openPanel, setOpenPanel] = useState(null);
+  const [transitionOpen, setTransitionOpen] = useState(false);
+  const hostPanel = props.openPanel ?? null;
+  useEffect(() => {
+    if (hostPanel) setTransitionOpen(false);
+  }, [hostPanel]);
+  const openPanel = transitionOpen ? "transition" : hostPanel;
+  const setOpenPanel = (next) => {
+    var _a;
+    const value = typeof next === "function" ? next(openPanel) : next;
+    setTransitionOpen(value === "transition");
+    (_a = props.onOpenPanelChange) == null ? void 0 : _a.call(props, value === "transition" ? null : value);
+  };
   const [view, setView] = useState("slide");
   const [menusHidden, setMenusHidden] = useState(false);
   const [filmstripHidden, setFilmstripHidden] = useState(false);
@@ -7656,15 +7694,17 @@ function SlidesWorkspace(props) {
   };
   useEffect(() => {
     const onKey = (e) => {
-      var _a;
+      var _a, _b;
       const now = shortcuts.current;
       if (now.presenting || e.defaultPrevented) return;
       const target = e.target;
       if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
       const scope = (_a = rootRef.current) == null ? void 0 : _a.closest(".canvas2-workspace");
-      if (target && target !== document.body && scope && !scope.contains(target)) return;
+      if (!scope) return;
+      if (target && target !== document.body && !scope.contains(target)) return;
       const ctrl = e.ctrlKey || e.metaKey;
       const key = e.key.toLowerCase();
+      if (ctrl && key === "m" && ((_b = target == null ? void 0 : target.closest) == null ? void 0 : _b.call(target, ".canvas2-slides-filmstrip"))) return;
       if (ctrl && !e.altKey && e.key === "Enter") now.present(e.shiftKey);
       else if (now.viewMode) return;
       else if (ctrl && !e.shiftKey && !e.altKey && key === "m") now.newSlide();
@@ -9406,7 +9446,9 @@ ${css}` : css;
                 workspaces: CANVAS_WORKSPACES,
                 onSaveComponent,
                 host: slidesHost,
-                lang: langCode
+                lang: langCode,
+                openPanel,
+                onOpenPanelChange: setOpenPanel
               }
             ) : null,
             stageOverlay ? /* @__PURE__ */ jsx("div", { className: "canvas2-stage-overlay", children: stageOverlay }) : null,
@@ -9653,4 +9695,4 @@ export {
   adoptStrayFramesInArray as y,
   alignToPage as z
 };
-//# sourceMappingURL=LibraryPanel-CH50RYoP.js.map
+//# sourceMappingURL=LibraryPanel-b0wt69Ex.js.map

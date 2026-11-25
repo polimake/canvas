@@ -56,6 +56,9 @@ export interface SlidesWorkspaceProps {
     host?: SlidesHostOptions;
     /** Idioma de los textos al exportar a PowerPoint (`es-ES`). */
     lang?: string;
+    /** El panel abierto del editor (`Canvas2`), el mismo en todos los espacios. */
+    openPanel?: string | null;
+    onOpenPanelChange?: (id: string | null) => void;
 }
 /**
  * El espacio «Presentación»: el lienzo de siempre con la distribución de Slides.
