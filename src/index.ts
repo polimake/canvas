@@ -1,5 +1,5 @@
 export { Canvas2Editor, Canvas2, default } from './ui/editor/Canvas2';
-export type { Canvas2EditorProps, Canvas2Scene, Canvas2Api } from './ui/editor/Canvas2';
+export type { Canvas2EditorProps, Canvas2Scene, Canvas2Api, Canvas2HostPanel } from './ui/editor/Canvas2';
 export type { CanvasWorkspace } from './ui/workspaces/types';
 export type { Canvas2Mode, Canvas2ModeControl } from './ui/navigation/ModeSwitch';
 // Tipo de dataTransfer para soltar media de la biblioteca sobre el lienzo.

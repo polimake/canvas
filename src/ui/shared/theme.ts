@@ -77,6 +77,15 @@ export const palette: Record<Canvas2Theme, Palette> = {
   },
 };
 
+/** La sombra de TODAS las islas del cromo (riel, tira de páginas, píldora de
+ *  deshacer y zoom, inspector, propiedades): pequeña y sin filo. Sin borde, una
+ *  isla blanca sobre una página blanca desaparecía; con esto se despega sin
+ *  ensuciar. canvas2.css repite los mismos valores en `--shadow-island`. */
+export const ISLAND_SHADOW: Record<Canvas2Theme, string> = {
+  light: '0 1px 2px rgba(17,17,17,0.06), 0 2px 8px rgba(17,17,17,0.06)',
+  dark: '0 1px 2px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.25)',
+};
+
 /** Fuente fija de los paneles; independiente de las fuentes del documento. */
 export const PANEL_FONT =
   '"Polimake Funnel Sans", sans-serif';

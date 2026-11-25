@@ -71,22 +71,69 @@
 .canvas2-workspace[data-workspace="excalidraw"] .canvas2-native-tools { height: fit-content; }
 /* Contain the engine's own z-indexes so the floating strip always sits above them. */
 .canvas2-workspace[data-workspace="excalidraw"] .canvas2-workspace-surface { isolation: isolate; z-index: 0; }
-.canvas2-workspace[data-workspace="excalidraw"] .canvas2-workspace-sidebar:has(.canvas2-resource-panel) { width: min(328px, 85cqw); }
-/* Iconos: botones redondos en gris cálido; el abierto, en tinta. */
-.canvas2-workspace[data-workspace="excalidraw"] .canvas2-native-tools { gap: 6px; padding: 6px 4px; }
+.canvas2-workspace[data-workspace="excalidraw"] .canvas2-workspace-sidebar:has(.canvas2-resource-panel) { width: min(360px, 85cqw); }
+/* Con Ver · Comentar · Editar abajo a la derecha, el panel abierto se queda
+   por encima de ellos: a lo alto entero los tapaba y no había forma de cambiar
+   de modo con el panel abierto. */
+.canvas2-workspace[data-workspace="excalidraw"]:not([data-narrow]):has(.canvas2-mode-tools) .canvas2-workspace-sidebar:has(.canvas2-resource-panel) { bottom: 140px; }
+/* Iconos: botones redondos en gris cálido; el abierto, en tinta. Sueltos sobre
+   la mesa, sin tarjeta, pero con la MISMA geometría que el riel de la
+   izquierda (columna de 48px a 16px del borde, botones de 36 con 6 de aire):
+   el primer icono cae a la altura del ☰ y la columna, centrada como la otra. */
+.canvas2-workspace[data-workspace="excalidraw"]:not([data-narrow]) .canvas2-workspace-sidebar { right: 16px; }
+.canvas2-workspace[data-workspace="excalidraw"]:not([data-narrow]) .canvas2-workspace-sidebar:not(:has(.canvas2-resource-panel)) { width: 48px; }
+.canvas2-workspace[data-workspace="excalidraw"] .canvas2-native-tools { gap: 2px; padding: 6px; }
+.canvas2-workspace[data-workspace="excalidraw"]:not([data-narrow]) .canvas2-native-tools { flex: 0 0 48px; }
 .canvas2-workspace[data-workspace="excalidraw"] .canvas2-native-tools button {
-  width: 32px; min-height: 32px; border-radius: 999px; color: var(--workspace-sub);
+  width: 36px; min-height: 36px; border-radius: 999px; color: var(--workspace-sub);
   transition: background 120ms, color 120ms;
 }
 .canvas2-workspace[data-workspace="excalidraw"] .canvas2-native-tools button:hover { background: var(--workspace-hover); color: var(--workspace-fg); }
 .canvas2-workspace[data-workspace="excalidraw"] .canvas2-native-tools button[aria-pressed="true"] { background: var(--workspace-accent); color: var(--workspace-accent-fg); }
-/* El panel abierto: tarjeta flotante con el mismo filo de 1px que las islas, sin sombra. */
-.canvas2-workspace[data-workspace="excalidraw"] .canvas2-resource-panel {
-  margin: 0 4px 0 0; border-radius: 18px; overflow: hidden;
-  flex: 0 0 auto; width: calc(100% - 44px); height: 100%;
-  box-shadow: 0 0 0 1px var(--workspace-border, #e8e7e5);
+/* El botón que abre el inspector (escritorio): suelto sobre la mesa, sin
+   tarjeta ni sombra, a la altura del ☰. La mesa es clara en los dos temas,
+   así que va en tinta también con el editor en oscuro. */
+.canvas2-workspace[data-workspace="excalidraw"] .canvas2-native-tools[data-arrow] .canvas2-panel-arrow {
+  background: transparent; color: #3d3a36; box-shadow: none;
 }
-.canvas2-workspace[data-workspace="excalidraw"] .canvas2-resource-heading { padding: 18px 18px 12px; font-size: 15px; font-weight: 600; letter-spacing: -.2px; }
+.canvas2-workspace[data-workspace="excalidraw"] .canvas2-native-tools[data-arrow] .canvas2-panel-arrow:hover { background: rgba(17,17,17,0.06); color: #111111; }
+/* Un panel del host que trae su propio relleno y su scroll (Comentarios, IA). */
+.canvas2-workspace .canvas2-resource-panel > .canvas2-workspace-panel[data-bleed] {
+  padding: 0; display: flex; flex-direction: column; overflow: hidden;
+}
+/* Abierto en escritorio no hay tira al lado: el panel ocupa la columna entera. */
+.canvas2-workspace[data-workspace="excalidraw"]:not([data-narrow]) .canvas2-resource-panel { width: 100%; margin: 0; }
+/* El panel abierto: tarjeta flotante sin filo, con la sombra pequeña de las islas. */
+.canvas2-workspace[data-workspace="excalidraw"] .canvas2-resource-panel {
+  margin: 0 8px 0 0; border-radius: 18px; overflow: hidden;
+  flex: 0 0 auto; width: calc(100% - 56px); height: 100%;
+  box-shadow: var(--workspace-shadow);
+}
+.canvas2-workspace[data-workspace="excalidraw"] .canvas2-resource-heading {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 14px 12px 12px 18px; font-size: 15px; font-weight: 600; letter-spacing: -.2px;
+}
+/* Pestañas en texto (Página · Capas · Marca), como en el resto del Studio: la
+   elegida en tinta y subrayada; la cabecera se cierra con un filo. */
+.canvas2-workspace[data-workspace="excalidraw"] .canvas2-resource-heading[data-tabbed] {
+  /* Sin filo debajo: la pestaña elegida ya va subrayada. */
+  align-items: flex-end; padding: 12px 12px 0 18px; margin-bottom: 12px;
+}
+.canvas2-resource-tabs { display: flex; gap: 14px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.canvas2-resource-tabs button {
+  flex-shrink: 0; padding: 4px 0 11px; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px;
+  font: inherit; font-size: 14px; font-weight: 500; letter-spacing: -.1px; white-space: nowrap;
+  color: var(--workspace-sub); background: transparent; cursor: pointer; transition: color 120ms;
+}
+.canvas2-resource-tabs button:hover { color: var(--workspace-fg); }
+.canvas2-resource-tabs button[aria-selected="true"] { color: var(--workspace-fg); font-weight: 600; border-bottom-color: var(--workspace-fg); }
+.canvas2-resource-close {
+  flex-shrink: 0; width: 30px; height: 30px; display: grid; place-items: center; align-self: center;
+  border: 0; border-radius: 999px; color: var(--workspace-sub); background: transparent; cursor: pointer;
+  transition: background 120ms, color 120ms;
+}
+.canvas2-resource-heading[data-tabbed] .canvas2-resource-close { margin-bottom: 8px; }
+.canvas2-resource-close:hover { background: var(--workspace-hover); color: var(--workspace-fg); }
 .canvas2-workspace[data-workspace="excalidraw"] .canvas2-resource-panel > .canvas2-workspace-panel { padding: 0 18px 18px; }
 .canvas2-workspace[data-workspace="excalidraw"] .canvas2-resource-search {
   min-height: 36px; padding: 0 14px; border: 0; border-radius: 999px; background: var(--workspace-hover);
@@ -172,12 +219,21 @@
 .canvas2-workspace .canvas2-layer-row { transition: background 120ms; }
 .canvas2-workspace .canvas2-layer-row:hover { background: var(--workspace-hover) !important; }
 .canvas2-workspace .canvas2-layer-row[data-selected]:hover { background: color-mix(in srgb, var(--workspace-fg) 6%, var(--workspace-hover)) !important; }
-.canvas2-workspace .canvas2-layer-actions { opacity: 0; transition: opacity 120ms; }
+/* Las acciones FLOTAN sobre el final de la fila en vez de reservar su hueco:
+   ocultas seguían ocupando 80 px y cortaban todos los nombres («Bor…»). */
+.canvas2-workspace .canvas2-layer-row { position: relative; }
+.canvas2-workspace .canvas2-layer-actions {
+  opacity: 0; transition: opacity 120ms; pointer-events: none;
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  padding-left: 6px; border-radius: 999px;
+  background: color-mix(in srgb, var(--workspace-fg) 6%, var(--workspace-hover));
+}
+.canvas2-workspace .canvas2-layer-row:is(:hover, :focus-within, [data-selected]) .canvas2-layer-actions { pointer-events: auto; }
 .canvas2-workspace .canvas2-layer-row:is(:hover, :focus-within, [data-selected]) .canvas2-layer-actions { opacity: 1; }
 .canvas2-workspace .canvas2-layer-btn { transition: background 120ms, color 120ms; }
 .canvas2-workspace .canvas2-layer-btn:hover { background: color-mix(in srgb, var(--workspace-fg) 8%, transparent); color: var(--workspace-fg); }
 .canvas2-workspace .canvas2-layer-btn[data-danger]:hover { color: var(--layer-danger); }
-@media (hover: none) { .canvas2-workspace .canvas2-layer-actions { opacity: 1; } }
+@media (hover: none) { .canvas2-workspace .canvas2-layer-actions { opacity: 1; pointer-events: auto; } }
 
 /* Móvil de Excalidraw (`data-narrow`, el mismo corte que usa el editor): el
    borde derecho es de sus utilidades (biblioteca, candado, mano) y la tira se
@@ -192,7 +248,7 @@
    la página se veían a través y el selector de modo se montaba en su esquina
    (prod, 04-10). Solo mientras están abiertos: al cerrarlos vuelve todo. */
 .canvas2-workspace[data-narrow]:has(.App-mobile-menu .panelColumn, .dropdown-menu--mobile)
-  :is(.canvas2-workspace-sidebar, [data-canvas2-pages], [data-testid="canvas2-page-actions"], .canvas2-mode-tools) {
+  :is(.canvas2-workspace-sidebar, [data-canvas2-pages], [data-testid="canvas2-page-actions"], [data-testid="canvas2-page-labels"], .canvas2-mode-tools) {
   visibility: hidden;
 }
 .canvas2-workspace[data-workspace="excalidraw"][data-narrow] .canvas2-workspace-sidebar {
@@ -202,12 +258,12 @@
 .canvas2-workspace[data-workspace="excalidraw"][data-narrow] .canvas2-native-tools {
   flex-basis: auto; padding: 4px; gap: 4px;
   background: var(--workspace-bg); border-radius: 0 12px 12px 0;
-  box-shadow: 0 0 0 1px var(--workspace-border);
 }
 .canvas2-workspace[data-workspace="excalidraw"][data-narrow] .canvas2-workspace-sidebar:has(.canvas2-resource-panel) {
   width: min(320px, calc(100cqw - 24px));
 }
 .canvas2-workspace[data-workspace="excalidraw"][data-narrow] .canvas2-resource-panel {
   margin: 0 0 0 8px; width: auto; flex: 1 1 auto; min-width: 0;
-  box-shadow: 0 0 0 1px var(--workspace-border), 4px 6px 24px #0002;
+  /* En móvil tapa el lienzo: sin filo, pero con su sombra para despegarse. */
+  box-shadow: 4px 6px 24px #0002;
 }

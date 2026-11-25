@@ -11,6 +11,8 @@ export interface WorkspacePanel {
   /** En la vista Excalidraw se abre desde la píldora de herramientas (con su
    *  nombre en texto) y no desde la tira de iconos. */
   inToolbar?: boolean;
+  /** Sin el relleno del panel: el contenido trae el suyo (Comentarios, IA). */
+  bleed?: boolean;
 }
 
 export interface WorkspacePanelsProps {

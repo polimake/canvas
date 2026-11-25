@@ -38,6 +38,20 @@ export const ChevronRightIcon = () => (
   </Svg>
 );
 
+export const ChevronDownIcon = () => (
+  <Svg>
+    <path d="M6 9l6 6 6-6" />
+  </Svg>
+);
+
+/** Un grupo en la lista de capas: dos piezas solapadas. */
+export const GroupIcon = () => (
+  <Svg>
+    <rect x="3.5" y="3.5" width="11" height="11" rx="2" />
+    <rect x="9.5" y="9.5" width="11" height="11" rx="2" />
+  </Svg>
+);
+
 export const DuplicateIcon = () => (
   <Svg>
     <rect x="9" y="9" width="12" height="12" rx="1" />

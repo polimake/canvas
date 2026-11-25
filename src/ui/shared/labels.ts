@@ -34,6 +34,8 @@ export interface Canvas2Labels {
     design: string;
     advanced: string;
     panels: string;
+    /** La flecha de la derecha que abre el inspector (Página · Capas · Marca…). */
+    openPanel: string;
     showPanels: string;
     hidePanels: string;
     /** La herramienta de marcos de «Más herramientas»: Excalidraw no la trae en español. */
@@ -107,6 +109,8 @@ export interface Canvas2Labels {
     add: string;
     /** Añadir al final del documento (tira de páginas). */
     addAtEnd: string;
+    /** Rótulo corto bajo la ficha de añadir de la tira («Añadir»). */
+    addShort: string;
     /** Insertar en la juntura entre dos páginas de la tira. */
     insertHere: string;
     /** El intento de crear una página ha fallado (si no, el botón parece muerto). */
@@ -152,6 +156,13 @@ export interface Canvas2Labels {
     text: string;
     /** Capa de texto; recibe el principio de lo que tiene escrito. */
     textWith: (excerpt: string) => string;
+    /** Un grupo sin texto dentro (con texto, se llama como su primer texto). */
+    group: string;
+    /** Desplegar y plegar un grupo de la lista. */
+    expandGroup: string;
+    collapseGroup: string;
+    /** Cuántas capas hay dentro de un grupo, al lado de su nombre. */
+    groupCount: (n: number) => string;
     // Acciones de una capa de imagen.
     useAsBackground: string;
     extendToPage: string;
@@ -256,6 +267,7 @@ export const DEFAULT_LABELS: Canvas2Labels = {
     design: 'Canva',
     advanced: 'Experta',
     panels: 'Paneles del editor',
+    openPanel: 'Abrir el panel',
     showPanels: 'Mostrar paneles',
     hidePanels: 'Ocultar paneles',
     frameTool: 'Marco',
@@ -321,6 +333,7 @@ export const DEFAULT_LABELS: Canvas2Labels = {
   pages: {
     add: 'Agregar página después',
     addAtEnd: 'Añadir página',
+    addShort: 'Añadir',
     insertHere: 'Insertar página aquí',
     addFailed: 'No se pudo crear la página',
     duplicate: 'Duplicar página',
@@ -348,6 +361,10 @@ export const DEFAULT_LABELS: Canvas2Labels = {
     freedraw: 'Trazo',
     text: 'Texto',
     textWith: (excerpt) => `Texto: ${excerpt}`,
+    group: 'Grupo',
+    expandGroup: 'Ver lo que hay dentro',
+    collapseGroup: 'Plegar el grupo',
+    groupCount: (n) => (n === 1 ? '1 capa' : `${n} capas`),
     useAsBackground: 'Usar como fondo',
     extendToPage: 'Extender a la página',
     show: 'Mostrar',
@@ -441,6 +458,7 @@ export const EN_LABELS: Canvas2Labels = {
     design: 'Design',
     advanced: 'Advanced',
     panels: 'Editor panels',
+    openPanel: 'Open the panel',
     showPanels: 'Show panels',
     hidePanels: 'Hide panels',
     frameTool: 'Frame tool',
@@ -506,6 +524,7 @@ export const EN_LABELS: Canvas2Labels = {
   pages: {
     add: 'Add page after',
     addAtEnd: 'Add page',
+    addShort: 'Add',
     insertHere: 'Insert a page here',
     addFailed: "Couldn't create the page",
     duplicate: 'Duplicate page',
@@ -535,6 +554,10 @@ export const EN_LABELS: Canvas2Labels = {
     freedraw: 'Stroke',
     text: 'Text',
     textWith: (excerpt) => `Text: ${excerpt}`,
+    group: 'Group',
+    expandGroup: 'Show what is inside',
+    collapseGroup: 'Collapse the group',
+    groupCount: (n) => (n === 1 ? '1 layer' : `${n} layers`),
     useAsBackground: 'Use as background',
     extendToPage: 'Extend to page',
     show: 'Show',

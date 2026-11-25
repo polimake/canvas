@@ -52,7 +52,13 @@ function pagesSignature(pages: PageInfo[]): string {
 }
 
 /** Ancho de la miniatura del chip; el alto sale de la proporción de la página. */
-const THUMB_W = 34;
+const THUMB_W = 38;
+/** Sombra de cada miniatura: sin ella, una página blanca no se distingue de la
+ *  isla blanca de la tira. Sombra y no borde, como el resto del cromo. */
+const THUMB_SHADOW = {
+  light: '0 1px 3px rgba(17,17,17,0.14), 0 0 1px rgba(17,17,17,0.10)',
+  dark: '0 1px 3px rgba(0,0,0,0.5), 0 0 1px rgba(0,0,0,0.4)',
+} as const;
 
 /**
  * Tira de páginas, abajo y centrada. Lee las páginas (marcos) en vivo de la
@@ -72,7 +78,12 @@ export function PageNavigator({
   thumbnailFiles,
   pageSize,
 }: PageNavigatorProps) {
-  const c = palette[theme];
+  // La tira va SIN tarjeta, directamente sobre la mesa (25/11), y la mesa es
+  // clara en los dos temas (con páginas la escena se monta en claro): números,
+  // «Añadir» y miniaturas van en claro aunque el editor esté en oscuro, como el
+  // rótulo de la página. `theme` se acepta por compatibilidad y no cambia nada.
+  void theme;
+  const c = palette.light;
   const L = mergeLabels(labelsProp);
   // El nombre de una página sin nombre se enseña en el chip: sale del host. Por
   // referencia, para que la suscripción de abajo no dependa de las etiquetas.
@@ -86,9 +97,23 @@ export function PageNavigator({
   const activeId = controlledActiveId !== undefined ? controlledActiveId : localActiveId;
   // Inline rename (replaces window.prompt): the chip being renamed + its draft.
   const [renaming, setRenaming] = useState<{ id: string; value: string } | null>(null);
-  // Reordenar arrastrando: página que se arrastra + página sobre la que se suelta.
+  // Reordenar arrastrando: la página que se arrastra y el puesto (índice FINAL)
+  // en que caería, para que las demás se aparten y se vea el orden resultante.
   const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [dropIndex, setDropIndex] = useState<number | null>(null);
+  /**
+   * Dónde estaba cada ficha AL EMPEZAR el arrastre. El destino se calcula
+   * contra esto y no contra la ficha que hay bajo el puntero: las fichas se
+   * deslizan mientras arrastras, y apuntar a algo que se mueve hacía bailar la
+   * tira (por eso antes solo se marcaba un filo y nada se movía).
+   */
+  const slotsRef = useRef<{ left: number; center: number }[]>([]);
+  /**
+   * Foto de la miniatura tomada al levantarla. Las miniaturas son `blob:` que
+   * se revocan al regenerarse, y la tarjeta que sigue al cursor creaba un
+   * `<img>` NUEVO con esa URL: si ya estaba revocada, salía la imagen rota.
+   */
+  const [grabThumb, setGrabThumb] = useState<string | null>(null);
   /** Punto de agarre y tamaño de la pieza, para la tarjeta que sigue al cursor. */
   const [grab, setGrab] = useState<DragGrab | null>(null);
   /** Se ha intentado crear una página y ha fallado (ver `createPage`). */
@@ -154,6 +179,37 @@ export function PageNavigator({
     setRenaming(null);
   };
 
+  const dragIndex = draggingId ? pages.findIndex((p) => p.id === draggingId) : -1;
+
+  /** Puesto final para un puntero en `clientX`: cuántas de las DEMÁS fichas quedan a su izquierda. */
+  const indexAt = (clientX: number): number => {
+    let j = 0;
+    slotsRef.current.forEach((slot, k) => {
+      if (k !== dragIndex && slot.center < clientX) j++;
+    });
+    return j;
+  };
+
+  /** Cuánto se desliza la ficha `k` para enseñar el orden que quedaría al soltar. */
+  const shiftFor = (k: number): number => {
+    const slots = slotsRef.current;
+    if (dragIndex < 0 || dropIndex === null || !slots[k]) return 0;
+    let target: number;
+    if (k === dragIndex) target = dropIndex;
+    else {
+      const rest = k - (k > dragIndex ? 1 : 0);
+      target = rest + (rest >= dropIndex ? 1 : 0);
+    }
+    return slots[target] ? slots[target].left - slots[k].left : 0;
+  };
+
+  const endDrag = () => {
+    setDraggingId(null);
+    setDropIndex(null);
+    setGrab(null);
+    setGrabThumb(null);
+  };
+
   // Proporción de la ficha "añadir": la de la última página, para que el hueco
   // que se ve al final sea del tamaño de lo que se va a crear.
   const ultima = pages[pages.length - 1];
@@ -191,12 +247,16 @@ export function PageNavigator({
         alignItems: 'center',
         gap: 4,
         maxWidth: narrow ? undefined : 'min(920px, 94%)',
-        padding: '4px 8px',
-        // Isla como las de Excalidraw: sin borde, sombra suave.
+        // El mismo aire a los dos lados: la juntura de delante de la primera
+        // página se mete en este relleno (margen negativo, abajo) en vez de
+        // sumarle 10px solo a la izquierda.
+        // 7 aquí + 3 del carril = 10 a cada lado (ver el carril, abajo).
+        padding: '1px 7px',
+        // Sin tarjeta: las miniaturas (con su sombra) sueltas sobre la mesa.
         borderRadius: 16,
-        background: c.bg,
+        background: 'transparent',
         color: c.fg,
-        boxShadow: '0 1px 2px rgba(17,17,17,0.04), 0 6px 20px rgba(17,17,17,0.07)',
+        boxShadow: 'none',
         fontFamily: PANEL_FONT,
       }}
     >
@@ -210,9 +270,37 @@ export function PageNavigator({
           gap: 0,
           minWidth: 0,
           overflowX: 'auto',
+          // Aire para la sombra de las miniaturas: el desplazamiento recorta
+          // lo que sale de su caja y la primera salía cortada por la izquierda.
+          padding: 3,
+        }}
+        // El destino se decide en el carril entero (no ficha a ficha): sirve
+        // también soltar en el hueco entre dos o más allá de la última.
+        // `dragenter` también se acepta: sin eso Chrome no da el carril por
+        // destino válido y nunca manda el `drop` (solo `dragend`).
+        onDragEnter={(e) => {
+          if (draggingId) e.preventDefault();
+        }}
+        onDragOver={(e) => {
+          if (!draggingId) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          const j = indexAt(e.clientX);
+          setDropIndex((prev) => (prev === j ? prev : j));
+        }}
+        onDrop={(e) => {
+          if (!draggingId) return;
+          e.preventDefault();
+          const j = dropIndex ?? indexAt(e.clientX);
+          const id = draggingId;
+          endDrag();
+          if (j !== dragIndex) {
+            movePageTo(api, id, j);
+            select(id);
+          }
         }}
       >
-      {pages.map((page) => {
+      {pages.map((page, index) => {
         const isActive = page.id === activeId;
         const isRenaming = renaming?.id === page.id;
         const thumb = pageThumbs[page.id];
@@ -235,6 +323,9 @@ export function PageNavigator({
               alignSelf: 'stretch',
               flexShrink: 0,
               width: 10,
+              // La primera, sobre el relleno de la tira: si no, la izquierda
+              // tenía 10px más de aire que la derecha.
+              marginLeft: index === 0 ? -10 : 0,
               cursor: 'pointer',
               display: 'grid',
               placeContent: 'center',
@@ -269,7 +360,7 @@ export function PageNavigator({
         // story alargada y un cuadrado se distinguen de un vistazo aunque
         // todavía no se haya rasterizado ninguna de las dos.
         const thumbH = Math.round(THUMB_W * (page.height / Math.max(1, page.width)));
-        const isDropTarget = dragOverId === page.id && draggingId !== page.id;
+        const shift = shiftFor(index);
         return (
           <Fragment key={page.id}>
           {gap}
@@ -280,6 +371,7 @@ export function PageNavigator({
             }}
             role="button"
             tabIndex={0}
+            className="canvas2-page-chip"
             title={displayPageName(page.name, L.pages)}
             draggable={!viewMode && !isRenaming}
             onDragStart={(e) => {
@@ -287,6 +379,29 @@ export function PageNavigator({
               e.dataTransfer.effectAllowed = 'move';
               // Firefox no inicia el arrastre sin datos en el portapapeles.
               e.dataTransfer.setData('text/plain', page.id);
+              // Dónde está cada ficha AHORA (antes de que nada se deslice).
+              slotsRef.current = pages.map((p) => {
+                const r = chipRefs.current.get(p.id)?.getBoundingClientRect();
+                return r ? { left: r.left, center: r.left + r.width / 2 } : { left: 0, center: 0 };
+              });
+              setDropIndex(index);
+              // Foto de la miniatura que YA se ve (decodificada): la tarjeta
+              // que sigue al cursor la usa en vez de volver a pedir el `blob:`.
+              const img = e.currentTarget.querySelector('img');
+              let snap: string | null = null;
+              if (img && img.complete && img.naturalWidth > 0) {
+                try {
+                  const canvas = document.createElement('canvas');
+                  canvas.width = THUMB_W * 2;
+                  canvas.height = Math.round(canvas.width * (img.naturalHeight / img.naturalWidth));
+                  canvas.getContext('2d')?.drawImage(img, 0, 0, canvas.width, canvas.height);
+                  snap = canvas.toDataURL('image/png');
+                } catch {
+                  // Un lienzo contaminado no se puede leer: sin foto, ficha lisa.
+                  snap = null;
+                }
+              }
+              setGrabThumb(snap);
               // Mismo gesto que arrastrar contenido en el calendario: se esconde
               // el fantasma del navegador y se levanta una tarjeta propia.
               const box = e.currentTarget.getBoundingClientRect();
@@ -298,28 +413,9 @@ export function PageNavigator({
               });
               hideNativeDragImage(e);
             }}
-            onDragOver={(e) => {
-              if (!draggingId || draggingId === page.id) return;
-              e.preventDefault();
-              e.dataTransfer.dropEffect = 'move';
-              setDragOverId(page.id);
-            }}
-            onDragLeave={() => setDragOverId((prev) => (prev === page.id ? null : prev))}
-            onDrop={(e) => {
-              e.preventDefault();
-              if (draggingId && draggingId !== page.id) {
-                movePageTo(api, draggingId, page.index);
-                select(draggingId);
-              }
-              setDraggingId(null);
-              setDragOverId(null);
-              setGrab(null);
-            }}
-            onDragEnd={() => {
-              setDraggingId(null);
-              setDragOverId(null);
-              setGrab(null);
-            }}
+            // Soltar lo recoge el carril (arriba); aquí solo se limpia si el
+            // arrastre acaba fuera de la tira o se cancela con Escape.
+            onDragEnd={endDrag}
             onClick={() => select(page.id)}
             onDoubleClick={(e) => {
               if (viewMode) return;
@@ -344,15 +440,19 @@ export function PageNavigator({
               fontWeight: 600,
               flexShrink: 0,
               color: c.fg,
-              // La página activa se distingue SOLO por opacidad: la miniatura ya
-              // es el contenido, y un fondo de color encima competía con ella.
+              // La activa, entera; las demás, apagadas. Sin fondo ni filo
+              // encima: competían con el contenido (y el cromo no lleva bordes).
+              // La que se arrastra deja su hueco tenue en el puesto donde caería.
               opacity:
-                draggingId === page.id ? 0.3 : isActive ? 1 : 0.45,
-              // El destino de un arrastre se marca con un filo, no moviendo las
-              // páginas: que la tira baile mientras arrastras hace imposible
-              // apuntar. Se queda en gris, como el resto de la tira.
-              boxShadow: isDropTarget ? `inset 3px 0 0 ${c.fg}` : 'none',
-              transition: 'opacity 120ms ease',
+                draggingId === page.id ? 0.25 : isActive ? 1 : 0.55,
+              // Mientras arrastras, las demás se deslizan al puesto que les
+              // quedaría al soltar: se ve el orden antes de soltar. El destino
+              // sale de las posiciones del principio (`slotsRef`), así que
+              // deslizarse no cambia a dónde apuntas y la tira no baila.
+              transform: shift ? `translateX(${shift}px)` : undefined,
+              transition: draggingId
+                ? 'transform 180ms cubic-bezier(0.2, 0, 0, 1), opacity 120ms ease'
+                : 'opacity 120ms ease',
             }}
           >
             <div
@@ -360,11 +460,12 @@ export function PageNavigator({
                 position: 'relative',
                 width: THUMB_W,
                 height: thumbH,
-                // El contenido nunca curvo: la miniatura es la pieza, va recta.
-                borderRadius: 0,
+                // El contenido casi recto: la miniatura es la pieza.
+                borderRadius: 2,
                 background: c.hover,
                 overflow: 'hidden',
                 flexShrink: 0,
+                boxShadow: THUMB_SHADOW.light,
               }}
             >
               {thumb ? (
@@ -373,6 +474,9 @@ export function PageNavigator({
                 <img
                   src={thumb}
                   alt=""
+                  // Una <img> se arrastra sola por defecto: el navegador
+                  // levantaba la imagen en vez de la ficha.
+                  draggable={false}
                   style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                 />
               ) : null}
@@ -446,6 +550,9 @@ export function PageNavigator({
             alignItems: 'center',
             gap: 2,
             padding: '4px 0',
+            // El mismo aire que hay entre dos páginas (la juntura mide 10):
+            // pegada a la última, su sombra y la ficha se montaban.
+            marginLeft: pages.length > 0 ? 10 : 0,
             borderRadius: 8,
             color: c.sub,
             fontSize: 11,
@@ -457,7 +564,8 @@ export function PageNavigator({
             style={{
               width: THUMB_W,
               height: Math.round(THUMB_W * (ghostRatio.height / Math.max(1, ghostRatio.width))),
-              borderRadius: 0,
+              borderRadius: 2,
+              // Relleno suave, sin filo: nada del cromo lleva borde.
               background: c.hover,
               display: 'grid',
               placeContent: 'center',
@@ -466,9 +574,9 @@ export function PageNavigator({
           >
             <PlusIcon />
           </span>
-          {/* El número que le tocaría: la ficha dice qué página vas a crear, y
-              de paso la caja mide lo mismo que la de un chip. */}
-          <span aria-hidden="true">{pages.length + 1}</span>
+          {/* «Añadir» en palabras: el número de la siguiente página no decía
+              qué hacía la ficha. */}
+          <span aria-hidden="true" style={{ fontWeight: 500 }}>{L.pages.addShort}</span>
         </button>
       )}
       </div>
@@ -543,7 +651,8 @@ export function PageNavigator({
         {(() => {
           const page = pages.find((p) => p.id === draggingId);
           if (!page) return null;
-          const thumb = pageThumbs[page.id];
+          // La foto tomada al levantarla, nunca el `blob:` (ver `grabThumb`).
+          const thumb = grabThumb;
           return (
             <div
               style={{
@@ -557,7 +666,6 @@ export function PageNavigator({
                 padding: 4,
                 background: c.bg,
                 color: c.fg,
-                border: `1px solid ${c.border}`,
                 borderRadius: 8,
                 fontSize: 11,
                 fontWeight: 600,
@@ -569,16 +677,17 @@ export function PageNavigator({
                 style={{
                   width: THUMB_W,
                   height: Math.round(THUMB_W * (page.height / Math.max(1, page.width))),
-                  borderRadius: 0,
-                  border: `1px solid ${c.border}`,
+                  borderRadius: 2,
                   background: c.hover,
                   overflow: 'hidden',
+                  boxShadow: THUMB_SHADOW.light,
                 }}
               >
                 {thumb ? (
                   <img
                     src={thumb}
                     alt=""
+                    draggable={false}
                     style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                   />
                 ) : null}

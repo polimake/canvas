@@ -207,6 +207,20 @@ export interface Canvas2EditorProps {
    */
   agentPanel?: ReactNode;
   /**
+   * Paneles del HOST que van como pestañas del inspector de la derecha, junto a
+   * Página · Capas · Marca: Comentarios, IA, Plantilla… El host trae el
+   * contenido; canvas2 le da el sitio, la pestaña y la flecha que lo abre. Así
+   * el mismo panel sirve en Studio y en el escritorio sin barras propias.
+   */
+  panels?: Canvas2HostPanel[];
+  /**
+   * El panel abierto (id), si lo controla el host: p. ej. abrir Comentarios al
+   * pinchar en un pin del lienzo. Sin él, lo lleva canvas2.
+   */
+  openPanel?: string | null;
+  /** Avisa cada vez que se abre, se cambia o se cierra un panel. */
+  onOpenPanelChange?: (id: string | null) => void;
+  /**
    * "Guardar página como componente" del menú. La subida es cosa del host
    * (POST a su API + miniatura); canvas2 solo ofrece la entrada de menú.
    */
@@ -297,6 +311,17 @@ export interface Canvas2EditorProps {
    * vista Excalidraw y en pantalla ancha.
    */
   toolbarActions?: Canvas2ToolbarAction[];
+}
+
+/** Un panel del host en el inspector (ver `panels`). */
+export interface Canvas2HostPanel {
+  id: string;
+  title: string;
+  /** Icono para la tira de móvil. Sin él, uno genérico. */
+  icon?: ReactNode;
+  content: ReactNode;
+  /** El contenido trae su propio relleno y su scroll: el panel no le pone el suyo. */
+  bleed?: boolean;
 }
 
 export interface Canvas2ToolbarAction {
@@ -430,6 +455,9 @@ export function Canvas2Editor({
   library,
   componentsPanel,
   agentPanel,
+  panels: hostPanels,
+  openPanel: openPanelProp,
+  onOpenPanelChange,
   onSaveComponent,
   themeChoice,
   onActivePageChange,
@@ -445,8 +473,20 @@ export function Canvas2Editor({
   toolbarActions,
 }: Canvas2EditorProps) {
   const [localWorkspace, setLocalWorkspace] = useState(() => readWorkspace(defaultWorkspace));
-  /** Panel abierto en la vista Excalidraw (tira de iconos o píldora). */
-  const [openPanel, setOpenPanel] = useState<string | null>(null);
+  /** Panel abierto en la vista Excalidraw (flecha, pestañas o píldora); el host puede llevarlo. */
+  const [localOpenPanel, setLocalOpenPanel] = useState<string | null>(null);
+  const openPanel = openPanelProp !== undefined ? openPanelProp : localOpenPanel;
+  const openPanelRef = useRef(openPanel);
+  openPanelRef.current = openPanel;
+  const setOpenPanel = useCallback(
+    (next: string | null | ((current: string | null) => string | null)) => {
+      const value = typeof next === 'function' ? next(openPanelRef.current) : next;
+      if (value === openPanelRef.current) return;
+      setLocalOpenPanel(value);
+      onOpenPanelChange?.(value);
+    },
+    [onOpenPanelChange],
+  );
   const workspace = workspaceProp ?? localWorkspace;
   // El tema lo elige quien monta el editor (Ajustes > Canvas en el desktop);
   // el espacio avanzado ya no se lo cambia por su cuenta.
@@ -626,7 +666,10 @@ export function Canvas2Editor({
         // corners, hairline border) is the page's visual instead.
         // Al mirar (`viewMode`) sin el «Página N»: se fija ya aquí porque
         // Excalidraw aplica `initialData` después del primer efecto y lo pisaría.
-        frameRendering: { enabled: true, clip: true, name: !viewMode, outline: false },
+        // Con páginas el rótulo lo pinta `PageActions` en HTML (número, nombre con
+        // la letra del Studio, doble clic para renombrar): el de Excalidraw iba
+        // en Helvetica gris y con los botones encima.
+        frameRendering: { enabled: true, clip: true, name: !viewMode && !pages, outline: false },
         ...brandDefaults(brand),
         ...(base?.appState ?? {}),
         // La mesa: papel cálido (el escenario del Studio), no el gris acero de antes.
@@ -830,15 +873,17 @@ export function Canvas2Editor({
     });
   }, [pages, api, viewMode, normalizePages]);
 
-  // Al mirar, la pieza se lee como pieza: fuera el «Página N» encima de cada
-  // hoja. Es estado de vista (no se guarda: `onSceneChange` solo lleva el fondo)
-  // y no entra en el historial.
+  // Con páginas, Excalidraw no pinta el «Página N» de cada hoja: al editar lo
+  // pone `PageActions` en HTML y al mirar no va ninguno (la pieza se lee como
+  // pieza). Es estado de vista (no se guarda: `onSceneChange` solo lleva el
+  // fondo) y no entra en el historial. Se reafirma porque un `initialData` que
+  // traiga su propio `frameRendering` lo pisaría.
   useEffect(() => {
     if (!pages || !api) return;
     const current = api.getAppState()?.frameRendering;
-    if (!current || current.name === !viewMode) return;
+    if (!current || current.name === false) return;
     api.updateScene({
-      appState: { frameRendering: { ...current, name: !viewMode } },
+      appState: { frameRendering: { ...current, name: false } },
       captureUpdate: CaptureUpdateAction.NEVER,
     });
   }, [pages, api, viewMode]);
@@ -927,7 +972,10 @@ export function Canvas2Editor({
   if (!viewMode && agentPanel) workspacePanels.push({ id: 'agent', title: L.dock.agent, content: agentPanel });
   if (!viewMode && api && layers && pages) workspacePanels.push({ id: 'layers', title: L.dock.layers,
     content: <LayersPanel api={api} activePageId={activePageId} theme={theme} labels={L} embedded /> });
-  for (const panel of workspacePanels) panel.icon = <WorkspaceIcon name={panel.id} />;
+  // Los del host (Comentarios, IA…), tras los nuestros: copia, que el array
+  // del host no se toca. Van también al mirar o comentar.
+  for (const panel of hostPanels ?? []) workspacePanels.push({ ...panel });
+  for (const panel of workspacePanels) panel.icon ??= <WorkspaceIcon name={panel.id} />;
 
   // Tras un separador, en texto: los paneles que van en la píldora y los
   // botones del host. Fuera de la vista Excalidraw esos paneles siguen en su
@@ -939,6 +987,7 @@ export function Canvas2Editor({
       label: panel.title,
       pressed: openPanel === panel.id,
       onSelect: () => setOpenPanel(current => (current === panel.id ? null : panel.id)),
+      icon: panel.icon,
     })),
     ...(workspace === 'excalidraw' && !viewMode ? toolbarActions ?? [] : []),
   ];
@@ -1207,10 +1256,15 @@ export function Canvas2Editor({
       {pillActions.length > 0 && !narrow ? (
         <ToolbarSlot root={rootRef}>
           <span className="canvas2-toolbar-divider" aria-hidden="true" />
+          {/* En el riel de la izquierda (vista Excalidraw, escritorio) se ve el
+              icono y el nombre queda para el lector y el `title`; en las otras
+              vistas, el texto como siempre (canvas2.css). */}
           {pillActions.map(action => (
             <button key={action.id} type="button" className="canvas2-toolbar-text"
+              title={action.label}
               aria-pressed={action.pressed ?? undefined} onClick={action.onSelect}>
-              {action.label}
+              {action.icon ?? <WorkspaceIcon name="library" />}
+              <span className="canvas2-toolbar-label">{action.label}</span>
             </button>
           ))}
         </ToolbarSlot>
