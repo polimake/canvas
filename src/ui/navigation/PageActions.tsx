@@ -113,7 +113,6 @@ export function PageActions({
     recompute();
     return api.onChange(recompute);
     // `L.pages` cambia de identidad en cada render; los nombres de serie no.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [api]);
 
   useEffect(() => {
