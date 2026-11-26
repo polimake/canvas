@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useId, useState, type ReactNode } from 'react';
 import type { ExcalidrawImperativeAPI } from '../../../core/excal';
 import {
   getPageTransition,
@@ -101,6 +101,8 @@ export function SlidesPanels({
 /** Transición de la diapositiva activa, y «aplicar a todas». */
 function TransitionPanel({ api, pageId, labels }: { api: ExcalidrawImperativeAPI; pageId: string | null; labels: Canvas2Labels }) {
   const L = labels.slides;
+  // Un grupo de opciones por panel: con dos editores en la página, compartían uno.
+  const grupo = `canvas2-slide-transition-${useId()}`;
   const [value, setValue] = useState<SlideTransition>(() => (pageId ? getPageTransition(api, pageId) : 'none'));
   useEffect(() => {
     if (!pageId) return;
@@ -121,7 +123,7 @@ function TransitionPanel({ api, pageId, labels }: { api: ExcalidrawImperativeAPI
       <div role="radiogroup" aria-label={L.transition}>
         {SLIDE_TRANSITIONS.map((t) => (
           <label key={t} className="canvas2-slides-radio">
-            <input type="radio" name="canvas2-slide-transition" checked={value === t} disabled={!pageId}
+            <input type="radio" name={grupo} checked={value === t} disabled={!pageId}
               onChange={() => { if (pageId) setPageTransition(api, pageId, t); }} />
             <span>{names[t]}</span>
           </label>

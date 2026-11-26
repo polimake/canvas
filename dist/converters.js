@@ -1,9 +1,9 @@
-import { D, P, c, f, g, l, a, p, b, d, e, r, h, s } from "./chunks/legacy-BS2a1q37.js";
-import { P as PAGE_GAP } from "./chunks/layout-BEpoNps2.js";
+import { D, P, c, f, g, l, a, p, b, d, e, r, h, s } from "./chunks/legacy-DAAEWkHb.js";
+import { P as PAGE_GAP } from "./chunks/layout-L5bQ5REv.js";
 import { customFontFamilyId } from "./fonts.js";
-import { e as estimateTextHeight } from "./chunks/model-Rq3yAvOe.js";
-import { P as PAGE_MARKER, S as SLIDE_NOTES_KEY, a as SLIDE_SKIP_KEY, b as SLIDE_TRANSITION_KEY } from "./chunks/documentToPptx-XCLs01g1.js";
-import { c as c2, d as d2, e as e2, f as f2, p as p2, s as s2, x } from "./chunks/documentToPptx-XCLs01g1.js";
+import { e as estimateTextHeight } from "./chunks/model-Jk--sAmK.js";
+import { P as PAGE_MARKER, S as SLIDE_NOTES_KEY, a as SLIDE_SKIP_KEY, b as SLIDE_TRANSITION_KEY } from "./chunks/documentToPptx-CsrYYM5a.js";
+import { c as c2, d as d2, e as e2, f as f2, p as p2, s as s2, x } from "./chunks/documentToPptx-CsrYYM5a.js";
 const ROUNDNESS_ADAPTIVE = 3;
 const AVERAGE_GLYPH_WIDTH = 0.5;
 const MAX_ONE_LINE_OVERFLOW = 1.4;

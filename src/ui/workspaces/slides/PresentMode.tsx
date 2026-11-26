@@ -80,6 +80,26 @@ export function PresentMode({ api, slides, startId, labels, onExit, presenter: p
     if (nextSlide) void render(nextSlide.id);
   }, [current?.id, nextSlide?.id, render]);
 
+  // Si la presentación cambia mientras se presenta (deshacer, otra persona), el
+  // índice vuelve a una diapositiva que existe o a la pantalla del final
+  // (`index === total`).
+  useEffect(() => {
+    if (index > total) setIndex(total);
+  }, [total, index]);
+
+  // Solo se guardan la anterior, la de ahora y la siguiente: cada SVG puede
+  // llevar las letras dentro, y una presentación larga se comía la memoria.
+  const prevId = shown[index - 1]?.id;
+  useEffect(() => {
+    const keep = new Set([prevId, current?.id, nextSlide?.id].filter((id): id is string => Boolean(id)));
+    for (const id of [...requested.current]) if (!keep.has(id)) requested.current.delete(id);
+    setSvgs((m) => {
+      const ids = Object.keys(m);
+      if (ids.every((id) => keep.has(id))) return m;
+      return Object.fromEntries(ids.filter((id) => keep.has(id)).map((id) => [id, m[id]!]));
+    });
+  }, [prevId, current?.id, nextSlide?.id]);
+
   // La ventana del orador por referencia: el desmontaje la cierra aunque se
   // salga por otro camino que «Salir» (cambiar de espacio, cerrar el editor).
   const presenterRef = useRef<Window | null>(null);

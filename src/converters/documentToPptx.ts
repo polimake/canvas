@@ -149,10 +149,13 @@ function textBox(el: DocumentElement, at: Placement, nv: (name: string, extra?: 
   const size = Math.max(100, Math.round((el.fontSize ?? 20) * at.scale * 75));
   const font = el.fontFamily ? `<a:latin typeface="${xmlText(el.fontFamily)}"/><a:ea typeface="${xmlText(el.fontFamily)}"/><a:cs typeface="${xmlText(el.fontFamily)}"/>` : '';
   const algn = el.textAlign === 'center' ? 'ctr' : el.textAlign === 'right' ? 'r' : 'l';
-  const spacing = Math.round((el.lineHeight ?? 1.25) * 100000);
+  // En puntos exactos: `spcPct` es relativo al interlineado sencillo de la
+  // fuente (≈1,2× su tamaño), no al tamaño, y salía más alto que en el lienzo
+  // y más alto aún al volver a importarlo (`parsePptx` lo lee así).
+  const spacing = Math.round(size * (el.lineHeight ?? 1.25));
   const run = `<a:rPr lang="${lang}" sz="${size}" dirty="0">${solid(el.color ?? '#1a1a1a', opacity)}${font}</a:rPr>`;
   const paragraphs = (el.text ?? '').split('\n').map((line) =>
-    `<a:p><a:pPr algn="${algn}"><a:lnSpc><a:spcPct val="${spacing}"/></a:lnSpc></a:pPr>` +
+    `<a:p><a:pPr algn="${algn}"><a:lnSpc><a:spcPts val="${spacing}"/></a:lnSpc></a:pPr>` +
     (line ? `<a:r>${run}<a:t>${xmlText(line)}</a:t></a:r>` : '') +
     `<a:endParaRPr lang="${lang}" sz="${size}" dirty="0"/></a:p>`).join('');
   const anchor = el.verticalAlign === 'middle' ? 'ctr' : el.verticalAlign === 'bottom' ? 'b' : 't';

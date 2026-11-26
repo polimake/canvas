@@ -231,4 +231,15 @@ describe('espacio Presentación', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Detalles' }));
     expect(onDetails).toHaveBeenCalled();
   });
+
+  it('el panel que abre el host (Comentarios al pulsar una chincheta) se abre también aquí, y se le dice al cerrarlo', () => {
+    const onOpenPanelChange = vi.fn();
+    const panels = [{ id: 'comments', title: 'Comentarios', content: <div>Hilo de comentarios</div> }];
+    const view = mount({ panels, openPanel: null, onOpenPanelChange });
+    expect(screen.queryByText('Hilo de comentarios')).toBeNull();
+    view.rerender(<Canvas2Editor pages onWorkspaceChange={vi.fn()} panels={panels} openPanel="comments" onOpenPanelChange={onOpenPanelChange} />);
+    expect(screen.getByText('Hilo de comentarios')).toBeTruthy();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Comentarios' })[0]!);
+    expect(onOpenPanelChange).toHaveBeenLastCalledWith(null);
+  });
 });

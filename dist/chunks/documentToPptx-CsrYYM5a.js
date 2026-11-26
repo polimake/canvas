@@ -286,9 +286,9 @@ function textBox(el, at, nv, lang) {
   const size = Math.max(100, Math.round((el.fontSize ?? 20) * at.scale * 75));
   const font = el.fontFamily ? `<a:latin typeface="${xmlText(el.fontFamily)}"/><a:ea typeface="${xmlText(el.fontFamily)}"/><a:cs typeface="${xmlText(el.fontFamily)}"/>` : "";
   const algn = el.textAlign === "center" ? "ctr" : el.textAlign === "right" ? "r" : "l";
-  const spacing = Math.round((el.lineHeight ?? 1.25) * 1e5);
+  const spacing = Math.round(size * (el.lineHeight ?? 1.25));
   const run = `<a:rPr lang="${lang}" sz="${size}" dirty="0">${solid(el.color ?? "#1a1a1a", opacity)}${font}</a:rPr>`;
-  const paragraphs = (el.text ?? "").split("\n").map((line) => `<a:p><a:pPr algn="${algn}"><a:lnSpc><a:spcPct val="${spacing}"/></a:lnSpc></a:pPr>` + (line ? `<a:r>${run}<a:t>${xmlText(line)}</a:t></a:r>` : "") + `<a:endParaRPr lang="${lang}" sz="${size}" dirty="0"/></a:p>`).join("");
+  const paragraphs = (el.text ?? "").split("\n").map((line) => `<a:p><a:pPr algn="${algn}"><a:lnSpc><a:spcPts val="${spacing}"/></a:lnSpc></a:pPr>` + (line ? `<a:r>${run}<a:t>${xmlText(line)}</a:t></a:r>` : "") + `<a:endParaRPr lang="${lang}" sz="${size}" dirty="0"/></a:p>`).join("");
   const anchor = el.verticalAlign === "middle" ? "ctr" : el.verticalAlign === "bottom" ? "b" : "t";
   const box = { ...el, width: el.width * 1.02 };
   return `<p:sp><p:nvSpPr>${nv("TextBox", '<p:cNvSpPr txBox="1"/><p:nvPr/>')}</p:nvSpPr><p:spPr>${xfrm(box, at)}<a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/></p:spPr><p:txBody><a:bodyPr wrap="square" lIns="0" tIns="0" rIns="0" bIns="0" anchor="${anchor}" rtlCol="0"><a:noAutofit/></a:bodyPr><a:lstStyle/>${paragraphs}</p:txBody></p:sp>`;
@@ -501,4 +501,4 @@ export {
   transitionOf as t,
   xmlText as x
 };
-//# sourceMappingURL=documentToPptx-XCLs01g1.js.map
+//# sourceMappingURL=documentToPptx-CsrYYM5a.js.map
