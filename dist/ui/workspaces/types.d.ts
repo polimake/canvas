@@ -13,6 +13,9 @@ export interface WorkspacePanel {
     inToolbar?: boolean;
     /** Sin el relleno del panel: el contenido trae el suyo (Comentarios, IA). */
     bleed?: boolean;
+    /** Al mirar: el panel se ve en la tira, apagado, para que la interfaz sea la
+     *  misma que al editar. No tiene contenido que abrir. */
+    locked?: boolean;
 }
 export interface WorkspacePanelsProps {
     panels: WorkspacePanel[];

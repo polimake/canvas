@@ -2,9 +2,9 @@ import { jsxs, jsx, Fragment as Fragment$1 } from "react/jsx-runtime";
 import { useState, useRef, useEffect, Fragment, useMemo, useCallback, useId, useLayoutEffect, useReducer } from "react";
 import "@excalidraw/excalidraw/index.css";
 import { CaptureUpdateAction, newElementWith, convertToExcalidrawElements, restore, serializeAsJSON, exportToCanvas, exportToBlob, exportToSvg, FONT_FAMILY, MainMenu, useI18n, viewportCoordsToSceneCoords, getVisibleSceneBounds, Excalidraw, getNonDeletedElements } from "@excalidraw/excalidraw";
-import { i as isPageBackground, B as BG_MARKER$1, g as pageOrderOf, P as PAGE_MARKER, h as framesInDocumentOrder, s as sceneToDocument, f as documentToPptx, n as notesOf, t as transitionOf, j as isSkippedFrame, S as SLIDE_NOTES_KEY, a as SLIDE_SKIP_KEY, b as SLIDE_TRANSITION_KEY, k as SLIDE_TRANSITIONS } from "./documentToPptx-CsrYYM5a.js";
+import { i as isPageBackground, B as BG_MARKER$1, g as pageOrderOf, P as PAGE_MARKER, h as framesInDocumentOrder, s as sceneToDocument, f as documentToPptx, n as notesOf, t as transitionOf, j as isSkippedFrame, S as SLIDE_NOTES_KEY, a as SLIDE_SKIP_KEY, b as SLIDE_TRANSITION_KEY, k as SLIDE_TRANSITIONS } from "./documentToPptx-CMWe-xWo.js";
 import { cloneSceneElements } from "../components.js";
-import { P as PAGE_GAP } from "./layout-L5bQ5REv.js";
+import { P as PAGE_GAP } from "./layout-BEpoNps2.js";
 import { fontFormatHint, buildFontFaceCss, fontFamilyAlias, fontFamilyCss, customFontFamilyId, normalizeFontSrc, dedupeFontFaces } from "../fonts.js";
 import { createPortal, flushSync } from "react-dom";
 const CAPTURE = {
@@ -3538,7 +3538,7 @@ function CanvasMenu({
     },
     value
   )) }) : null;
-  const workspaceItems = !viewMode && onWorkspaceChange ? /* @__PURE__ */ jsx(MainMenu.Group, { title: L.workspace.label, children: CANVAS_WORKSPACES.map((value) => /* @__PURE__ */ jsx(
+  const workspaceItems = onWorkspaceChange ? /* @__PURE__ */ jsx(MainMenu.Group, { title: L.workspace.label, children: CANVAS_WORKSPACES.map((value) => /* @__PURE__ */ jsx(
     MainMenu.Item,
     {
       role: "menuitemradio",
@@ -6212,6 +6212,7 @@ function SlidesToolbar(props) {
       "aria-label": label,
       title: label,
       "aria-pressed": activeTool === tool,
+      disabled: viewMode,
       onClick: () => props.onTool(tool),
       children: icon
     }
@@ -6256,6 +6257,7 @@ function SlidesToolbar(props) {
       type: "button",
       className: "canvas2-slides-text-btn",
       "aria-pressed": openPanel === panel,
+      disabled: viewMode,
       onClick: () => props.onPanel(panel),
       children: label
     },
@@ -6271,8 +6273,19 @@ function SlidesToolbar(props) {
     /* @__PURE__ */ jsxs("div", { ref: pillRef, className: "canvas2-slides-pill", role: "toolbar", "aria-label": L.toolbar, children: [
       /* @__PURE__ */ jsxs("div", { ref: fixedRef, className: "canvas2-slides-pill-fixed", children: [
         available.search && /* @__PURE__ */ jsx("button", { type: "button", className: "canvas2-slides-icon-btn", "aria-label": L.search, title: L.search, onClick: props.onSearch, children: /* @__PURE__ */ jsx(SlidesIcon.search, {}) }),
-        !viewMode && /* @__PURE__ */ jsxs("span", { className: "canvas2-slides-split", children: [
-          /* @__PURE__ */ jsx("button", { type: "button", className: "canvas2-slides-icon-btn", "aria-label": L.newSlide, title: L.newSlide, onClick: props.onNewSlide, children: /* @__PURE__ */ jsx(SlidesIcon.plus, {}) }),
+        /* @__PURE__ */ jsxs("span", { className: "canvas2-slides-split", children: [
+          /* @__PURE__ */ jsx(
+            "button",
+            {
+              type: "button",
+              className: "canvas2-slides-icon-btn",
+              "aria-label": L.newSlide,
+              title: L.newSlide,
+              disabled: viewMode,
+              onClick: props.onNewSlide,
+              children: /* @__PURE__ */ jsx(SlidesIcon.plus, {})
+            }
+          ),
           /* @__PURE__ */ jsx(
             "button",
             {
@@ -6281,15 +6294,36 @@ function SlidesToolbar(props) {
               "aria-label": L.newSlide,
               "aria-haspopup": "menu",
               "aria-expanded": (dropdown == null ? void 0 : dropdown.id) === "new",
+              disabled: viewMode,
               onClick: (e) => open("new", e.currentTarget),
               children: /* @__PURE__ */ jsx(SlidesIcon.caret, {})
             }
           )
         ] }),
-        !viewMode && /* @__PURE__ */ jsxs(Fragment$1, { children: [
-          /* @__PURE__ */ jsx("button", { type: "button", className: "canvas2-slides-icon-btn", "aria-label": L.undo, title: L.undo, onClick: props.onUndo, children: /* @__PURE__ */ jsx(SlidesIcon.undo, {}) }),
-          /* @__PURE__ */ jsx("button", { type: "button", className: "canvas2-slides-icon-btn", "aria-label": L.redo, title: L.redo, onClick: props.onRedo, children: /* @__PURE__ */ jsx(SlidesIcon.redo, {}) })
-        ] }),
+        /* @__PURE__ */ jsx(
+          "button",
+          {
+            type: "button",
+            className: "canvas2-slides-icon-btn",
+            "aria-label": L.undo,
+            title: L.undo,
+            disabled: viewMode,
+            onClick: props.onUndo,
+            children: /* @__PURE__ */ jsx(SlidesIcon.undo, {})
+          }
+        ),
+        /* @__PURE__ */ jsx(
+          "button",
+          {
+            type: "button",
+            className: "canvas2-slides-icon-btn",
+            "aria-label": L.redo,
+            title: L.redo,
+            disabled: viewMode,
+            onClick: props.onRedo,
+            children: /* @__PURE__ */ jsx(SlidesIcon.redo, {})
+          }
+        ),
         /* @__PURE__ */ jsx("span", { className: "canvas2-slides-divider", "aria-hidden": "true" }),
         /* @__PURE__ */ jsxs(
           "button",
@@ -6306,7 +6340,7 @@ function SlidesToolbar(props) {
             ]
           }
         ),
-        !viewMode && /* @__PURE__ */ jsxs(Fragment$1, { children: [
+        /* @__PURE__ */ jsxs(Fragment$1, { children: [
           /* @__PURE__ */ jsx("span", { className: "canvas2-slides-divider", "aria-hidden": "true" }),
           /* @__PURE__ */ jsx(
             "button",
@@ -6316,6 +6350,7 @@ function SlidesToolbar(props) {
               "aria-label": L.select,
               title: L.select,
               "aria-pressed": activeTool === "selection",
+              disabled: viewMode,
               onClick: () => props.onTool("selection"),
               children: /* @__PURE__ */ jsx(SlidesIcon.cursor, {})
             }
@@ -6329,6 +6364,7 @@ function SlidesToolbar(props) {
               "aria-label": L.image,
               title: L.image,
               "aria-pressed": openPanel === "library",
+              disabled: viewMode,
               onClick: props.onImage,
               children: /* @__PURE__ */ jsx(SlidesIcon.image, {})
             }
@@ -6343,6 +6379,7 @@ function SlidesToolbar(props) {
                 "aria-label": L.shape,
                 "aria-haspopup": "menu",
                 "aria-expanded": (dropdown == null ? void 0 : dropdown.id) === "shape",
+                disabled: viewMode,
                 onClick: (e) => open("shape", e.currentTarget),
                 children: /* @__PURE__ */ jsx(SlidesIcon.caret, {})
               }
@@ -6358,6 +6395,7 @@ function SlidesToolbar(props) {
                 "aria-label": L.line,
                 "aria-haspopup": "menu",
                 "aria-expanded": (dropdown == null ? void 0 : dropdown.id) === "line",
+                disabled: viewMode,
                 onClick: (e) => open("line", e.currentTarget),
                 children: /* @__PURE__ */ jsx(SlidesIcon.caret, {})
               }
@@ -6370,7 +6408,7 @@ function SlidesToolbar(props) {
           /* @__PURE__ */ jsx("span", { className: "canvas2-slides-divider", "aria-hidden": "true" })
         ] })
       ] }),
-      !viewMode && !formatting && rightGroup.length > 0 && /* @__PURE__ */ jsx("div", { className: "canvas2-slides-pill-context", children: rightGroup.map((button, i) => /* @__PURE__ */ jsxs("span", { className: "canvas2-slides-pill-context-item", children: [
+      !formatting && rightGroup.length > 0 && /* @__PURE__ */ jsx("div", { className: "canvas2-slides-pill-context", children: rightGroup.map((button, i) => /* @__PURE__ */ jsxs("span", { className: "canvas2-slides-pill-context-item", children: [
         i > 0 && /* @__PURE__ */ jsx("span", { className: "canvas2-slides-divider canvas2-slides-divider--tight", "aria-hidden": "true" }),
         button
       ] }, i)) }),
@@ -6527,6 +6565,7 @@ function SlidesPanels({
         {
           type: "button",
           "aria-pressed": openPanel === panel.id,
+          disabled: panel.locked,
           onClick: () => onOpenPanel(openPanel === panel.id ? null : panel.id),
           children: [
             RAIL_ORDER.includes(panel.id) ? panelIcon(panel.id) : panel.icon ?? panelIcon(panel.id),
@@ -7533,10 +7572,8 @@ function SlidesWorkspace(props) {
     ...extra
   });
   const workspaceName = (w) => labels.workspace[w] ?? w;
-  const menus = viewMode ? [
-    { id: "file", label: L.file, items: exportItems() },
-    { id: "view", label: L.view, items: viewItems() }
-  ] : [
+  const exportEntries = exportItems();
+  const editMenus = [
     {
       id: "file",
       label: L.file,
@@ -7547,7 +7584,7 @@ function SlidesWorkspace(props) {
           return (_a = fileInput.current) == null ? void 0 : _a.click();
         } }] : [],
         { kind: "separator" },
-        ...exportItems(),
+        ...exportEntries,
         ...onSaveComponent ? [{ kind: "separator" }, { label: labels.components.save, onSelect: onSaveComponent }] : [],
         { kind: "separator" },
         { kind: "submenu", label: L.pageSize, icon: /* @__PURE__ */ jsx(SlidesIcon.size, {}), items: sizeItems }
@@ -7639,6 +7676,10 @@ function SlidesWorkspace(props) {
       ]
     }
   ];
+  const menus = viewMode ? editMenus.map((menu) => menu.id === "view" ? menu : {
+    ...menu,
+    items: menu.items.map((entry) => exportEntries.includes(entry) ? entry : lockEntry(entry))
+  }) : editMenus;
   function exportItems() {
     return [{
       kind: "submenu",
@@ -7667,7 +7708,7 @@ function SlidesWorkspace(props) {
       { label: L.zoomFit, onSelect: fitZoom },
       keyItem(L.zoomIn, "zoomIn"),
       keyItem(L.zoomOut, "zoomOut"),
-      ...onWorkspaceChange && !viewMode ? [
+      ...onWorkspaceChange ? [
         { kind: "separator" },
         {
           kind: "submenu",
@@ -7894,11 +7935,11 @@ function SlidesWorkspace(props) {
             onImportTheme: host == null ? void 0 : host.onImportTheme
           }
         ),
-        ctx && !viewMode && /* @__PURE__ */ jsx(
+        ctx && /* @__PURE__ */ jsx(
           SlidesMenu,
           {
             label: L.slideN(deck.slides.findIndex((s) => s.id === ctx.id) + 1),
-            items: slideItems(ctx.id, false),
+            items: viewMode ? slideItems(ctx.id, false).map(lockEntry) : slideItems(ctx.id, false),
             onClose: () => setCtx(null),
             style: { position: "absolute", left: ctx.left, top: ctx.top }
           }
@@ -7920,6 +7961,9 @@ function SlidesWorkspace(props) {
       ]
     }
   );
+}
+function lockEntry(entry) {
+  return entry.kind === "separator" ? entry : { ...entry, disabled: true };
 }
 const WORKSPACE_STORAGE_KEY = "pm-canvas-workspace-v2";
 function readWorkspace(fallback = "excalidraw") {
@@ -9173,6 +9217,19 @@ ${css}` : css;
   });
   for (const panel of hostPanels ?? []) workspacePanels.push({ ...panel });
   for (const panel of workspacePanels) panel.icon ?? (panel.icon = /* @__PURE__ */ jsx(WorkspaceIcon, { name: panel.id }));
+  const slidesPanels = viewMode && api ? [
+    ...[
+      componentsPanel ? { id: "components", title: L.components.title } : null,
+      { id: "elements", title: L.workspace.elements },
+      { id: "text", title: L.workspace.text },
+      library ? { id: "library", title: L.workspace.files } : null,
+      brandKit ? { id: "brand", title: L.workspace.brand } : null,
+      pages ? { id: "design", title: L.workspace.page } : null,
+      agentPanel ? { id: "agent", title: L.dock.agent } : null,
+      layers && pages ? { id: "layers", title: L.dock.layers } : null
+    ].filter((p) => Boolean(p)).map((p) => ({ ...p, content: null, locked: true, icon: /* @__PURE__ */ jsx(WorkspaceIcon, { name: p.id }) })),
+    ...workspacePanels
+  ] : workspacePanels;
   const pillPanels = layoutWorkspace === "excalidraw" ? workspacePanels.filter((panel) => panel.inToolbar) : [];
   const pillActions = [
     ...pillPanels.map((panel) => ({
@@ -9411,13 +9468,13 @@ ${css}` : css;
                 action.id
               ))
             ] }) : null,
-            rightEdge && !narrow && !slidesActive ? /* @__PURE__ */ jsx(
+            rightEdge && !narrow ? /* @__PURE__ */ jsx(
               "div",
               {
                 "data-canvas2-right-edge": "",
                 style: {
                   position: "absolute",
-                  right: 0,
+                  right: slidesActive ? "var(--slides-right, 0px)" : 0,
                   top: "50%",
                   transform: "translateY(-50%)",
                   zIndex: 100,
@@ -9434,7 +9491,7 @@ ${css}` : css;
                 rootRef,
                 activePageId,
                 onActiveChange: setActivePageId,
-                panels: workspacePanels,
+                panels: slidesPanels,
                 labels: L,
                 pageSize,
                 thumbnailFiles: pageThumbnailFiles,
@@ -9695,4 +9752,4 @@ export {
   adoptStrayFramesInArray as y,
   alignToPage as z
 };
-//# sourceMappingURL=LibraryPanel-b0wt69Ex.js.map
+//# sourceMappingURL=LibraryPanel-DIDsd4q7.js.map

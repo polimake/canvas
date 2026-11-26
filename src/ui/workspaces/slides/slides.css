@@ -363,3 +363,7 @@
   position: absolute; left: 50%; top: 24px; transform: translateX(-50%); margin: 0; padding: 8px 14px;
   border-radius: 10px; background: rgba(28, 27, 25, .92); color: #e3a33a;
 }
+
+/* Al mirar se ve la interfaz entera: lo que editaría, apagado. */
+.canvas2-slides-pill button:disabled,
+.canvas2-slides-rail > button:disabled { opacity: 0.4; cursor: default; background: none; }

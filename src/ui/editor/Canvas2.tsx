@@ -1006,6 +1006,24 @@ export function Canvas2Editor({
   // del host no se toca. Van también al mirar o comentar.
   for (const panel of hostPanels ?? []) workspacePanels.push({ ...panel });
   for (const panel of workspacePanels) panel.icon ??= <WorkspaceIcon name={panel.id} />;
+  // Presentación, al mirar: la tira enseña los mismos paneles que al editar,
+  // apagados (sin contenido). Solo allí: los otros espacios los pintarían.
+  const slidesPanels: WorkspacePanel[] = viewMode && api
+    ? [
+      ...([
+        componentsPanel ? { id: 'components', title: L.components.title } : null,
+        { id: 'elements', title: L.workspace.elements },
+        { id: 'text', title: L.workspace.text },
+        library ? { id: 'library', title: L.workspace.files } : null,
+        brandKit ? { id: 'brand', title: L.workspace.brand } : null,
+        pages ? { id: 'design', title: L.workspace.page } : null,
+        agentPanel ? { id: 'agent', title: L.dock.agent } : null,
+        layers && pages ? { id: 'layers', title: L.dock.layers } : null,
+      ].filter((p): p is { id: string; title: string } => Boolean(p))
+        .map((p) => ({ ...p, content: null, locked: true, icon: <WorkspaceIcon name={p.id} /> }))),
+      ...workspacePanels,
+    ]
+    : workspacePanels;
 
   // Tras un separador, en texto: los paneles que van en la píldora y los
   // botones del host. Fuera de la vista Excalidraw esos paneles siguen en su
@@ -1035,7 +1053,7 @@ export function Canvas2Editor({
       data-canvas2=""
       data-canvas2-theme={theme}
       data-canvas2-narrow={narrow ? '' : undefined}
-      // Al mirar o comentar no hay menú arriba a la izquierda: solo al editar.
+      // Al mirar o comentar el menú de arriba a la izquierda lleva solo lo que no edita.
       data-canvas2-readonly={viewMode ? '' : undefined}
       // `--c2-frame-tool` y `--c2-find-on-canvas`: los rótulos de dos entradas de
       // los menús de Excalidraw que su español no traduce; los pinta canvas2.css.
@@ -1303,12 +1321,14 @@ export function Canvas2Editor({
           ))}
         </ToolbarSlot>
       ) : null}
-      {rightEdge && !narrow && !slidesActive ? (
+      {/* En Presentación, a la izquierda de la tira de paneles (y del panel
+          abierto): `--slides-right` lo fija el espacio. */}
+      {rightEdge && !narrow ? (
         <div
           data-canvas2-right-edge=""
           style={{
             position: 'absolute',
-            right: 0,
+            right: slidesActive ? 'var(--slides-right, 0px)' : 0,
             top: '50%',
             transform: 'translateY(-50%)',
             zIndex: 100,
@@ -1325,7 +1345,7 @@ export function Canvas2Editor({
           rootRef={rootRef}
           activePageId={activePageId}
           onActiveChange={setActivePageId}
-          panels={workspacePanels}
+          panels={slidesPanels}
           labels={L}
           pageSize={pageSize}
           thumbnailFiles={pageThumbnailFiles}

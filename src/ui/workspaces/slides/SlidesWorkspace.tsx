@@ -358,16 +358,16 @@ export function SlidesWorkspace(props: SlidesWorkspaceProps) {
 
   const workspaceName = (w: CanvasWorkspace) => (labels.workspace as unknown as Record<string, string>)[w] ?? w;
 
-  const menus: MenuBarMenu[] = viewMode ? [
-    { id: 'file', label: L.file, items: exportItems() },
-    { id: 'view', label: L.view, items: viewItems() },
-  ] : [
+  // Al mirar, los mismos menús que al editar: solo Exportar y Ver funcionan, lo
+  // demás se ve apagado.
+  const exportEntries = exportItems();
+  const editMenus: MenuBarMenu[] = [
     {
       id: 'file', label: L.file, items: [
         { label: L.newSlide, icon: <SlidesIcon.plus />, shortcut: shortcutLabel('newSlide', keyWords), onSelect: () => newSlide(api, activePageId, newSize, labels.pages, activate) },
         ...(host?.importSlides ? [{ label: L.importSlides, icon: <SlidesIcon.upload />, onSelect: () => fileInput.current?.click() }] : []),
         { kind: 'separator' },
-        ...exportItems(),
+        ...exportEntries,
         ...(onSaveComponent ? [{ kind: 'separator' } as MenuEntry, { label: labels.components.save, onSelect: onSaveComponent }] : []),
         { kind: 'separator' },
         { kind: 'submenu', label: L.pageSize, icon: <SlidesIcon.size />, items: sizeItems },
@@ -436,6 +436,12 @@ export function SlidesWorkspace(props: SlidesWorkspaceProps) {
       ],
     },
   ];
+  const menus: MenuBarMenu[] = viewMode
+    ? editMenus.map((menu) => (menu.id === 'view' ? menu : {
+      ...menu,
+      items: menu.items.map((entry) => (exportEntries.includes(entry) ? entry : lockEntry(entry))),
+    }))
+    : editMenus;
 
   function exportItems(): MenuEntry[] {
     return [{
@@ -464,7 +470,7 @@ export function SlidesWorkspace(props: SlidesWorkspaceProps) {
       { label: L.zoomFit, onSelect: fitZoom },
       keyItem(L.zoomIn, 'zoomIn'),
       keyItem(L.zoomOut, 'zoomOut'),
-      ...(onWorkspaceChange && !viewMode ? [
+      ...(onWorkspaceChange ? [
         { kind: 'separator' } as MenuEntry,
         {
           kind: 'submenu', label: L.workspace, items: workspaces.map((w) => ({
@@ -651,9 +657,9 @@ export function SlidesWorkspace(props: SlidesWorkspaceProps) {
         onImportTheme={host?.onImportTheme}
       />
 
-      {ctx && !viewMode && (
+      {ctx && (
         <SlidesMenu label={L.slideN(deck.slides.findIndex((s) => s.id === ctx.id) + 1)}
-          items={slideItems(ctx.id, false)} onClose={() => setCtx(null)}
+          items={viewMode ? slideItems(ctx.id, false).map(lockEntry) : slideItems(ctx.id, false)} onClose={() => setCtx(null)}
           style={{ position: 'absolute', left: ctx.left, top: ctx.top }} />
       )}
 
@@ -667,4 +673,9 @@ export function SlidesWorkspace(props: SlidesWorkspaceProps) {
       )}
     </div>
   );
+}
+
+/** Una entrada de menú apagada (al mirar): se ve, pero no hace nada. */
+function lockEntry(entry: MenuEntry): MenuEntry {
+  return entry.kind === 'separator' ? entry : { ...entry, disabled: true };
 }

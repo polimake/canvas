@@ -662,7 +662,5 @@
    colores del tema oscuro el gris no se leía y el activo, casi blanco, desaparecía). */
 [data-canvas2] .canvas2-mode-tools button:focus-visible { outline: 2px solid #111111; outline-offset: 2px; }
 
-/* Ver y Comentar (solo lectura): fuera el menú de arriba a la izquierda. Solo
-   al editar se ve todo. La descarga sigue en la cabecera del contenido. */
-[data-canvas2][data-canvas2-readonly] .main-menu-trigger,
-[data-canvas2][data-canvas2-readonly] .App-menu_top__left .dropdown-menu { display: none !important; }
+/* Ver y Comentar (solo lectura): el menú de arriba a la izquierda se queda, con
+   lo que no cambia el diseño (espacio de trabajo, exportar, tema, buscar). */

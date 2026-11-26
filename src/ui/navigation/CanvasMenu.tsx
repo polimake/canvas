@@ -104,7 +104,8 @@ export function CanvasMenu({
       ))}
     </MainMenu.Group>
   ) : null;
-  const workspaceItems = !viewMode && onWorkspaceChange ? (
+  // También al mirar: cambiar de espacio no toca el diseño.
+  const workspaceItems = onWorkspaceChange ? (
     <MainMenu.Group title={L.workspace.label}>
       {CANVAS_WORKSPACES.map((value) => (
         <MainMenu.Item key={value} role="menuitemradio" aria-checked={workspace === value}

@@ -662,10 +662,8 @@
    colores del tema oscuro el gris no se leía y el activo, casi blanco, desaparecía). */
 [data-canvas2] .canvas2-mode-tools button:focus-visible { outline: 2px solid #111111; outline-offset: 2px; }
 
-/* Ver y Comentar (solo lectura): fuera el menú de arriba a la izquierda. Solo
-   al editar se ve todo. La descarga sigue en la cabecera del contenido. */
-[data-canvas2][data-canvas2-readonly] .main-menu-trigger,
-[data-canvas2][data-canvas2-readonly] .App-menu_top__left .dropdown-menu { display: none !important; }
+/* Ver y Comentar (solo lectura): el menú de arriba a la izquierda se queda, con
+   lo que no cambia el diseño (espacio de trabajo, exportar, tema, buscar). */
 .canvas2-workspace {
   container-type: inline-size;
   width: 100%; height: 100%; min-height: 0; min-width: 0;
@@ -1305,3 +1303,7 @@
   position: absolute; left: 50%; top: 24px; transform: translateX(-50%); margin: 0; padding: 8px 14px;
   border-radius: 10px; background: rgba(28, 27, 25, .92); color: #e3a33a;
 }
+
+/* Al mirar se ve la interfaz entera: lo que editaría, apagado. */
+.canvas2-slides-pill button:disabled,
+.canvas2-slides-rail > button:disabled { opacity: 0.4; cursor: default; background: none; }

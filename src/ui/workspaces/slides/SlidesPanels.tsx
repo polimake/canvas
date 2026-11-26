@@ -81,7 +81,7 @@ export function SlidesPanels({
       )}
       <nav className="canvas2-slides-rail" aria-label={L.panels}>
         {rail.map((panel) => (
-          <button key={panel.id} type="button" aria-pressed={openPanel === panel.id}
+          <button key={panel.id} type="button" aria-pressed={openPanel === panel.id} disabled={panel.locked}
             onClick={() => onOpenPanel(openPanel === panel.id ? null : panel.id)}>
             {RAIL_ORDER.includes(panel.id) ? panelIcon(panel.id) : panel.icon ?? panelIcon(panel.id)}
             <span>{panel.id === 'brand' ? labels.workspace.brand : panel.title}</span>

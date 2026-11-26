@@ -188,12 +188,23 @@ describe('espacio Presentación', () => {
     expect(current()).toBe(3);
   });
 
-  it('en lectura: sin editar, sin «Haz clic para añadir» y sin nueva diapositiva', () => {
-    mount({ viewMode: true });
+  it('en lectura: la interfaz entera, con lo que edita apagado', () => {
+    const { container } = mount({ viewMode: true, rightEdge: <button type="button">Plegar</button> });
     const bar = screen.getByRole('menubar');
-    expect(within(bar).queryByRole('menuitem', { name: 'Editar' })).toBeNull();
+    // Los mismos menús que al editar.
+    expect(within(bar).getByRole('menuitem', { name: 'Editar' })).toBeTruthy();
     expect(within(bar).getByRole('menuitem', { name: 'Ver' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Nueva diapositiva' })).toBeNull();
+    // Nueva diapositiva se ve, pero apagada.
+    const nueva = screen.getAllByRole('button', { name: 'Nueva diapositiva' })[0] as HTMLButtonElement;
+    expect(nueva.disabled).toBe(true);
+    // Archivo: exportar sigue vivo; nueva diapositiva, apagada.
+    openMenu('Archivo');
+    expect((screen.getByRole('menuitem', { name: /^Nueva diapositiva/ }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('menuitem', { name: 'Exportar' }) as HTMLButtonElement).disabled).toBeFalsy();
+    // Y el chevron del host, a la izquierda de la tira de paneles.
+    const edge = container.querySelector<HTMLElement>('[data-canvas2-right-edge]');
+    expect(edge?.textContent).toBe('Plegar');
+    expect(edge?.style.right).toBe('var(--slides-right, 0px)');
     const notes = screen.getByRole('textbox', { name: 'Notas del orador' }) as HTMLTextAreaElement;
     expect(notes.readOnly).toBe(true);
     expect(notes.placeholder).toBe('');

@@ -110,10 +110,9 @@ describe('workspace switching', () => {
     expect(root().style.getPropertyValue('--c2-find-on-canvas')).toBe('"Find on canvas"');
   });
 
-  it('keeps workspace choices and host insertion slots out of read-only previews', () => {
+  it('keeps host insertion slots out of read-only previews (switching workspace is allowed)', () => {
     render(<Canvas2Editor viewMode library={<div>Assets</div>} componentsPanel={<div>Components</div>}
       agentPanel={<div>Agent conversation</div>} />);
-    expect(screen.queryByRole('menuitemradio')).toBeNull();
     expect(screen.queryByRole('complementary')).toBeNull();
     expect(screen.queryByText('Assets')).toBeNull();
     expect(screen.queryByText('Components')).toBeNull();

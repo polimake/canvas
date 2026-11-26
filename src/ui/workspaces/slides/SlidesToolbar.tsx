@@ -86,7 +86,7 @@ export function SlidesToolbar(props: SlidesToolbarProps) {
 
   const toolButton = (tool: SlidesTool, label: string, icon: ReactNode) => (
     <button type="button" className="canvas2-slides-icon-btn" aria-label={label} title={label}
-      aria-pressed={activeTool === tool} onClick={() => props.onTool(tool)}>
+      aria-pressed={activeTool === tool} disabled={viewMode} onClick={() => props.onTool(tool)}>
       {icon}
     </button>
   );
@@ -128,7 +128,7 @@ export function SlidesToolbar(props: SlidesToolbarProps) {
   const panelButton = (panel: ToolbarPanel, label: string) =>
     available[panel] ? (
       <button key={panel} type="button" className="canvas2-slides-text-btn"
-        aria-pressed={openPanel === panel} onClick={() => props.onPanel(panel)}>
+        aria-pressed={openPanel === panel} disabled={viewMode} onClick={() => props.onPanel(panel)}>
         {label}
       </button>
     ) : null;
@@ -149,27 +149,26 @@ export function SlidesToolbar(props: SlidesToolbarProps) {
               <SlidesIcon.search />
             </button>
           )}
-          {!viewMode && (
-            <span className="canvas2-slides-split">
-              <button type="button" className="canvas2-slides-icon-btn" aria-label={L.newSlide} title={L.newSlide} onClick={props.onNewSlide}>
-                <SlidesIcon.plus />
-              </button>
-              <button type="button" className="canvas2-slides-caret-btn" aria-label={L.newSlide} aria-haspopup="menu"
-                aria-expanded={dropdown?.id === 'new'} onClick={(e) => open('new', e.currentTarget)}>
-                <SlidesIcon.caret />
-              </button>
-            </span>
-          )}
-          {!viewMode && (
-            <>
-              <button type="button" className="canvas2-slides-icon-btn" aria-label={L.undo} title={L.undo} onClick={props.onUndo}>
-                <SlidesIcon.undo />
-              </button>
-              <button type="button" className="canvas2-slides-icon-btn" aria-label={L.redo} title={L.redo} onClick={props.onRedo}>
-                <SlidesIcon.redo />
-              </button>
-            </>
-          )}
+          {/* Al mirar se ve la barra entera, igual que al editar, pero lo que
+              cambia la presentación va apagado. */}
+          <span className="canvas2-slides-split">
+            <button type="button" className="canvas2-slides-icon-btn" aria-label={L.newSlide} title={L.newSlide}
+              disabled={viewMode} onClick={props.onNewSlide}>
+              <SlidesIcon.plus />
+            </button>
+            <button type="button" className="canvas2-slides-caret-btn" aria-label={L.newSlide} aria-haspopup="menu"
+              aria-expanded={dropdown?.id === 'new'} disabled={viewMode} onClick={(e) => open('new', e.currentTarget)}>
+              <SlidesIcon.caret />
+            </button>
+          </span>
+          <button type="button" className="canvas2-slides-icon-btn" aria-label={L.undo} title={L.undo}
+            disabled={viewMode} onClick={props.onUndo}>
+            <SlidesIcon.undo />
+          </button>
+          <button type="button" className="canvas2-slides-icon-btn" aria-label={L.redo} title={L.redo}
+            disabled={viewMode} onClick={props.onRedo}>
+            <SlidesIcon.redo />
+          </button>
           <span className="canvas2-slides-divider" aria-hidden="true" />
           <button type="button" className="canvas2-slides-zoom-btn" aria-haspopup="menu"
             aria-expanded={dropdown?.id === 'zoom'} onClick={(e) => open('zoom', e.currentTarget)}>
@@ -177,31 +176,30 @@ export function SlidesToolbar(props: SlidesToolbarProps) {
             <span>{L.zoomFit}</span>
             <SlidesIcon.caret />
           </button>
-          {!viewMode && (
-            <>
+          <>
               <span className="canvas2-slides-divider" aria-hidden="true" />
               <button type="button" className="canvas2-slides-icon-btn canvas2-slides-tool-select" aria-label={L.select} title={L.select}
-                aria-pressed={activeTool === 'selection'} onClick={() => props.onTool('selection')}>
+                aria-pressed={activeTool === 'selection'} disabled={viewMode} onClick={() => props.onTool('selection')}>
                 <SlidesIcon.cursor />
               </button>
               {toolButton('text', L.textBox, <SlidesIcon.text />)}
               {available.library && (
                 <button type="button" className="canvas2-slides-icon-btn" aria-label={L.image} title={L.image}
-                  aria-pressed={openPanel === 'library'} onClick={props.onImage}>
+                  aria-pressed={openPanel === 'library'} disabled={viewMode} onClick={props.onImage}>
                   <SlidesIcon.image />
                 </button>
               )}
               <span className="canvas2-slides-split">
                 {toolButton(lastShape, shapeLabel(lastShape), shapeIcon(lastShape))}
                 <button type="button" className="canvas2-slides-caret-btn" aria-label={L.shape} aria-haspopup="menu"
-                  aria-expanded={dropdown?.id === 'shape'} onClick={(e) => open('shape', e.currentTarget)}>
+                  aria-expanded={dropdown?.id === 'shape'} disabled={viewMode} onClick={(e) => open('shape', e.currentTarget)}>
                   <SlidesIcon.caret />
                 </button>
               </span>
               <span className="canvas2-slides-split">
                 {toolButton(lastLine, lastLine === 'arrow' ? L.arrow : L.line, lastLine === 'arrow' ? <SlidesIcon.arrow /> : <SlidesIcon.line />)}
                 <button type="button" className="canvas2-slides-caret-btn" aria-label={L.line} aria-haspopup="menu"
-                  aria-expanded={dropdown?.id === 'line'} onClick={(e) => open('line', e.currentTarget)}>
+                  aria-expanded={dropdown?.id === 'line'} disabled={viewMode} onClick={(e) => open('line', e.currentTarget)}>
                   <SlidesIcon.caret />
                 </button>
               </span>
@@ -214,12 +212,11 @@ export function SlidesToolbar(props: SlidesToolbarProps) {
                 </>
               )}
               <span className="canvas2-slides-divider" aria-hidden="true" />
-            </>
-          )}
+          </>
         </div>
         {/* Sin selección, los paneles de la diapositiva; con selección, este hueco
             lo ocupan las opciones de formato de Excalidraw (slides.css). */}
-        {!viewMode && !formatting && rightGroup.length > 0 && (
+        {!formatting && rightGroup.length > 0 && (
           <div className="canvas2-slides-pill-context">
             {rightGroup.map((button, i) => (
               <span key={i} className="canvas2-slides-pill-context-item">
