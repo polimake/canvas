@@ -8912,11 +8912,9 @@ function Canvas2Editor({
   const workspace = workspaceProp ?? localWorkspace;
   const theme = themeProp;
   const sceneTheme = pages && theme === "dark" ? "light" : theme;
-  useEffect(() => {
-    saveWorkspace(workspace);
-  }, [workspace]);
   const changeWorkspace = (next) => {
     if (next === workspace) return;
+    saveWorkspace(next);
     if (workspaceProp === void 0) setLocalWorkspace(next);
     onWorkspaceChange == null ? void 0 : onWorkspaceChange(next);
   };
@@ -9752,4 +9750,4 @@ export {
   adoptStrayFramesInArray as y,
   alignToPage as z
 };
-//# sourceMappingURL=LibraryPanel-DIDsd4q7.js.map
+//# sourceMappingURL=LibraryPanel-fcJ6ldW2.js.map

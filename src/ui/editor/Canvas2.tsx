@@ -518,9 +518,11 @@ export function Canvas2Editor({
    * fotos se quedarían con la contrainversión y saldrían en negativo.
    */
   const sceneTheme = pages && theme === 'dark' ? 'light' : theme;
-  useEffect(() => { saveWorkspace(workspace); }, [workspace]);
+  // Solo lo que elige quien edita: si el host abre un diseño en Presentación
+  // porque el diseño lo dice, eso no pasa a ser el gusto de este navegador.
   const changeWorkspace = (next: CanvasWorkspace) => {
     if (next === workspace) return;
+    saveWorkspace(next);
     if (workspaceProp === undefined) setLocalWorkspace(next);
     onWorkspaceChange?.(next);
   };

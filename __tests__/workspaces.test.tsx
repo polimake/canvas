@@ -72,15 +72,18 @@ describe('workspace switching', () => {
     expect(onChange.mock.calls).toEqual([['advanced'], ['design'], ['excalidraw']]);
   });
 
-  it('lets a controlled host accept a choice before persisting it', () => {
+  it('lets a controlled host accept a choice, and remembers only what the user picks', () => {
     const onChange = vi.fn();
     const { rerender } = render(<Canvas2Editor workspace="design" onWorkspaceChange={onChange} />);
+    // Lo que impone el host (un diseño que se abre así) no es gusto del navegador.
+    expect(localStorage.getItem(WORKSPACE_STORAGE_KEY)).toBeNull();
     choose('Experta');
     expect(onChange).toHaveBeenCalledWith('advanced');
     expect(checked('Canva')).toBe('true');
-    expect(localStorage.getItem(WORKSPACE_STORAGE_KEY)).toBe('design');
+    expect(localStorage.getItem(WORKSPACE_STORAGE_KEY)).toBe('advanced');
     rerender(<Canvas2Editor workspace="advanced" onWorkspaceChange={onChange} />);
     expect(checked('Experta')).toBe('true');
+    rerender(<Canvas2Editor workspace="slides" onWorkspaceChange={onChange} />);
     expect(localStorage.getItem(WORKSPACE_STORAGE_KEY)).toBe('advanced');
     expect(mounted).toHaveBeenCalledTimes(1);
   });
