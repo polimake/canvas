@@ -1,7 +1,7 @@
 import { jsxs, jsx, Fragment as Fragment$1 } from "react/jsx-runtime";
 import { useState, useRef, useEffect, Fragment, useMemo, useCallback, useId, useLayoutEffect, useReducer } from "react";
 import "@excalidraw/excalidraw/index.css";
-import { CaptureUpdateAction, newElementWith, convertToExcalidrawElements, restore, serializeAsJSON, exportToCanvas, exportToBlob, exportToSvg, FONT_FAMILY, MainMenu, useI18n, viewportCoordsToSceneCoords, getVisibleSceneBounds, Excalidraw, getNonDeletedElements } from "@excalidraw/excalidraw";
+import { CaptureUpdateAction, newElementWith, convertToExcalidrawElements, restore, serializeAsJSON, exportToCanvas, exportToBlob, exportToSvg, FONT_FAMILY, MainMenu, viewportCoordsToSceneCoords, useI18n, getVisibleSceneBounds, Excalidraw, getNonDeletedElements } from "@excalidraw/excalidraw";
 import { i as isPageBackground, B as BG_MARKER$1, g as pageOrderOf, P as PAGE_MARKER, h as framesInDocumentOrder, s as sceneToDocument, f as documentToPptx, n as notesOf, t as transitionOf, j as isSkippedFrame, S as SLIDE_NOTES_KEY, a as SLIDE_SKIP_KEY, b as SLIDE_TRANSITION_KEY, k as SLIDE_TRANSITIONS } from "./documentToPptx-CMWe-xWo.js";
 import { cloneSceneElements } from "../components.js";
 import { P as PAGE_GAP } from "./layout-BEpoNps2.js";
@@ -7062,9 +7062,66 @@ function PresentButton({ labels, shortcut, onPresent }) {
     )
   ] });
 }
+function elementSceneBounds(el) {
+  const points = el.points;
+  if (points && points.length) {
+    const xs2 = points.map((p) => el.x + p[0]);
+    const ys2 = points.map((p) => el.y + p[1]);
+    const x2 = Math.min(...xs2);
+    const y2 = Math.min(...ys2);
+    return { x: x2, y: y2, width: Math.max(...xs2) - x2, height: Math.max(...ys2) - y2 };
+  }
+  const angle = el.angle ?? 0;
+  if (!angle) return { x: el.x, y: el.y, width: el.width, height: el.height };
+  const cx = el.x + el.width / 2;
+  const cy = el.y + el.height / 2;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const corners = [
+    [el.x, el.y],
+    [el.x + el.width, el.y],
+    [el.x, el.y + el.height],
+    [el.x + el.width, el.y + el.height]
+  ].map(([px, py]) => [cx + (px - cx) * cos - (py - cy) * sin, cy + (px - cx) * sin + (py - cy) * cos]);
+  const xs = corners.map((c) => c[0]);
+  const ys = corners.map((c) => c[1]);
+  const x = Math.min(...xs);
+  const y = Math.min(...ys);
+  return { x, y, width: Math.max(...xs) - x, height: Math.max(...ys) - y };
+}
+function inside$1(inner, outer) {
+  return inner.x >= outer.x && inner.y >= outer.y && inner.x + inner.width <= outer.x + outer.width && inner.y + inner.height <= outer.y + outer.height;
+}
+function selectInBox(elements, pageId, box, previous) {
+  var _a, _b;
+  const members = elements.filter((e) => !e.isDeleted && e.frameId === pageId);
+  const selectedElementIds = { ...(previous == null ? void 0 : previous.selectedElementIds) ?? {} };
+  const selectedGroupIds = { ...(previous == null ? void 0 : previous.selectedGroupIds) ?? {} };
+  for (const el of members) {
+    if (el.locked || isPageBackground(el)) continue;
+    if (el.containerId) continue;
+    if (!inside$1(elementSceneBounds(el), box)) continue;
+    const outer = ((_a = el.groupIds) == null ? void 0 : _a.length) ? el.groupIds[el.groupIds.length - 1] : null;
+    if (!outer) {
+      selectedElementIds[el.id] = true;
+      continue;
+    }
+    selectedGroupIds[outer] = true;
+    for (const mate of members) {
+      if (((_b = mate.groupIds) == null ? void 0 : _b.includes(outer)) && !mate.containerId) {
+        selectedElementIds[mate.id] = true;
+      }
+    }
+  }
+  return { selectedElementIds, selectedGroupIds };
+}
+const MARQUEE_THRESHOLD = 4;
 function SlideMask({ api, rootRef, activePageId, stage, limits }) {
+  var _a;
   const [slide, setSlide] = useState(null);
   const layer = useRef(null);
+  const drag = useRef(null);
+  const [marquee, setMarquee] = useState(null);
   useEffect(() => {
     let lastElements = null;
     let box = activePageId ? pageBox(api, activePageId) : null;
@@ -7093,24 +7150,72 @@ function SlideMask({ api, rootRef, activePageId, stage, limits }) {
     const el = layer.current;
     if (!el) return;
     const onWheel = (e) => {
-      var _a, _b;
-      if (!((_b = (_a = e.target) == null ? void 0 : _a.closest) == null ? void 0 : _b.call(_a, ".canvas2-slides-mask"))) return;
+      var _a2, _b;
+      if (!((_b = (_a2 = e.target) == null ? void 0 : _a2.closest) == null ? void 0 : _b.call(_a2, ".canvas2-slides-mask"))) return;
       e.preventDefault();
       forwardWheel(rootRef.current, e);
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
   }, [rootRef]);
+  const onPointerDown = (e) => {
+    var _a2, _b;
+    if (e.button !== 0) return;
+    (_b = (_a2 = e.currentTarget).setPointerCapture) == null ? void 0 : _b.call(_a2, e.pointerId);
+    drag.current = { pointerId: e.pointerId, x0: e.clientX, y0: e.clientY, x1: e.clientX, y1: e.clientY, shift: e.shiftKey, moved: false };
+    if (!e.shiftKey) {
+      api.updateScene({ appState: { selectedElementIds: {}, selectedGroupIds: {} }, captureUpdate: CaptureUpdateAction.NEVER });
+    }
+  };
+  const onPointerMove = (e) => {
+    const d = drag.current;
+    if (!d || d.pointerId !== e.pointerId) return;
+    d.x1 = e.clientX;
+    d.y1 = e.clientY;
+    if (!d.moved && Math.hypot(d.x1 - d.x0, d.y1 - d.y0) < MARQUEE_THRESHOLD) return;
+    d.moved = true;
+    setMarquee({ ...d });
+  };
+  const onPointerUp = (e) => {
+    const d = drag.current;
+    if (!d || d.pointerId !== e.pointerId) return;
+    drag.current = null;
+    setMarquee(null);
+    if (!d.moved || !activePageId) return;
+    const state = api.getAppState();
+    const a = viewportCoordsToSceneCoords({ clientX: d.x0, clientY: d.y0 }, state);
+    const b = viewportCoordsToSceneCoords({ clientX: e.clientX, clientY: e.clientY }, state);
+    const box = { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), width: Math.abs(a.x - b.x), height: Math.abs(a.y - b.y) };
+    const previous = d.shift ? { selectedElementIds: { ...state.selectedElementIds }, selectedGroupIds: { ...state.selectedGroupIds } } : void 0;
+    const next = selectInBox(api.getSceneElements(), activePageId, box, previous);
+    api.updateScene({ appState: { ...next, editingGroupId: null }, captureUpdate: CaptureUpdateAction.NEVER });
+  };
+  const onPointerCancel = () => {
+    drag.current = null;
+    setMarquee(null);
+  };
   const bands = slide ? maskBands(stage, slide, limits) : [];
-  return /* @__PURE__ */ jsx("div", { ref: layer, className: "canvas2-slides-mask-layer", "aria-hidden": "true", children: bands.map((band, i) => /* @__PURE__ */ jsx(
-    "div",
-    {
-      className: "canvas2-slides-mask",
-      style: band,
-      onPointerDown: () => api.updateScene({ appState: { selectedElementIds: {} }, captureUpdate: CaptureUpdateAction.NEVER })
-    },
-    i
-  )) });
+  const origin = marquee ? (_a = layer.current) == null ? void 0 : _a.getBoundingClientRect() : null;
+  return /* @__PURE__ */ jsxs("div", { ref: layer, className: "canvas2-slides-mask-layer", "aria-hidden": "true", children: [
+    bands.map((band, i) => /* @__PURE__ */ jsx(
+      "div",
+      {
+        className: "canvas2-slides-mask",
+        style: band,
+        onPointerDown,
+        onPointerMove,
+        onPointerUp,
+        onPointerCancel
+      },
+      i
+    )),
+    marquee && origin ? /* @__PURE__ */ jsx("div", { className: "canvas2-slides-marquee", style: {
+      left: Math.min(marquee.x0, marquee.x1) - origin.left,
+      top: Math.min(marquee.y0, marquee.y1) - origin.top,
+      width: Math.abs(marquee.x1 - marquee.x0),
+      height: Math.abs(marquee.y1 - marquee.y0)
+    } }) : null
+  ] });
 }
 function maskBands(stage, slide, limits) {
   const right = stage.left + stage.width;
@@ -9750,4 +9855,4 @@ export {
   adoptStrayFramesInArray as y,
   alignToPage as z
 };
-//# sourceMappingURL=LibraryPanel-fcJ6ldW2.js.map
+//# sourceMappingURL=LibraryPanel-DjvrHIVb.js.map

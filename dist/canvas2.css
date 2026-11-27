@@ -1040,6 +1040,8 @@
    coge el puntero; sus franjas, sí. */
 .canvas2-slides > .canvas2-slides-mask-layer { position: absolute; inset: 0; pointer-events: none; }
 .canvas2-slides-mask { position: absolute; background: var(--slides-stage, #efece6); pointer-events: auto; }
+/* El recuadro que se arrastra desde la franja: como el de Excalidraw, encima de todo y sin coger clics. */
+.canvas2-slides-marquee { position: absolute; pointer-events: none; border: 1px solid var(--color-selection, #4a47b1); background: color-mix(in srgb, var(--color-selection, #4a47b1) 8%, transparent); }
 
 /* Botones comunes. */
 .canvas2-slides-icon-btn {
