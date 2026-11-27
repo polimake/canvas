@@ -1,5 +1,5 @@
 import { readPsd } from "ag-psd";
-import { r as readBytes, D as DocumentImportError, e as estimateTextHeight } from "./chunks/model-Jk--sAmK.js";
+import { r as readBytes, D as DocumentImportError, e as estimateTextHeight } from "./chunks/model-Rq3yAvOe.js";
 import { unzipSync, strFromU8 } from "fflate";
 import { XMLValidator, XMLParser } from "fast-xml-parser";
 function parsePsd(input, limits = {}) {

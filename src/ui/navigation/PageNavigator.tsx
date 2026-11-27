@@ -19,6 +19,7 @@ import { mergeLabels, type PartialLabels } from '../shared/labels';
 import { displayPageName } from '../../core/pageNames';
 import { DragPreview, type DragGrab } from '../overlays/DragPreview';
 import { startPointerDrag } from '../shared/pointerDrag';
+import { isComposing } from '../shared/composing';
 
 export interface PageNavigatorProps {
   api: ExcalidrawImperativeAPI;
@@ -494,7 +495,7 @@ export function PageNavigator({
                 onChange={(e) => setRenaming({ id: page.id, value: e.target.value })}
                 onKeyDown={(e) => {
                   e.stopPropagation();
-                  if (e.key === 'Enter') commitRename();
+                  if (e.key === 'Enter' && !isComposing(e)) commitRename();
                   if (e.key === 'Escape') setRenaming(null);
                 }}
                 onBlur={commitRename}

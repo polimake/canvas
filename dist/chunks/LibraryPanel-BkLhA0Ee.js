@@ -2,9 +2,9 @@ import { jsxs, jsx, Fragment as Fragment$1 } from "react/jsx-runtime";
 import { useState, useRef, useEffect, Fragment, useMemo, useCallback, useId, useLayoutEffect, useReducer } from "react";
 import "@excalidraw/excalidraw/index.css";
 import { CaptureUpdateAction, newElementWith, convertToExcalidrawElements, restore, serializeAsJSON, exportToCanvas, exportToBlob, exportToSvg, FONT_FAMILY, MainMenu, viewportCoordsToSceneCoords, useI18n, getVisibleSceneBounds, Excalidraw, getNonDeletedElements } from "@excalidraw/excalidraw";
-import { i as isPageBackground, B as BG_MARKER$1, g as pageOrderOf, P as PAGE_MARKER, h as framesInDocumentOrder, s as sceneToDocument, f as documentToPptx, n as notesOf, t as transitionOf, j as isSkippedFrame, S as SLIDE_NOTES_KEY, a as SLIDE_SKIP_KEY, b as SLIDE_TRANSITION_KEY, k as SLIDE_TRANSITIONS } from "./documentToPptx-CsrYYM5a.js";
+import { i as isPageBackground, B as BG_MARKER$1, g as pageOrderOf, P as PAGE_MARKER, h as framesInDocumentOrder, s as sceneToDocument, f as documentToPptx, n as notesOf, t as transitionOf, j as isSkippedFrame, S as SLIDE_NOTES_KEY, a as SLIDE_SKIP_KEY, b as SLIDE_TRANSITION_KEY, k as SLIDE_TRANSITIONS } from "./documentToPptx-CMWe-xWo.js";
 import { cloneSceneElements } from "../components.js";
-import { P as PAGE_GAP } from "./layout-L5bQ5REv.js";
+import { P as PAGE_GAP } from "./layout-BEpoNps2.js";
 import { fontFormatHint, buildFontFaceCss, fontFamilyAlias, fontFamilyCss, customFontFamilyId, normalizeFontSrc, dedupeFontFaces } from "../fonts.js";
 import { createPortal, flushSync } from "react-dom";
 const CAPTURE = {
@@ -1920,6 +1920,9 @@ function startPointerDrag(e, handlers) {
   window.addEventListener("pointercancel", cancel, true);
   window.addEventListener("keydown", key, true);
 }
+function isComposing(e) {
+  return e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229;
+}
 function pagesSignature(pages) {
   return pages.map((p) => `${p.id}:${p.name}:${p.width}x${p.height}:${p.locked ? 1 : 0}`).join("|");
 }
@@ -2300,7 +2303,7 @@ function PageNavigator({
                             onChange: (e) => setRenaming({ id: page.id, value: e.target.value }),
                             onKeyDown: (e) => {
                               e.stopPropagation();
-                              if (e.key === "Enter") commitRename();
+                              if (e.key === "Enter" && !isComposing(e)) commitRename();
                               if (e.key === "Escape") setRenaming(null);
                             },
                             onBlur: commitRename,
@@ -5210,7 +5213,7 @@ function LayersPanel({
                   value: renamingPage,
                   onChange: (e) => setRenamingPage(e.target.value),
                   onKeyDown: (e) => {
-                    if (e.key === "Enter") {
+                    if (e.key === "Enter" && !isComposing(e)) {
                       if (renamingPage.trim()) renamePage(api, activePageId, renamingPage.trim());
                       setRenamingPage(null);
                     }
@@ -9810,4 +9813,4 @@ export {
   adoptStrayFramesInArray as y,
   alignToPage as z
 };
-//# sourceMappingURL=LibraryPanel-BzPgblje.js.map
+//# sourceMappingURL=LibraryPanel-BkLhA0Ee.js.map
