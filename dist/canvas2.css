@@ -1001,6 +1001,26 @@
 .canvas2-workspace[data-workspace="slides"] [data-canvas2] .selected-shape-actions .color-picker__top-picks {
   display: none;
 }
+/* La opacidad: Excalidraw la pinta con el rótulo encima, el deslizador debajo
+   con relleno y el número flotando por debajo. En esta fila de 40 px saltaba de
+   línea y salía cortada. Aquí va en línea: sin rótulo a la vista (sigue para
+   los lectores de pantalla), deslizador corto y el número al lado. */
+.canvas2-workspace[data-workspace="slides"] [data-canvas2] .selected-shape-actions .control-label:has(.range-wrapper) {
+  display: flex; align-items: center; height: 40px; margin: 0; font-size: 0;
+}
+.canvas2-workspace[data-workspace="slides"] [data-canvas2] .selected-shape-actions .range-wrapper {
+  display: flex; align-items: center; gap: 8px; width: 128px; height: 40px; padding: 0;
+}
+.canvas2-workspace[data-workspace="slides"] [data-canvas2] .selected-shape-actions .range-wrapper .range-input {
+  flex: 1; min-width: 0; margin: 0;
+  /* El tramo vacío del carril es `--button-bg`, el mismo color que esta barra: no se veía. */
+  --button-bg: color-mix(in srgb, currentColor 18%, transparent);
+}
+.canvas2-workspace[data-workspace="slides"] [data-canvas2] .selected-shape-actions .range-wrapper :is(.value-bubble, .zero-label) {
+  position: static; transform: none; min-width: 3ch; font-size: 12px; text-align: right;
+}
+.canvas2-workspace[data-workspace="slides"] [data-canvas2] .selected-shape-actions .range-wrapper .value-bubble:empty { display: none; }
+.canvas2-workspace[data-workspace="slides"] [data-canvas2] .selected-shape-actions .range-wrapper .value-bubble:not(:empty) + .zero-label { display: none; }
 
 /* ── Capas de Presentación ─────────────────────────────────────────────────── */
 .canvas2-slides {
