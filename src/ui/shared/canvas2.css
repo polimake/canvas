@@ -106,11 +106,17 @@
   padding: 10px 14px; box-shadow: 0 3px 16px #00000012;
 }
 .canvas2-workspace[data-workspace="design"] [data-canvas2]:not([data-canvas2-narrow]) .selected-shape-actions .panelColumn {
-  display: flex; flex-direction: row; align-items: center; gap: 18px; width: max-content;
+  display: flex; flex-direction: row; align-items: center; gap: 12px; width: max-content;
 }
 .canvas2-workspace[data-workspace="design"] [data-canvas2]:not([data-canvas2-narrow]) .selected-shape-actions .panelColumn > * { flex-shrink: 0; margin: 0; }
 .canvas2-workspace[data-workspace="design"] [data-canvas2]:not([data-canvas2-narrow]) .selected-shape-actions :is(legend, h3) {
   margin: 0 0 6px; font-size: 10px; font-weight: 500; opacity: .7;
+}
+/* «Opacidad» es un `label` con el deslizador dentro, no una `legend`: salía más grande y más oscuro
+   que los demás rótulos. El texto se iguala; el deslizador y sus números no cambian. */
+.canvas2-workspace[data-workspace="design"] [data-canvas2]:not([data-canvas2-narrow]) .selected-shape-actions .control-label:has(.range-wrapper) {
+  margin: 0; font-size: 10px; font-weight: 500;
+  color: color-mix(in srgb, var(--text-primary-color) 70%, transparent);
 }
 .canvas2-workspace[data-workspace="design"] [data-canvas2]:not([data-canvas2-narrow]) .selected-shape-actions .color-picker__top-picks { display: none; }
 
