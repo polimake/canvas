@@ -1263,14 +1263,6 @@
 .canvas2-slides-radio:hover { background: var(--workspace-hover); }
 .canvas2-slides-radio input { accent-color: var(--workspace-accent); margin: 0; }
 
-/* El aviso de elementos fuera de toda página, centrado en el hueco de la
-   diapositiva y sobre las notas (las variables las pone SlidesWorkspace). */
-.canvas2-workspace[data-workspace="slides"] [data-testid="canvas2-loose-warning"] {
-  bottom: calc(var(--slides-bottom, 96px) + 12px) !important;
-  left: calc(var(--slides-left, 224px) + (100% - var(--slides-left, 224px) - var(--slides-right, 68px)) / 2) !important;
-  z-index: 4 !important;
-}
-
 /* El selector de modo del host (Ver · Comentar · Editar) al pie de la tira de
    paneles: en el borde derecho no pisa las notas ni un panel abierto. */
 .canvas2-workspace[data-workspace="slides"] .canvas2-mode-tools { right: 16px !important; z-index: 5; }

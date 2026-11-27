@@ -2423,329 +2423,6 @@ function PageNavigator({
     }
   );
 }
-function boxOf$1(el) {
-  const width = Math.abs(el.width);
-  const height = Math.abs(el.height);
-  return {
-    x: el.width < 0 ? el.x + el.width : el.x,
-    y: el.height < 0 ? el.y + el.height : el.y,
-    width,
-    height
-  };
-}
-function unionBox(boxes) {
-  const x = Math.min(...boxes.map((b) => b.x));
-  const y = Math.min(...boxes.map((b) => b.y));
-  const right = Math.max(...boxes.map((b) => b.x + b.width));
-  const bottom = Math.max(...boxes.map((b) => b.y + b.height));
-  return { x, y, width: right - x, height: bottom - y };
-}
-function overlaps(a, b) {
-  return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
-}
-function looseElements(elements) {
-  return elements.filter((e) => e.type !== "frame" && !e.frameId);
-}
-const SATELLITE_REACH = 0.25;
-const SATELLITE_MAX_AREA = 0.15;
-function absorbSatellites(groups, boxes) {
-  if (groups.size < 2) return;
-  const entries = [...groups.entries()].map(([root, indices]) => ({
-    root,
-    indices,
-    box: unionBox(indices.map((i) => boxes[i]))
-  }));
-  const areas = entries.map((e) => e.box.width * e.box.height);
-  const maxArea = Math.max(...areas);
-  if (maxArea <= 0) return;
-  const anfitriones = entries.filter((_, i) => areas[i] >= maxArea * SATELLITE_MAX_AREA);
-  const satelites = entries.filter((_, i) => areas[i] < maxArea * SATELLITE_MAX_AREA);
-  if (anfitriones.length === 0 || satelites.length === 0) return;
-  const centro = (b) => ({ x: b.x + b.width / 2, y: b.y + b.height / 2 });
-  for (const satelite of satelites) {
-    const c = centro(satelite.box);
-    let elegido = null;
-    let mejor = Infinity;
-    for (const anfitrion of anfitriones) {
-      const { box } = anfitrion;
-      const margenX = box.width * SATELLITE_REACH;
-      const margenY = box.height * SATELLITE_REACH;
-      const alcanza = c.x >= box.x - margenX && c.x <= box.x + box.width + margenX && c.y >= box.y - margenY && c.y <= box.y + box.height + margenY;
-      if (!alcanza) continue;
-      const h = centro(box);
-      const d = (c.x - h.x) ** 2 + (c.y - h.y) ** 2;
-      if (d < mejor) {
-        mejor = d;
-        elegido = anfitrion;
-      }
-    }
-    if (!elegido) continue;
-    elegido.indices.push(...satelite.indices);
-    groups.delete(satelite.root);
-  }
-}
-function clusterLooseElements(loose) {
-  if (loose.length === 0) return [];
-  const parent = loose.map((_, i) => i);
-  const find = (i) => {
-    let root = i;
-    while (parent[root] !== root) root = parent[root];
-    let cur = i;
-    while (parent[cur] !== root) {
-      const next = parent[cur];
-      parent[cur] = root;
-      cur = next;
-    }
-    return root;
-  };
-  const union = (a, b) => {
-    const ra = find(a);
-    const rb = find(b);
-    if (ra !== rb) parent[rb] = ra;
-  };
-  const indexById = new Map(loose.map((e, i) => [e.id, i]));
-  const byGroup = /* @__PURE__ */ new Map();
-  loose.forEach((el, i) => {
-    const container = el.containerId;
-    if (container) {
-      const j = indexById.get(container);
-      if (j !== void 0) union(i, j);
-    }
-    for (const gid of el.groupIds ?? []) {
-      const bucket = byGroup.get(gid);
-      if (bucket) bucket.push(i);
-      else byGroup.set(gid, [i]);
-    }
-  });
-  for (const bucket of byGroup.values()) {
-    for (let k = 1; k < bucket.length; k += 1) union(bucket[0], bucket[k]);
-  }
-  const boxes = loose.map(boxOf$1);
-  for (let i = 0; i < loose.length; i += 1) {
-    for (let j = i + 1; j < loose.length; j += 1) {
-      if (find(i) !== find(j) && overlaps(boxes[i], boxes[j])) union(i, j);
-    }
-  }
-  const groups = /* @__PURE__ */ new Map();
-  loose.forEach((_, i) => {
-    const root = find(i);
-    const bucket = groups.get(root);
-    if (bucket) bucket.push(i);
-    else groups.set(root, [i]);
-  });
-  absorbSatellites(groups, boxes);
-  const clusters = [...groups.values()].map((indices) => ({
-    elements: indices.map((i) => loose[i]),
-    box: unionBox(indices.map((i) => boxes[i]))
-  }));
-  clusters.sort((a, b) => a.box.y - b.box.y);
-  const rows = [];
-  for (const cluster of clusters) {
-    const row = rows[rows.length - 1];
-    if (row && cluster.box.y < row.bottom) {
-      row.items.push(cluster);
-      row.bottom = Math.max(row.bottom, cluster.box.y + cluster.box.height);
-    } else {
-      rows.push({ bottom: cluster.box.y + cluster.box.height, items: [cluster] });
-    }
-  }
-  return rows.flatMap(
-    (row) => row.items.sort((a, b) => a.box.x - b.box.x).map((c) => c.elements)
-  );
-}
-const PAPER_COLOR = "#ffffff";
-function paginateSceneInArray(elements, opts = {}) {
-  var _a;
-  const existingFrames = elements.filter((e) => e.type === "frame").slice().sort((a, b) => a.x - b.x);
-  const loose = looseElements(elements);
-  const clusters = clusterLooseElements(loose);
-  if (clusters.length === 0) {
-    const order2 = existingFrames.map((f) => f.id);
-    let next2 = packPagesInArray(elements, order2);
-    next2 = renumberPagesInArray(next2, order2);
-    return { elements: next2, created: 0, total: existingFrames.length };
-  }
-  const boxes = clusters.map((c) => unionBox(c.map(boxOf$1)));
-  const pageSize = opts.pageSize ?? {
-    width: Math.round(Math.max(...boxes.map((b) => b.width))),
-    height: Math.round(Math.max(...boxes.map((b) => b.height)))
-  };
-  const y = ((_a = existingFrames[0]) == null ? void 0 : _a.y) ?? 0;
-  let cursor = existingFrames.length ? Math.max(...existingFrames.map((f) => f.x + f.width)) + PAGE_GAP : 0;
-  const looseIds = new Set(loose.map((e) => e.id));
-  const out = elements.filter((e) => !looseIds.has(e.id));
-  const newFrameIds = [];
-  const { defaultName } = resolvePageNames(opts.names);
-  clusters.forEach((cluster, index) => {
-    const box = boxes[index];
-    const x = cursor;
-    cursor += pageSize.width + PAGE_GAP;
-    const skeleton = [
-      {
-        type: "frame",
-        name: defaultName(existingFrames.length + index + 1),
-        x,
-        y,
-        width: pageSize.width,
-        height: pageSize.height,
-        children: []
-      }
-    ];
-    const [creado] = convertToExcalidrawElements(skeleton, {
-      regenerateIds: true
-    });
-    const frame = { ...creado, x, y, width: pageSize.width, height: pageSize.height };
-    newFrameIds.push(frame.id);
-    const encaje = Math.min(pageSize.width / box.width, pageSize.height / box.height);
-    const k = opts.scaleUp ? encaje : Math.min(1, encaje);
-    const offsetX = x + (pageSize.width - box.width * k) / 2;
-    const offsetY = y + (pageSize.height - box.height * k) / 2;
-    const members = cluster.map((el) => {
-      const elBox = boxOf$1(el);
-      const updates = {
-        frameId: frame.id,
-        x: offsetX + (elBox.x - box.x) * k,
-        y: offsetY + (elBox.y - box.y) * k
-      };
-      if (k !== 1) {
-        updates.width = Math.max(1, elBox.width * k);
-        updates.height = Math.max(1, elBox.height * k);
-        const fontSize = el.fontSize;
-        if (el.type === "text" && typeof fontSize === "number") {
-          updates.fontSize = Math.max(4, fontSize * k);
-        }
-      }
-      return patchElement(el, updates);
-    });
-    out.push(
-      frame,
-      ...buildPageBackground(frame.id, { x, y, ...pageSize }, opts.paperColor ?? PAPER_COLOR),
-      ...members
-    );
-  });
-  const order = [...existingFrames.map((f) => f.id), ...newFrameIds];
-  let next = packPagesInArray(out, order);
-  next = renumberPagesInArray(next, order);
-  return { elements: next, created: clusters.length, total: order.length };
-}
-function convertToPages(api, opts = {}) {
-  const elements = api.getSceneElements();
-  const result = paginateSceneInArray(elements, opts);
-  if (result.elements !== elements) {
-    commitElements(api, result.elements, opts.capture ?? "undoable");
-  }
-  return { created: result.created, total: result.total };
-}
-function adoptLooseIntoPage(api, pageId, opts = {}) {
-  const elements = api.getSceneElements();
-  if (!elements.some((e) => e.id === pageId && e.type === "frame")) return 0;
-  const filtro = opts.only ? new Set(opts.only) : null;
-  const objetivo = new Set(
-    looseElements(elements).filter((e) => !filtro || filtro.has(e.id)).map((e) => e.id)
-  );
-  if (!objetivo.size) return 0;
-  for (const e of elements) {
-    const contenedor = e.containerId;
-    if (contenedor && objetivo.has(contenedor)) objetivo.add(e.id);
-  }
-  let movidos = 0;
-  const siguiente = elements.map((e) => {
-    if (!objetivo.has(e.id) || e.type === "frame") return e;
-    movidos += 1;
-    return { ...e, frameId: pageId, version: e.version + 1 };
-  });
-  if (!movidos) return 0;
-  commitElements(api, siguiente, opts.capture ?? "undoable");
-  return movidos;
-}
-function LooseWarning({ api, activePageId, theme, viewMode, narrow, labels }) {
-  const L = mergeLabels(labels);
-  const c = palette[theme ?? "light"];
-  const [loose, setLoose] = useState(0);
-  const [dismissedAt, setDismissedAt] = useState(null);
-  useEffect(() => {
-    if (!api) return;
-    const refresh = () => setLoose(looseElements(api.getSceneElements()).length);
-    refresh();
-    return api.onChange(refresh);
-  }, [api]);
-  if (!api || viewMode || loose === 0 || loose === dismissedAt) return null;
-  return /* @__PURE__ */ jsxs(
-    "div",
-    {
-      "data-testid": "canvas2-loose-warning",
-      style: {
-        position: "absolute",
-        // Con `left: 50%` el aviso solo disponía de medio contenedor: en un
-        // teléfono se quedaba en ~195px, una palabra por línea, tapando la
-        // barra de herramientas. `max-content` le deja el ancho de su texto; en
-        // móvil va justo debajo de la barra de arriba, entre la tira de iconos
-        // de la izquierda y las utilidades de Excalidraw de la derecha.
-        ...narrow ? { top: 64, left: 52, right: 48 } : (
-          // Abajo, encima de la tira de páginas (Olis, 06/11): arriba tapaba la
-          // barra de herramientas y los ajustes. Es el hueco que nunca ocupa nada.
-          { bottom: 112, left: "50%", transform: "translateX(-50%)", width: "max-content" }
-        ),
-        zIndex: 6,
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        padding: "7px 10px",
-        borderRadius: 8,
-        border: `1px solid ${c.warnBorder}`,
-        // El tinte ámbar sobre el fondo del panel, opaco: traslúcido, al mover
-        // el lienzo se veía lo de debajo a través (Olis, 06/11).
-        background: `linear-gradient(${c.warnBg}, ${c.warnBg}), ${c.bg}`,
-        color: c.warnText,
-        fontSize: 12,
-        boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
-        maxWidth: narrow ? void 0 : "min(560px, 90%)"
-      },
-      children: [
-        /* @__PURE__ */ jsx("span", { style: { lineHeight: 1.35 }, children: L.loose.warning(loose) }),
-        activePageId ? /* @__PURE__ */ jsx(
-          "button",
-          {
-            type: "button",
-            onClick: () => adoptLooseIntoPage(api, activePageId),
-            style: {
-              flexShrink: 0,
-              padding: "4px 8px",
-              borderRadius: 6,
-              border: `1px solid ${c.warnBorder}`,
-              background: "transparent",
-              color: "inherit",
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: "pointer"
-            },
-            children: L.loose.adopt
-          }
-        ) : null,
-        /* @__PURE__ */ jsx(
-          "button",
-          {
-            type: "button",
-            "aria-label": L.loose.dismiss,
-            title: L.loose.dismiss,
-            onClick: () => setDismissedAt(loose),
-            style: {
-              flexShrink: 0,
-              border: "none",
-              background: "transparent",
-              color: "inherit",
-              fontSize: 15,
-              lineHeight: 1,
-              cursor: "pointer",
-              opacity: 0.7
-            },
-            children: "×"
-          }
-        )
-      ]
-    }
-  );
-}
 function isInlineDataUrl(value) {
   return typeof value === "string" && value.startsWith("data:");
 }
@@ -3321,6 +2998,241 @@ function VideoFramePicker({
       ] })
     }
   );
+}
+function boxOf$1(el) {
+  const width = Math.abs(el.width);
+  const height = Math.abs(el.height);
+  return {
+    x: el.width < 0 ? el.x + el.width : el.x,
+    y: el.height < 0 ? el.y + el.height : el.y,
+    width,
+    height
+  };
+}
+function unionBox(boxes) {
+  const x = Math.min(...boxes.map((b) => b.x));
+  const y = Math.min(...boxes.map((b) => b.y));
+  const right = Math.max(...boxes.map((b) => b.x + b.width));
+  const bottom = Math.max(...boxes.map((b) => b.y + b.height));
+  return { x, y, width: right - x, height: bottom - y };
+}
+function overlaps(a, b) {
+  return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+}
+function looseElements(elements) {
+  return elements.filter((e) => e.type !== "frame" && !e.frameId);
+}
+const SATELLITE_REACH = 0.25;
+const SATELLITE_MAX_AREA = 0.15;
+function absorbSatellites(groups, boxes) {
+  if (groups.size < 2) return;
+  const entries = [...groups.entries()].map(([root, indices]) => ({
+    root,
+    indices,
+    box: unionBox(indices.map((i) => boxes[i]))
+  }));
+  const areas = entries.map((e) => e.box.width * e.box.height);
+  const maxArea = Math.max(...areas);
+  if (maxArea <= 0) return;
+  const anfitriones = entries.filter((_, i) => areas[i] >= maxArea * SATELLITE_MAX_AREA);
+  const satelites = entries.filter((_, i) => areas[i] < maxArea * SATELLITE_MAX_AREA);
+  if (anfitriones.length === 0 || satelites.length === 0) return;
+  const centro = (b) => ({ x: b.x + b.width / 2, y: b.y + b.height / 2 });
+  for (const satelite of satelites) {
+    const c = centro(satelite.box);
+    let elegido = null;
+    let mejor = Infinity;
+    for (const anfitrion of anfitriones) {
+      const { box } = anfitrion;
+      const margenX = box.width * SATELLITE_REACH;
+      const margenY = box.height * SATELLITE_REACH;
+      const alcanza = c.x >= box.x - margenX && c.x <= box.x + box.width + margenX && c.y >= box.y - margenY && c.y <= box.y + box.height + margenY;
+      if (!alcanza) continue;
+      const h = centro(box);
+      const d = (c.x - h.x) ** 2 + (c.y - h.y) ** 2;
+      if (d < mejor) {
+        mejor = d;
+        elegido = anfitrion;
+      }
+    }
+    if (!elegido) continue;
+    elegido.indices.push(...satelite.indices);
+    groups.delete(satelite.root);
+  }
+}
+function clusterLooseElements(loose) {
+  if (loose.length === 0) return [];
+  const parent = loose.map((_, i) => i);
+  const find = (i) => {
+    let root = i;
+    while (parent[root] !== root) root = parent[root];
+    let cur = i;
+    while (parent[cur] !== root) {
+      const next = parent[cur];
+      parent[cur] = root;
+      cur = next;
+    }
+    return root;
+  };
+  const union = (a, b) => {
+    const ra = find(a);
+    const rb = find(b);
+    if (ra !== rb) parent[rb] = ra;
+  };
+  const indexById = new Map(loose.map((e, i) => [e.id, i]));
+  const byGroup = /* @__PURE__ */ new Map();
+  loose.forEach((el, i) => {
+    const container = el.containerId;
+    if (container) {
+      const j = indexById.get(container);
+      if (j !== void 0) union(i, j);
+    }
+    for (const gid of el.groupIds ?? []) {
+      const bucket = byGroup.get(gid);
+      if (bucket) bucket.push(i);
+      else byGroup.set(gid, [i]);
+    }
+  });
+  for (const bucket of byGroup.values()) {
+    for (let k = 1; k < bucket.length; k += 1) union(bucket[0], bucket[k]);
+  }
+  const boxes = loose.map(boxOf$1);
+  for (let i = 0; i < loose.length; i += 1) {
+    for (let j = i + 1; j < loose.length; j += 1) {
+      if (find(i) !== find(j) && overlaps(boxes[i], boxes[j])) union(i, j);
+    }
+  }
+  const groups = /* @__PURE__ */ new Map();
+  loose.forEach((_, i) => {
+    const root = find(i);
+    const bucket = groups.get(root);
+    if (bucket) bucket.push(i);
+    else groups.set(root, [i]);
+  });
+  absorbSatellites(groups, boxes);
+  const clusters = [...groups.values()].map((indices) => ({
+    elements: indices.map((i) => loose[i]),
+    box: unionBox(indices.map((i) => boxes[i]))
+  }));
+  clusters.sort((a, b) => a.box.y - b.box.y);
+  const rows = [];
+  for (const cluster of clusters) {
+    const row = rows[rows.length - 1];
+    if (row && cluster.box.y < row.bottom) {
+      row.items.push(cluster);
+      row.bottom = Math.max(row.bottom, cluster.box.y + cluster.box.height);
+    } else {
+      rows.push({ bottom: cluster.box.y + cluster.box.height, items: [cluster] });
+    }
+  }
+  return rows.flatMap(
+    (row) => row.items.sort((a, b) => a.box.x - b.box.x).map((c) => c.elements)
+  );
+}
+const PAPER_COLOR = "#ffffff";
+function paginateSceneInArray(elements, opts = {}) {
+  var _a;
+  const existingFrames = elements.filter((e) => e.type === "frame").slice().sort((a, b) => a.x - b.x);
+  const loose = looseElements(elements);
+  const clusters = clusterLooseElements(loose);
+  if (clusters.length === 0) {
+    const order2 = existingFrames.map((f) => f.id);
+    let next2 = packPagesInArray(elements, order2);
+    next2 = renumberPagesInArray(next2, order2);
+    return { elements: next2, created: 0, total: existingFrames.length };
+  }
+  const boxes = clusters.map((c) => unionBox(c.map(boxOf$1)));
+  const pageSize = opts.pageSize ?? {
+    width: Math.round(Math.max(...boxes.map((b) => b.width))),
+    height: Math.round(Math.max(...boxes.map((b) => b.height)))
+  };
+  const y = ((_a = existingFrames[0]) == null ? void 0 : _a.y) ?? 0;
+  let cursor = existingFrames.length ? Math.max(...existingFrames.map((f) => f.x + f.width)) + PAGE_GAP : 0;
+  const looseIds = new Set(loose.map((e) => e.id));
+  const out = elements.filter((e) => !looseIds.has(e.id));
+  const newFrameIds = [];
+  const { defaultName } = resolvePageNames(opts.names);
+  clusters.forEach((cluster, index) => {
+    const box = boxes[index];
+    const x = cursor;
+    cursor += pageSize.width + PAGE_GAP;
+    const skeleton = [
+      {
+        type: "frame",
+        name: defaultName(existingFrames.length + index + 1),
+        x,
+        y,
+        width: pageSize.width,
+        height: pageSize.height,
+        children: []
+      }
+    ];
+    const [creado] = convertToExcalidrawElements(skeleton, {
+      regenerateIds: true
+    });
+    const frame = { ...creado, x, y, width: pageSize.width, height: pageSize.height };
+    newFrameIds.push(frame.id);
+    const encaje = Math.min(pageSize.width / box.width, pageSize.height / box.height);
+    const k = opts.scaleUp ? encaje : Math.min(1, encaje);
+    const offsetX = x + (pageSize.width - box.width * k) / 2;
+    const offsetY = y + (pageSize.height - box.height * k) / 2;
+    const members = cluster.map((el) => {
+      const elBox = boxOf$1(el);
+      const updates = {
+        frameId: frame.id,
+        x: offsetX + (elBox.x - box.x) * k,
+        y: offsetY + (elBox.y - box.y) * k
+      };
+      if (k !== 1) {
+        updates.width = Math.max(1, elBox.width * k);
+        updates.height = Math.max(1, elBox.height * k);
+        const fontSize = el.fontSize;
+        if (el.type === "text" && typeof fontSize === "number") {
+          updates.fontSize = Math.max(4, fontSize * k);
+        }
+      }
+      return patchElement(el, updates);
+    });
+    out.push(
+      frame,
+      ...buildPageBackground(frame.id, { x, y, ...pageSize }, opts.paperColor ?? PAPER_COLOR),
+      ...members
+    );
+  });
+  const order = [...existingFrames.map((f) => f.id), ...newFrameIds];
+  let next = packPagesInArray(out, order);
+  next = renumberPagesInArray(next, order);
+  return { elements: next, created: clusters.length, total: order.length };
+}
+function convertToPages(api, opts = {}) {
+  const elements = api.getSceneElements();
+  const result = paginateSceneInArray(elements, opts);
+  if (result.elements !== elements) {
+    commitElements(api, result.elements, opts.capture ?? "undoable");
+  }
+  return { created: result.created, total: result.total };
+}
+function adoptLooseIntoPage(api, pageId, opts = {}) {
+  const elements = api.getSceneElements();
+  if (!elements.some((e) => e.id === pageId && e.type === "frame")) return 0;
+  const filtro = opts.only ? new Set(opts.only) : null;
+  const objetivo = new Set(
+    looseElements(elements).filter((e) => !filtro || filtro.has(e.id)).map((e) => e.id)
+  );
+  if (!objetivo.size) return 0;
+  for (const e of elements) {
+    const contenedor = e.containerId;
+    if (contenedor && objetivo.has(contenedor)) objetivo.add(e.id);
+  }
+  let movidos = 0;
+  const siguiente = elements.map((e) => {
+    if (!objetivo.has(e.id) || e.type === "frame") return e;
+    movidos += 1;
+    return { ...e, frameId: pageId, version: e.version + 1 };
+  });
+  if (!movidos) return 0;
+  commitElements(api, siguiente, opts.capture ?? "undoable");
+  return movidos;
 }
 function recortesALaImagen(elements, tamanos) {
   return elements.map((e) => {
@@ -9527,17 +9439,6 @@ ${css}` : css;
                 onPickFrame: onPickVideoFrame
               }
             ),
-            pages && /* @__PURE__ */ jsx(
-              LooseWarning,
-              {
-                api,
-                activePageId,
-                theme,
-                viewMode,
-                narrow,
-                labels: L
-              }
-            ),
             pages && api && !slidesActive && /* @__PURE__ */ jsx(
               PageNavigator,
               {
@@ -9855,4 +9756,4 @@ export {
   adoptStrayFramesInArray as y,
   alignToPage as z
 };
-//# sourceMappingURL=LibraryPanel-DjvrHIVb.js.map
+//# sourceMappingURL=LibraryPanel-B8kpWoGv.js.map
