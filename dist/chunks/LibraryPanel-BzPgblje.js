@@ -2,9 +2,9 @@ import { jsxs, jsx, Fragment as Fragment$1 } from "react/jsx-runtime";
 import { useState, useRef, useEffect, Fragment, useMemo, useCallback, useId, useLayoutEffect, useReducer } from "react";
 import "@excalidraw/excalidraw/index.css";
 import { CaptureUpdateAction, newElementWith, convertToExcalidrawElements, restore, serializeAsJSON, exportToCanvas, exportToBlob, exportToSvg, FONT_FAMILY, MainMenu, viewportCoordsToSceneCoords, useI18n, getVisibleSceneBounds, Excalidraw, getNonDeletedElements } from "@excalidraw/excalidraw";
-import { i as isPageBackground, B as BG_MARKER$1, g as pageOrderOf, P as PAGE_MARKER, h as framesInDocumentOrder, s as sceneToDocument, f as documentToPptx, n as notesOf, t as transitionOf, j as isSkippedFrame, S as SLIDE_NOTES_KEY, a as SLIDE_SKIP_KEY, b as SLIDE_TRANSITION_KEY, k as SLIDE_TRANSITIONS } from "./documentToPptx-CMWe-xWo.js";
+import { i as isPageBackground, B as BG_MARKER$1, g as pageOrderOf, P as PAGE_MARKER, h as framesInDocumentOrder, s as sceneToDocument, f as documentToPptx, n as notesOf, t as transitionOf, j as isSkippedFrame, S as SLIDE_NOTES_KEY, a as SLIDE_SKIP_KEY, b as SLIDE_TRANSITION_KEY, k as SLIDE_TRANSITIONS } from "./documentToPptx-CsrYYM5a.js";
 import { cloneSceneElements } from "../components.js";
-import { P as PAGE_GAP } from "./layout-BEpoNps2.js";
+import { P as PAGE_GAP } from "./layout-L5bQ5REv.js";
 import { fontFormatHint, buildFontFaceCss, fontFamilyAlias, fontFamilyCss, customFontFamilyId, normalizeFontSrc, dedupeFontFaces } from "../fonts.js";
 import { createPortal, flushSync } from "react-dom";
 const CAPTURE = {
@@ -1829,7 +1829,11 @@ function DragPreview({ active, grab, children, radius = 8 }) {
       card.style.transform = `translate3d(${ev.clientX - grab.x}px, ${ev.clientY - grab.y}px, 0) scale(1.06)`;
     };
     document.addEventListener("dragover", move);
-    return () => document.removeEventListener("dragover", move);
+    document.addEventListener("pointermove", move);
+    return () => {
+      document.removeEventListener("dragover", move);
+      document.removeEventListener("pointermove", move);
+    };
   }, [active, grab]);
   if (!mounted || !active || !grab) return null;
   return createPortal(
@@ -1857,6 +1861,64 @@ function DragPreview({ active, grab, children, radius = 8 }) {
     ),
     document.body
   );
+}
+const UMBRAL = 5;
+function startPointerDrag(e, handlers) {
+  if (e.button !== 0 || typeof window === "undefined") return;
+  const pointerId = e.pointerId;
+  const x0 = e.clientX;
+  const y0 = e.clientY;
+  let started = false;
+  let userSelect = "";
+  const finish = () => {
+    window.removeEventListener("pointermove", move, true);
+    window.removeEventListener("pointerup", up, true);
+    window.removeEventListener("pointercancel", cancel, true);
+    window.removeEventListener("keydown", key, true);
+    if (started) document.body.style.userSelect = userSelect;
+  };
+  const move = (ev) => {
+    if (ev.pointerId !== pointerId) return;
+    if (!started) {
+      if (Math.hypot(ev.clientX - x0, ev.clientY - y0) < UMBRAL) return;
+      started = true;
+      userSelect = document.body.style.userSelect;
+      document.body.style.userSelect = "none";
+      handlers.onStart(x0, y0);
+    }
+    ev.preventDefault();
+    handlers.onMove(ev.clientX, ev.clientY);
+  };
+  const up = (ev) => {
+    if (ev.pointerId !== pointerId) return;
+    const wasDragging = started;
+    finish();
+    if (!wasDragging) return;
+    const swallow = (c) => {
+      c.stopPropagation();
+      c.preventDefault();
+    };
+    window.addEventListener("click", swallow, { capture: true, once: true });
+    window.setTimeout(() => window.removeEventListener("click", swallow, true), 0);
+    handlers.onDrop(ev.clientX, ev.clientY);
+  };
+  const cancel = (ev) => {
+    if (ev.pointerId !== pointerId) return;
+    const wasDragging = started;
+    finish();
+    if (wasDragging) handlers.onCancel();
+  };
+  const key = (ev) => {
+    if (ev.key !== "Escape" || !started) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    finish();
+    handlers.onCancel();
+  };
+  window.addEventListener("pointermove", move, true);
+  window.addEventListener("pointerup", up, true);
+  window.addEventListener("pointercancel", cancel, true);
+  window.addEventListener("keydown", key, true);
 }
 function pagesSignature(pages) {
   return pages.map((p) => `${p.id}:${p.name}:${p.width}x${p.height}:${p.locked ? 1 : 0}`).join("|");
@@ -1939,10 +2001,10 @@ function PageNavigator({
     setRenaming(null);
   };
   const dragIndex = draggingId ? pages.findIndex((p) => p.id === draggingId) : -1;
-  const indexAt = (clientX) => {
+  const indexAt = (clientX, from) => {
     let j = 0;
     slotsRef.current.forEach((slot, k) => {
-      if (k !== dragIndex && slot.center < clientX) j++;
+      if (k !== from && slot.center < clientX) j++;
     });
     return j;
   };
@@ -2022,27 +2084,6 @@ function PageNavigator({
               // lo que sale de su caja y la primera salía cortada por la izquierda.
               padding: 3
             },
-            onDragEnter: (e) => {
-              if (draggingId) e.preventDefault();
-            },
-            onDragOver: (e) => {
-              if (!draggingId) return;
-              e.preventDefault();
-              e.dataTransfer.dropEffect = "move";
-              const j = indexAt(e.clientX);
-              setDropIndex((prev) => prev === j ? prev : j);
-            },
-            onDrop: (e) => {
-              if (!draggingId) return;
-              e.preventDefault();
-              const j = dropIndex ?? indexAt(e.clientX);
-              const id = draggingId;
-              endDrag();
-              if (j !== dragIndex) {
-                movePageTo(api, id, j);
-                select(id);
-              }
-            },
             children: [
               pages.map((page, index) => {
                 const isActive = page.id === activeId;
@@ -2117,42 +2158,53 @@ function PageNavigator({
                       tabIndex: 0,
                       className: "canvas2-page-chip",
                       title: displayPageName(page.name, L.pages),
-                      draggable: !viewMode && !isRenaming,
-                      onDragStart: (e) => {
-                        var _a;
-                        setDraggingId(page.id);
-                        e.dataTransfer.effectAllowed = "move";
-                        e.dataTransfer.setData("text/plain", page.id);
-                        slotsRef.current = pages.map((p) => {
-                          var _a2;
-                          const r = (_a2 = chipRefs.current.get(p.id)) == null ? void 0 : _a2.getBoundingClientRect();
-                          return r ? { left: r.left, center: r.left + r.width / 2 } : { left: 0, center: 0 };
+                      onPointerDown: (e) => {
+                        if (viewMode || isRenaming) return;
+                        const chip = e.currentTarget;
+                        let over = index;
+                        startPointerDrag(e, {
+                          onStart: (x, y) => {
+                            var _a;
+                            setDraggingId(page.id);
+                            slotsRef.current = pages.map((p) => {
+                              var _a2;
+                              const r = (_a2 = chipRefs.current.get(p.id)) == null ? void 0 : _a2.getBoundingClientRect();
+                              return r ? { left: r.left, center: r.left + r.width / 2 } : { left: 0, center: 0 };
+                            });
+                            setDropIndex(index);
+                            const img = chip.querySelector("img");
+                            let snap = null;
+                            if (img && img.complete && img.naturalWidth > 0) {
+                              try {
+                                const canvas = document.createElement("canvas");
+                                canvas.width = THUMB_W * 2;
+                                canvas.height = Math.round(canvas.width * (img.naturalHeight / img.naturalWidth));
+                                (_a = canvas.getContext("2d")) == null ? void 0 : _a.drawImage(img, 0, 0, canvas.width, canvas.height);
+                                snap = canvas.toDataURL("image/png");
+                              } catch {
+                                snap = null;
+                              }
+                            }
+                            setGrabThumb(snap);
+                            const box = chip.getBoundingClientRect();
+                            setGrab({ x: x - box.left, y: y - box.top, width: box.width, height: box.height });
+                          },
+                          // El destino se decide en el carril entero (no ficha a ficha): sirve
+                          // también soltar en el hueco entre dos o más allá de la última.
+                          onMove: (x) => {
+                            over = indexAt(x, index);
+                            setDropIndex((prev) => prev === over ? prev : over);
+                          },
+                          onDrop: () => {
+                            endDrag();
+                            if (over !== index) {
+                              movePageTo(api, page.id, over);
+                              select(page.id);
+                            }
+                          },
+                          onCancel: endDrag
                         });
-                        setDropIndex(index);
-                        const img = e.currentTarget.querySelector("img");
-                        let snap = null;
-                        if (img && img.complete && img.naturalWidth > 0) {
-                          try {
-                            const canvas = document.createElement("canvas");
-                            canvas.width = THUMB_W * 2;
-                            canvas.height = Math.round(canvas.width * (img.naturalHeight / img.naturalWidth));
-                            (_a = canvas.getContext("2d")) == null ? void 0 : _a.drawImage(img, 0, 0, canvas.width, canvas.height);
-                            snap = canvas.toDataURL("image/png");
-                          } catch {
-                            snap = null;
-                          }
-                        }
-                        setGrabThumb(snap);
-                        const box = e.currentTarget.getBoundingClientRect();
-                        setGrab({
-                          x: e.clientX - box.left,
-                          y: e.clientY - box.top,
-                          width: box.width,
-                          height: box.height
-                        });
-                        hideNativeDragImage(e);
                       },
-                      onDragEnd: endDrag,
                       onClick: () => select(page.id),
                       onDoubleClick: (e) => {
                         if (viewMode) return;
@@ -5827,75 +5879,64 @@ function Filmstrip({
     return items.length;
   };
   return /* @__PURE__ */ jsxs("aside", { className: "canvas2-slides-filmstrip", "aria-label": L.slides, children: [
-    /* @__PURE__ */ jsx(
-      "ol",
-      {
-        ref: listRef,
-        className: "canvas2-slides-filmstrip-list",
-        onDragOver: (e) => {
-          if (!drag) return;
-          e.preventDefault();
-          e.dataTransfer.dropEffect = "move";
-          const over = dropIndexAt(e.clientY);
-          if (over !== drag.over) setDrag({ ...drag, over });
-        },
-        onDrop: (e) => {
-          if (!drag) return;
-          e.preventDefault();
-          const from = slides.findIndex((s) => s.id === drag.id);
-          const to = drag.over > from ? drag.over - 1 : drag.over;
-          if (from >= 0 && to !== from) onMove(drag.id, to);
-          setDrag(null);
-        },
-        children: slides.map((slide, index) => {
-          const active = slide.id === activeId;
-          const thumb = thumbs[slide.id];
-          return /* @__PURE__ */ jsxs(
-            "li",
-            {
-              "data-slide-id": slide.id,
-              className: "canvas2-slides-filmstrip-item",
-              "data-drop-before": drag && drag.over === index && drag.id !== slide.id ? "" : void 0,
-              "data-drop-after": drag && drag.over === slides.length && index === slides.length - 1 ? "" : void 0,
-              children: [
-                /* @__PURE__ */ jsx("span", { className: "canvas2-slides-filmstrip-number", "aria-hidden": "true", children: index + 1 }),
-                /* @__PURE__ */ jsxs(
-                  "button",
-                  {
-                    type: "button",
-                    className: "canvas2-slides-thumb",
-                    "aria-label": slide.skipped ? `${L.slideN(index + 1)} · ${L.skipped}` : L.slideN(index + 1),
-                    "aria-current": active ? "true" : void 0,
-                    "data-skipped": slide.skipped ? "" : void 0,
-                    style: { aspectRatio: `${slide.width} / ${slide.height}` },
-                    draggable: !viewMode,
-                    onDragStart: (e) => {
-                      e.dataTransfer.effectAllowed = "move";
-                      e.dataTransfer.setData("text/plain", slide.id);
-                      setDrag({ id: slide.id, over: index });
+    /* @__PURE__ */ jsx("ol", { ref: listRef, className: "canvas2-slides-filmstrip-list", children: slides.map((slide, index) => {
+      const active = slide.id === activeId;
+      const thumb = thumbs[slide.id];
+      return /* @__PURE__ */ jsxs(
+        "li",
+        {
+          "data-slide-id": slide.id,
+          className: "canvas2-slides-filmstrip-item",
+          "data-drop-before": drag && drag.over === index && drag.id !== slide.id ? "" : void 0,
+          "data-drop-after": drag && drag.over === slides.length && index === slides.length - 1 ? "" : void 0,
+          children: [
+            /* @__PURE__ */ jsx("span", { className: "canvas2-slides-filmstrip-number", "aria-hidden": "true", children: index + 1 }),
+            /* @__PURE__ */ jsxs(
+              "button",
+              {
+                type: "button",
+                className: "canvas2-slides-thumb",
+                "aria-label": slide.skipped ? `${L.slideN(index + 1)} · ${L.skipped}` : L.slideN(index + 1),
+                "aria-current": active ? "true" : void 0,
+                "data-skipped": slide.skipped ? "" : void 0,
+                style: { aspectRatio: `${slide.width} / ${slide.height}` },
+                onPointerDown: (e) => {
+                  if (viewMode) return;
+                  let over = index;
+                  startPointerDrag(e, {
+                    onStart: () => setDrag({ id: slide.id, over }),
+                    onMove: (_x, y) => {
+                      over = dropIndexAt(y);
+                      setDrag((d) => d && d.over !== over ? { ...d, over } : d);
                     },
-                    onDragEnd: () => setDrag(null),
-                    onClick: () => onSelect(slide.id),
-                    onContextMenu: (e) => {
-                      if (viewMode) return;
-                      e.preventDefault();
-                      onSelect(slide.id);
-                      onContextMenu(slide.id, { x: e.clientX, y: e.clientY });
+                    onDrop: () => {
+                      setDrag(null);
+                      const from = slides.findIndex((s) => s.id === slide.id);
+                      const to = over > from ? over - 1 : over;
+                      if (from >= 0 && to !== from) onMove(slide.id, to);
                     },
-                    onKeyDown: (e) => onKeyDown(e, slide, index),
-                    children: [
-                      thumb ? /* @__PURE__ */ jsx("img", { src: thumb, alt: "", draggable: false }) : null,
-                      slide.skipped && /* @__PURE__ */ jsx("span", { className: "canvas2-slides-thumb-skip", children: /* @__PURE__ */ jsx(SlidesIcon.eyeOff, {}) })
-                    ]
-                  }
-                )
-              ]
-            },
-            slide.id
-          );
-        })
-      }
-    ),
+                    onCancel: () => setDrag(null)
+                  });
+                },
+                onClick: () => onSelect(slide.id),
+                onContextMenu: (e) => {
+                  if (viewMode) return;
+                  e.preventDefault();
+                  onSelect(slide.id);
+                  onContextMenu(slide.id, { x: e.clientX, y: e.clientY });
+                },
+                onKeyDown: (e) => onKeyDown(e, slide, index),
+                children: [
+                  thumb ? /* @__PURE__ */ jsx("img", { src: thumb, alt: "", draggable: false }) : null,
+                  slide.skipped && /* @__PURE__ */ jsx("span", { className: "canvas2-slides-thumb-skip", children: /* @__PURE__ */ jsx(SlidesIcon.eyeOff, {}) })
+                ]
+              }
+            )
+          ]
+        },
+        slide.id
+      );
+    }) }),
     /* @__PURE__ */ jsxs("div", { className: "canvas2-slides-filmstrip-foot", children: [
       /* @__PURE__ */ jsx("button", { type: "button", className: "canvas2-slides-icon-btn", "aria-label": L.gridView, title: L.gridView, onClick: onGrid, children: /* @__PURE__ */ jsx(SlidesIcon.grid, {}) }),
       /* @__PURE__ */ jsx("button", { type: "button", className: "canvas2-slides-icon-btn", "aria-label": L.hideFilmstrip, title: L.hideFilmstrip, onClick: onCollapse, children: /* @__PURE__ */ jsx(SlidesIcon.chevronLeft, {}) })
@@ -9769,4 +9810,4 @@ export {
   adoptStrayFramesInArray as y,
   alignToPage as z
 };
-//# sourceMappingURL=LibraryPanel-yBaan-iM.js.map
+//# sourceMappingURL=LibraryPanel-BzPgblje.js.map

@@ -31,6 +31,25 @@ function strip(extra: Partial<Parameters<typeof Filmstrip>[0]> = {}) {
   return handlers;
 }
 
+/** Arrastra con el puntero; jsdom no mide, así que cada fila dice dónde está (100 px de alto). */
+function arrastrar(desde: HTMLElement, hastaY: number) {
+  document.querySelectorAll<HTMLElement>('[data-slide-id]').forEach((li, i) => {
+    li.getBoundingClientRect = () =>
+      ({ top: i * 100, left: 0, height: 100, width: 160, bottom: i * 100 + 100, right: 160, x: 0, y: i * 100 }) as DOMRect;
+  });
+  fireEvent.pointerDown(desde, { button: 0, pointerId: 1, clientX: 50, clientY: 50 });
+  const mover = (tipo: string, y: number) => {
+    const ev = new MouseEvent(tipo, { clientX: 50, clientY: y, bubbles: true, cancelable: true });
+    Object.defineProperty(ev, 'pointerId', { value: 1 });
+    act(() => { window.dispatchEvent(ev); });
+  };
+  mover('pointermove', 80);
+  mover('pointermove', hastaY);
+  mover('pointerup', hastaY);
+  // El navegador manda un clic tras el `pointerup`: el arrastre se lo traga.
+  act(() => desde.click());
+}
+
 describe('tira de diapositivas', () => {
   it('marca la activa y la que se salta', () => {
     strip();
@@ -76,7 +95,26 @@ describe('tira de diapositivas', () => {
     expect(h.onDelete).not.toHaveBeenCalled();
     expect(h.onDuplicate).not.toHaveBeenCalled();
     expect(h.onContextMenu).not.toHaveBeenCalled();
-    expect(b.getAttribute('draggable')).toBe('false');
+    arrastrar(b, 290);
+    expect(h.onMove).not.toHaveBeenCalled();
+  });
+
+  it('arrastrar con el puntero reordena (también en el escritorio, desktop#371)', () => {
+    const h = strip();
+    arrastrar(screen.getByRole('button', { name: 'Diapositiva 1' }), 290);
+    expect(h.onMove).toHaveBeenCalledWith('a', 2);
+    // Y soltar no la selecciona de paso.
+    expect(h.onSelect).not.toHaveBeenCalled();
+  });
+
+  it('un clic sin arrastrar sigue eligiendo', () => {
+    const h = strip();
+    const b = screen.getByRole('button', { name: 'Diapositiva 3 · Se salta al presentar' });
+    fireEvent.pointerDown(b, { button: 0, pointerId: 1, clientX: 10, clientY: 10 });
+    fireEvent.pointerUp(window, { pointerId: 1 });
+    fireEvent.click(b);
+    expect(h.onSelect).toHaveBeenCalledWith('c');
+    expect(h.onMove).not.toHaveBeenCalled();
   });
 
   it('clic derecho elige la diapositiva y pide su menú', () => {

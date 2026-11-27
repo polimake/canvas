@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import type { DeckSlide } from './useDeck';
 import { SlidesIcon } from './icons';
+import { startPointerDrag } from '../../shared/pointerDrag';
 import type { Canvas2Labels } from '../../shared/labels';
 
 export interface FilmstripProps {
@@ -119,24 +120,7 @@ export function Filmstrip({
 
   return (
     <aside className="canvas2-slides-filmstrip" aria-label={L.slides}>
-      <ol ref={listRef} className="canvas2-slides-filmstrip-list"
-        onDragOver={(e) => {
-          if (!drag) return;
-          e.preventDefault();
-          e.dataTransfer.dropEffect = 'move';
-          const over = dropIndexAt(e.clientY);
-          if (over !== drag.over) setDrag({ ...drag, over });
-        }}
-        onDrop={(e) => {
-          if (!drag) return;
-          e.preventDefault();
-          const from = slides.findIndex((s) => s.id === drag.id);
-          // Soltar justo debajo de sí misma no la mueve: el índice cuenta la
-          // propia diapositiva, que deja hueco al salir.
-          const to = drag.over > from ? drag.over - 1 : drag.over;
-          if (from >= 0 && to !== from) onMove(drag.id, to);
-          setDrag(null);
-        }}>
+      <ol ref={listRef} className="canvas2-slides-filmstrip-list">
         {slides.map((slide, index) => {
           const active = slide.id === activeId;
           const thumb = thumbs[slide.id];
@@ -150,14 +134,28 @@ export function Filmstrip({
                 aria-current={active ? 'true' : undefined}
                 data-skipped={slide.skipped ? '' : undefined}
                 style={{ aspectRatio: `${slide.width} / ${slide.height}` }}
-                draggable={!viewMode}
-                onDragStart={(e) => {
-                  e.dataTransfer.effectAllowed = 'move';
-                  // Firefox no arrastra sin datos.
-                  e.dataTransfer.setData('text/plain', slide.id);
-                  setDrag({ id: slide.id, over: index });
+                // Con punteros, no con el arrastre HTML5: en el escritorio la ventana
+                // se queda los `dragover` y reordenar no hacía nada (desktop#371).
+                onPointerDown={(e) => {
+                  if (viewMode) return;
+                  let over = index;
+                  startPointerDrag(e, {
+                    onStart: () => setDrag({ id: slide.id, over }),
+                    onMove: (_x, y) => {
+                      over = dropIndexAt(y);
+                      setDrag((d) => (d && d.over !== over ? { ...d, over } : d));
+                    },
+                    onDrop: () => {
+                      setDrag(null);
+                      const from = slides.findIndex((s) => s.id === slide.id);
+                      // Soltar justo debajo de sí misma no la mueve: el índice cuenta la
+                      // propia diapositiva, que deja hueco al salir.
+                      const to = over > from ? over - 1 : over;
+                      if (from >= 0 && to !== from) onMove(slide.id, to);
+                    },
+                    onCancel: () => setDrag(null),
+                  });
                 }}
-                onDragEnd={() => setDrag(null)}
                 onClick={() => onSelect(slide.id)}
                 onContextMenu={(e) => {
                   if (viewMode) return;
