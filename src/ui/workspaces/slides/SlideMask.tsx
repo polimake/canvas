@@ -1,8 +1,22 @@
 'use client';
 
-import { useEffect, useRef, useState, type RefObject } from 'react';
-import { CaptureUpdateAction, type ExcalidrawImperativeAPI } from '../../../core/excal';
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type RefObject } from 'react';
+import { CaptureUpdateAction, viewportCoordsToSceneCoords, type ExcalidrawImperativeAPI } from '../../../core/excal';
+import { selectInBox } from '../../../core/marquee';
 import { boxOnScreen, currentViewport, pageBox, type ScreenRect } from '../../../core/slideView';
+
+/** Lo que hay que mover el puntero para que un clic en la franja sea un recuadro. */
+const MARQUEE_THRESHOLD = 4;
+
+interface Drag {
+  pointerId: number;
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+  shift: boolean;
+  moved: boolean;
+}
 
 export interface SlideMaskProps {
   api: ExcalidrawImperativeAPI;
@@ -25,6 +39,9 @@ export interface SlideMaskProps {
 export function SlideMask({ api, rootRef, activePageId, stage, limits }: SlideMaskProps) {
   const [slide, setSlide] = useState<ScreenRect | null>(null);
   const layer = useRef<HTMLDivElement | null>(null);
+  // El recuadro que se arrastra desde una franja (coordenadas de la ventana).
+  const drag = useRef<Drag | null>(null);
+  const [marquee, setMarquee] = useState<Drag | null>(null);
 
   useEffect(() => {
     let lastElements: unknown = null;
@@ -65,15 +82,64 @@ export function SlideMask({ api, rootRef, activePageId, stage, limits }: SlideMa
     return () => el.removeEventListener('wheel', onWheel);
   }, [rootRef]);
 
+  // Pulsar fuera de la diapositiva quita la selección (y no coge lo que haya
+  // debajo, en una vecina tapada). Arrastrar desde ahí dibuja un recuadro que
+  // coge lo de ESTA diapositiva, como en Slides; con Mayúsculas, se suma.
+  const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    drag.current = { pointerId: e.pointerId, x0: e.clientX, y0: e.clientY, x1: e.clientX, y1: e.clientY, shift: e.shiftKey, moved: false };
+    if (!e.shiftKey) {
+      api.updateScene({ appState: { selectedElementIds: {}, selectedGroupIds: {} }, captureUpdate: CaptureUpdateAction.NEVER });
+    }
+  };
+  const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const d = drag.current;
+    if (!d || d.pointerId !== e.pointerId) return;
+    d.x1 = e.clientX;
+    d.y1 = e.clientY;
+    if (!d.moved && Math.hypot(d.x1 - d.x0, d.y1 - d.y0) < MARQUEE_THRESHOLD) return;
+    d.moved = true;
+    setMarquee({ ...d });
+  };
+  const onPointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const d = drag.current;
+    if (!d || d.pointerId !== e.pointerId) return;
+    drag.current = null;
+    setMarquee(null);
+    if (!d.moved || !activePageId) return;
+    const state = api.getAppState();
+    const a = viewportCoordsToSceneCoords({ clientX: d.x0, clientY: d.y0 }, state);
+    const b = viewportCoordsToSceneCoords({ clientX: e.clientX, clientY: e.clientY }, state);
+    const box = { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), width: Math.abs(a.x - b.x), height: Math.abs(a.y - b.y) };
+    const previous = d.shift
+      ? { selectedElementIds: { ...(state.selectedElementIds as Record<string, true>) }, selectedGroupIds: { ...(state.selectedGroupIds as Record<string, true>) } }
+      : undefined;
+    const next = selectInBox(api.getSceneElements(), activePageId, box, previous);
+    api.updateScene({ appState: { ...next, editingGroupId: null }, captureUpdate: CaptureUpdateAction.NEVER });
+  };
+  const onPointerCancel = () => {
+    drag.current = null;
+    setMarquee(null);
+  };
+
   const bands = slide ? maskBands(stage, slide, limits) : [];
+  const origin = marquee ? layer.current?.getBoundingClientRect() : null;
   return (
     <div ref={layer} className="canvas2-slides-mask-layer" aria-hidden="true">
       {bands.map((band, i) => (
         <div key={i} className="canvas2-slides-mask" style={band}
-          // Pulsar fuera de la diapositiva quita la selección (y no coge lo que
-          // haya debajo, en una vecina tapada).
-          onPointerDown={() => api.updateScene({ appState: { selectedElementIds: {} }, captureUpdate: CaptureUpdateAction.NEVER })} />
+          onPointerDown={onPointerDown} onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} />
       ))}
+      {marquee && origin ? (
+        <div className="canvas2-slides-marquee" style={{
+          left: Math.min(marquee.x0, marquee.x1) - origin.left,
+          top: Math.min(marquee.y0, marquee.y1) - origin.top,
+          width: Math.abs(marquee.x1 - marquee.x0),
+          height: Math.abs(marquee.y1 - marquee.y0),
+        }} />
+      ) : null}
     </div>
   );
 }

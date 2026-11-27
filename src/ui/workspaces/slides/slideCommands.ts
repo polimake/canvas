@@ -98,6 +98,25 @@ export function selectAllInSlide(api: ExcalidrawImperativeAPI, pageId: string | 
   });
 }
 
+/**
+ * La selección sin los marcos de las diapositivas. En Presentación las
+ * diapositivas son fijas: seleccionar un marco (un clic en su borde o en su
+ * nombre) dejaba arrastrarlo o encogerlo sin querer, y la diapositiva se
+ * descolocaba. Devuelve null si no había ningún marco. Pura.
+ */
+export function selectionWithoutFrames(
+  selected: Readonly<Record<string, boolean>>,
+  elements: ReadonlyArray<{ id: string; type: string }>,
+): Record<string, true> | null {
+  const ids = Object.keys(selected).filter((id) => selected[id]);
+  if (!ids.length) return null;
+  const frames = new Set(elements.filter((e) => e.type === 'frame').map((e) => e.id));
+  if (!ids.some((id) => frames.has(id))) return null;
+  const next: Record<string, true> = {};
+  for (const id of ids) if (!frames.has(id)) next[id] = true;
+  return next;
+}
+
 export function canDeleteSlide(pages: readonly PageInfo[]): boolean {
   return pages.length > 1;
 }

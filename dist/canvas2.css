@@ -106,11 +106,17 @@
   padding: 10px 14px; box-shadow: 0 3px 16px #00000012;
 }
 .canvas2-workspace[data-workspace="design"] [data-canvas2]:not([data-canvas2-narrow]) .selected-shape-actions .panelColumn {
-  display: flex; flex-direction: row; align-items: center; gap: 18px; width: max-content;
+  display: flex; flex-direction: row; align-items: center; gap: 12px; width: max-content;
 }
 .canvas2-workspace[data-workspace="design"] [data-canvas2]:not([data-canvas2-narrow]) .selected-shape-actions .panelColumn > * { flex-shrink: 0; margin: 0; }
 .canvas2-workspace[data-workspace="design"] [data-canvas2]:not([data-canvas2-narrow]) .selected-shape-actions :is(legend, h3) {
   margin: 0 0 6px; font-size: 10px; font-weight: 500; opacity: .7;
+}
+/* «Opacidad» es un `label` con el deslizador dentro, no una `legend`: salía más grande y más oscuro
+   que los demás rótulos. El texto se iguala; el deslizador y sus números no cambian. */
+.canvas2-workspace[data-workspace="design"] [data-canvas2]:not([data-canvas2-narrow]) .selected-shape-actions .control-label:has(.range-wrapper) {
+  margin: 0; font-size: 10px; font-weight: 500;
+  color: color-mix(in srgb, var(--text-primary-color) 70%, transparent);
 }
 .canvas2-workspace[data-workspace="design"] [data-canvas2]:not([data-canvas2-narrow]) .selected-shape-actions .color-picker__top-picks { display: none; }
 
@@ -981,10 +987,13 @@
   position: relative; pointer-events: auto;
   width: auto; max-width: 100%; height: 40px; max-height: 40px;
   padding: 0 4px; border-radius: 0; background: transparent; box-shadow: none;
-  overflow-x: auto; overflow-y: hidden; scrollbar-width: none;
+  /* Si no cabe se desliza, y se nota: barra fina (antes oculta, y lo último quedaba cortado sin saberlo). */
+  overflow-x: auto; overflow-y: hidden; scrollbar-width: thin;
 }
 .canvas2-workspace[data-workspace="slides"] [data-canvas2] .selected-shape-actions .panelColumn {
-  display: flex; flex-direction: row; align-items: center; gap: 14px;
+  /* Botones de 28 px (32 de serie): con una flecha, la fila entera cabe en 1440. */
+  --default-button-size: 1.75rem;
+  display: flex; flex-direction: row; align-items: center; gap: 6px;
   width: max-content; height: 40px;
 }
 .canvas2-workspace[data-workspace="slides"] [data-canvas2] .selected-shape-actions .panelColumn > * {
@@ -1001,6 +1010,26 @@
 .canvas2-workspace[data-workspace="slides"] [data-canvas2] .selected-shape-actions .color-picker__top-picks {
   display: none;
 }
+/* La opacidad: Excalidraw la pinta con el rótulo encima, el deslizador debajo
+   con relleno y el número flotando por debajo. En esta fila de 40 px saltaba de
+   línea y salía cortada. Aquí va en línea: sin rótulo a la vista (sigue para
+   los lectores de pantalla), deslizador corto y el número al lado. */
+.canvas2-workspace[data-workspace="slides"] [data-canvas2] .selected-shape-actions .control-label:has(.range-wrapper) {
+  display: flex; align-items: center; height: 40px; margin: 0; font-size: 0;
+}
+.canvas2-workspace[data-workspace="slides"] [data-canvas2] .selected-shape-actions .range-wrapper {
+  display: flex; align-items: center; gap: 8px; width: 104px; height: 40px; padding: 0;
+}
+.canvas2-workspace[data-workspace="slides"] [data-canvas2] .selected-shape-actions .range-wrapper .range-input {
+  flex: 1; min-width: 0; margin: 0;
+  /* El tramo vacío del carril es `--button-bg`, el mismo color que esta barra: no se veía. */
+  --button-bg: color-mix(in srgb, currentColor 18%, transparent);
+}
+.canvas2-workspace[data-workspace="slides"] [data-canvas2] .selected-shape-actions .range-wrapper :is(.value-bubble, .zero-label) {
+  position: static; transform: none; min-width: 3ch; font-size: 12px; text-align: right;
+}
+.canvas2-workspace[data-workspace="slides"] [data-canvas2] .selected-shape-actions .range-wrapper .value-bubble:empty { display: none; }
+.canvas2-workspace[data-workspace="slides"] [data-canvas2] .selected-shape-actions .range-wrapper .value-bubble:not(:empty) + .zero-label { display: none; }
 
 /* ── Capas de Presentación ─────────────────────────────────────────────────── */
 .canvas2-slides {
@@ -1020,6 +1049,8 @@
    coge el puntero; sus franjas, sí. */
 .canvas2-slides > .canvas2-slides-mask-layer { position: absolute; inset: 0; pointer-events: none; }
 .canvas2-slides-mask { position: absolute; background: var(--slides-stage, #efece6); pointer-events: auto; }
+/* El recuadro que se arrastra desde la franja: como el de Excalidraw, encima de todo y sin coger clics. */
+.canvas2-slides-marquee { position: absolute; pointer-events: none; border: 1px solid var(--color-selection, #4a47b1); background: color-mix(in srgb, var(--color-selection, #4a47b1) 8%, transparent); }
 
 /* Botones comunes. */
 .canvas2-slides-icon-btn {
@@ -1129,10 +1160,6 @@
   border: 0; border-radius: 8px; background: transparent; cursor: pointer;
 }
 .canvas2-slides-zoom-btn:hover { background: color-mix(in srgb, var(--workspace-fg) 7%, transparent); }
-/* Seleccionar, en tinta y redondo (como la herramienta activa del lienzo). */
-.canvas2-slides-tool-select[aria-pressed="true"] {
-  background: var(--workspace-accent); color: var(--workspace-accent-fg); border-radius: 16px;
-}
 
 /* ── Tira de diapositivas ──────────────────────────────────────────────────── */
 .canvas2-slides-filmstrip {
@@ -1185,6 +1212,10 @@
 }
 .canvas2-slides-notes textarea::placeholder { color: var(--workspace-sub); }
 .canvas2-slides-notes textarea:focus { outline: none; box-shadow: 0 0 0 1px var(--workspace-border); }
+/* Vacías, atenuadas para no competir con la diapositiva; enteras si tienen texto, al escribir o con el ratón encima. */
+.canvas2-slides-notes { transition: opacity 150ms; }
+.canvas2-slides-notes:has(textarea:placeholder-shown):not(:hover, :focus-within) { opacity: .45; }
+@media (prefers-reduced-motion: reduce) { .canvas2-slides-notes { transition: none; } }
 
 /* ── Vista de cuadrícula ───────────────────────────────────────────────────── */
 .canvas2-slides-grid {
@@ -1240,14 +1271,6 @@
 .canvas2-slides-radio { display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 0 10px; border-radius: 8px; cursor: pointer; }
 .canvas2-slides-radio:hover { background: var(--workspace-hover); }
 .canvas2-slides-radio input { accent-color: var(--workspace-accent); margin: 0; }
-
-/* El aviso de elementos fuera de toda página, centrado en el hueco de la
-   diapositiva y sobre las notas (las variables las pone SlidesWorkspace). */
-.canvas2-workspace[data-workspace="slides"] [data-testid="canvas2-loose-warning"] {
-  bottom: calc(var(--slides-bottom, 96px) + 12px) !important;
-  left: calc(var(--slides-left, 224px) + (100% - var(--slides-left, 224px) - var(--slides-right, 68px)) / 2) !important;
-  z-index: 4 !important;
-}
 
 /* El selector de modo del host (Ver · Comentar · Editar) al pie de la tira de
    paneles: en el borde derecho no pisa las notas ni un panel abierto. */
