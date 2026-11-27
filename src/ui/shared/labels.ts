@@ -7,9 +7,12 @@
  * `@polimake/ui` en su 0.6.0: el componente define el CONTRATO de etiquetas y
  * quien lo monta las rellena desde su propio sistema.
  *
- * Los valores por defecto son en español porque es el idioma en el que se
- * trabaja hoy y así el editor funciona sin configurar nada. El host los pisa con
- * los suyos, parcialmente: no hace falta pasar las 45.
+ * Trae de serie dos juegos, español (`DEFAULT_LABELS`) e inglés (`EN_LABELS`),
+ * y elige por el `langCode` que recibe el editor, el mismo que se le pasa a
+ * Excalidraw: así lo propio del paquete va en el idioma de lo de Excalidraw
+ * aunque el host no traduzca todas las claves. El host los pisa con los suyos,
+ * parcialmente: no hace falta pasar las 45. Sin `langCode`, español, que es el
+ * idioma en el que se ha trabajado siempre.
  */
 
 export interface Canvas2Labels {
@@ -30,13 +33,22 @@ export interface Canvas2Labels {
     excalidraw: string;
     design: string;
     advanced: string;
+    /** El espacio Presentación (distribución de Slides). */
+    slides: string;
     panels: string;
+    /** La flecha de la derecha que abre el inspector (Página · Capas · Marca…). */
+    openPanel: string;
     showPanels: string;
     hidePanels: string;
     /** La herramienta de marcos de «Más herramientas»: Excalidraw no la trae en español. */
     frameTool: string;
     /** «Find on canvas» del menú principal: tampoco la trae. */
     findOnCanvas: string;
+    /** El tema del lienzo en el menú (`themeChoice`): el grupo y sus tres opciones. */
+    theme: string;
+    themeApp: string;
+    themeLight: string;
+    themeDark: string;
   };
   library: {
     title: string;
@@ -69,6 +81,10 @@ export interface Canvas2Labels {
     exportPngAll: string;
     exportSvg: string;
     exportPdf: string;
+    /** PowerPoint editable (todas las páginas, una por diapositiva). */
+    exportPptx: string;
+    /** La misma presentación como plantilla de PowerPoint. */
+    exportPotx: string;
     /** Acción de paginar lo que está suelto en el lienzo. */
     toPages: string;
     /** Recibe cuántos elementos sueltos hay ahora mismo. */
@@ -99,6 +115,8 @@ export interface Canvas2Labels {
     add: string;
     /** Añadir al final del documento (tira de páginas). */
     addAtEnd: string;
+    /** Rótulo corto bajo la ficha de añadir de la tira («Añadir»). */
+    addShort: string;
     /** Insertar en la juntura entre dos páginas de la tira. */
     insertHere: string;
     /** El intento de crear una página ha fallado (si no, el botón parece muerto). */
@@ -144,6 +162,13 @@ export interface Canvas2Labels {
     text: string;
     /** Capa de texto; recibe el principio de lo que tiene escrito. */
     textWith: (excerpt: string) => string;
+    /** Un grupo sin texto dentro (con texto, se llama como su primer texto). */
+    group: string;
+    /** Desplegar y plegar un grupo de la lista. */
+    expandGroup: string;
+    collapseGroup: string;
+    /** Cuántas capas hay dentro de un grupo, al lado de su nombre. */
+    groupCount: (n: number) => string;
     // Acciones de una capa de imagen.
     useAsBackground: string;
     extendToPage: string;
@@ -219,6 +244,8 @@ export interface Canvas2Labels {
   };
   /** Nombres de los tamaños de página, por clave de preset. */
   sizes: Record<string, string>;
+  /** Espacio Presentación: menús, barra, tira, notas y presentar (slides/). */
+  slides: SlidesLabels;
   /** Selector de modo (Ver · Comentar · Editar) del host. */
   mode: {
     group: string;
@@ -228,6 +255,324 @@ export interface Canvas2Labels {
     done: string;
   };
 }
+
+export interface SlidesLabels {
+  /** Región de los menús (Archivo, Editar…), para el lector de pantalla. */
+  menubar: string;
+  file: string;
+  edit: string;
+  view: string;
+  insert: string;
+  format: string;
+  slide: string;
+  arrange: string;
+  /** Barra de herramientas. */
+  toolbar: string;
+  search: string;
+  newSlide: string;
+  newSlideAfter: string;
+  undo: string;
+  redo: string;
+  zoomFit: string;
+  zoomIn: string;
+  zoomOut: string;
+  select: string;
+  textBox: string;
+  image: string;
+  shape: string;
+  rectangle: string;
+  ellipse: string;
+  diamond: string;
+  line: string;
+  arrow: string;
+  comment: string;
+  background: string;
+  components: string;
+  theme: string;
+  transition: string;
+  formatOptions: string;
+  hideMenus: string;
+  showMenus: string;
+  /** Diapositiva. */
+  slides: string;
+  slideN: (n: number) => string;
+  duplicateSlide: string;
+  deleteSlide: string;
+  skipSlide: string;
+  unskipSlide: string;
+  skipped: string;
+  moveSlide: string;
+  moveToStart: string;
+  moveToEnd: string;
+  moveUp: string;
+  moveDown: string;
+  changeBackground: string;
+  applyComponent: string;
+  changeTheme: string;
+  pageSize: string;
+  pageSizeCurrent: (label: string) => string;
+  /** Editar. */
+  duplicate: string;
+  delete: string;
+  selectAll: string;
+  group: string;
+  ungroup: string;
+  /** Organizar. */
+  align: string;
+  order: string;
+  bringToFront: string;
+  bringForward: string;
+  sendBackward: string;
+  sendToBack: string;
+  /** Ver. */
+  present: string;
+  presentFromStart: string;
+  presentOptions: string;
+  gridView: string;
+  backToSlide: string;
+  showNotes: string;
+  showFilmstrip: string;
+  hideFilmstrip: string;
+  workspace: string;
+  /** Notas. */
+  notes: string;
+  notesPlaceholder: string;
+  /** Cuadrícula. */
+  slideCount: (n: number) => string;
+  /** Paneles de la derecha. */
+  panels: string;
+  details: string;
+  closePanel: string;
+  themeInPresentation: string;
+  importTheme: string;
+  importThemeHint: string;
+  transitionNone: string;
+  transitionFade: string;
+  transitionApplyAll: string;
+  /** Presentar. */
+  presenting: string;
+  previous: string;
+  next: string;
+  counter: (i: number, n: number) => string;
+  presenterView: string;
+  presenterNext: string;
+  presenterEnd: string;
+  presenterTimer: string;
+  exit: string;
+  escToExit: string;
+  presenterBlocked: string;
+  /** Archivo › Importar diapositivas (de un .pptx o un .pdf, al final de la presentación). */
+  importSlides: string;
+  importing: string;
+  imported: (count: number) => string;
+  importFailed: string;
+  /** Nombres de teclas para los atajos de los menús. */
+  keys: { shift: string; enter: string; del: string };
+}
+
+export const SLIDES_ES: SlidesLabels = {
+  menubar: 'Menús de la presentación',
+  file: 'Archivo',
+  edit: 'Editar',
+  view: 'Ver',
+  insert: 'Insertar',
+  format: 'Formato',
+  slide: 'Diapositiva',
+  arrange: 'Organizar',
+  toolbar: 'Herramientas',
+  search: 'Buscar en la presentación',
+  newSlide: 'Nueva diapositiva',
+  newSlideAfter: 'Nueva diapositiva detrás de esta',
+  undo: 'Deshacer',
+  redo: 'Rehacer',
+  zoomFit: 'Ajustar',
+  zoomIn: 'Acercar',
+  zoomOut: 'Alejar',
+  select: 'Seleccionar',
+  textBox: 'Cuadro de texto',
+  image: 'Imagen de la biblioteca',
+  shape: 'Forma',
+  rectangle: 'Rectángulo',
+  ellipse: 'Elipse',
+  diamond: 'Rombo',
+  line: 'Línea',
+  arrow: 'Flecha',
+  comment: 'Comentar',
+  background: 'Fondo',
+  components: 'Componentes',
+  theme: 'Tema',
+  transition: 'Transición',
+  formatOptions: 'Opciones de formato',
+  hideMenus: 'Ocultar los menús',
+  showMenus: 'Mostrar los menús',
+  slides: 'Diapositivas',
+  slideN: (n) => `Diapositiva ${n}`,
+  duplicateSlide: 'Duplicar diapositiva',
+  deleteSlide: 'Eliminar diapositiva',
+  skipSlide: 'Saltar diapositiva',
+  unskipSlide: 'No saltar diapositiva',
+  skipped: 'Se salta al presentar',
+  moveSlide: 'Mover diapositiva',
+  moveToStart: 'Mover al principio',
+  moveToEnd: 'Mover al final',
+  moveUp: 'Subir',
+  moveDown: 'Bajar',
+  changeBackground: 'Cambiar fondo',
+  applyComponent: 'Aplicar componente',
+  changeTheme: 'Cambiar tema (marca)',
+  pageSize: 'Tamaño',
+  pageSizeCurrent: (label) => `Tamaño: ${label}`,
+  duplicate: 'Duplicar',
+  delete: 'Eliminar',
+  selectAll: 'Seleccionar todo',
+  group: 'Agrupar',
+  ungroup: 'Desagrupar',
+  align: 'Alinear en la diapositiva',
+  order: 'Ordenar',
+  bringToFront: 'Traer al frente',
+  bringForward: 'Traer adelante',
+  sendBackward: 'Enviar atrás',
+  sendToBack: 'Enviar al fondo',
+  present: 'Presentar',
+  presentFromStart: 'Presentar desde el principio',
+  presentOptions: 'Opciones de presentación',
+  gridView: 'Vista de cuadrícula',
+  backToSlide: 'Volver a la diapositiva',
+  showNotes: 'Notas del orador',
+  showFilmstrip: 'Mostrar la tira',
+  hideFilmstrip: 'Ocultar la tira',
+  workspace: 'Espacio de trabajo',
+  notes: 'Notas del orador',
+  notesPlaceholder: 'Haz clic para añadir notas del orador',
+  slideCount: (n) => (n === 1 ? '1 diapositiva' : `${n} diapositivas`),
+  panels: 'Paneles',
+  details: 'Detalles',
+  closePanel: 'Cerrar el panel',
+  themeInPresentation: 'En esta presentación',
+  importTheme: 'Importar tema',
+  importThemeHint: 'De un .pptx o de otra marca del espacio',
+  transitionNone: 'Ninguna',
+  transitionFade: 'Fundido',
+  transitionApplyAll: 'Aplicar a todas las diapositivas',
+  presenting: 'Presentación',
+  previous: 'Anterior',
+  next: 'Siguiente',
+  counter: (i, n) => `${i} / ${n}`,
+  presenterView: 'Vista del orador',
+  presenterNext: 'Siguiente',
+  presenterEnd: 'Fin de la presentación',
+  presenterTimer: 'Tiempo',
+  exit: 'Salir',
+  escToExit: 'Esc para salir',
+  presenterBlocked: 'El navegador ha bloqueado la ventana de la vista del orador',
+  importSlides: 'Importar diapositivas…',
+  importing: 'Importando…',
+  imported: (n) => (n === 1 ? '1 diapositiva importada' : `${n} diapositivas importadas`),
+  importFailed: 'No se pudo importar el archivo',
+  keys: { shift: 'Mayús', enter: 'Intro', del: 'Supr' },
+};
+
+export const SLIDES_EN: SlidesLabels = {
+  menubar: 'Presentation menus',
+  file: 'File',
+  edit: 'Edit',
+  view: 'View',
+  insert: 'Insert',
+  format: 'Format',
+  slide: 'Slide',
+  arrange: 'Arrange',
+  toolbar: 'Tools',
+  search: 'Search the presentation',
+  newSlide: 'New slide',
+  newSlideAfter: 'New slide after this one',
+  undo: 'Undo',
+  redo: 'Redo',
+  zoomFit: 'Fit',
+  zoomIn: 'Zoom in',
+  zoomOut: 'Zoom out',
+  select: 'Select',
+  textBox: 'Text box',
+  image: 'Image from the library',
+  shape: 'Shape',
+  rectangle: 'Rectangle',
+  ellipse: 'Ellipse',
+  diamond: 'Diamond',
+  line: 'Line',
+  arrow: 'Arrow',
+  comment: 'Comment',
+  background: 'Background',
+  components: 'Components',
+  theme: 'Theme',
+  transition: 'Transition',
+  formatOptions: 'Format options',
+  hideMenus: 'Hide the menus',
+  showMenus: 'Show the menus',
+  slides: 'Slides',
+  slideN: (n) => `Slide ${n}`,
+  duplicateSlide: 'Duplicate slide',
+  deleteSlide: 'Delete slide',
+  skipSlide: 'Skip slide',
+  unskipSlide: 'Unskip slide',
+  skipped: 'Skipped when presenting',
+  moveSlide: 'Move slide',
+  moveToStart: 'Move to beginning',
+  moveToEnd: 'Move to end',
+  moveUp: 'Move up',
+  moveDown: 'Move down',
+  changeBackground: 'Change background',
+  applyComponent: 'Apply component',
+  changeTheme: 'Change theme (brand)',
+  pageSize: 'Size',
+  pageSizeCurrent: (label) => `Size: ${label}`,
+  duplicate: 'Duplicate',
+  delete: 'Delete',
+  selectAll: 'Select all',
+  group: 'Group',
+  ungroup: 'Ungroup',
+  align: 'Align on the slide',
+  order: 'Order',
+  bringToFront: 'Bring to front',
+  bringForward: 'Bring forward',
+  sendBackward: 'Send backward',
+  sendToBack: 'Send to back',
+  present: 'Present',
+  presentFromStart: 'Present from the beginning',
+  presentOptions: 'Presentation options',
+  gridView: 'Grid view',
+  backToSlide: 'Back to the slide',
+  showNotes: 'Speaker notes',
+  showFilmstrip: 'Show the filmstrip',
+  hideFilmstrip: 'Hide the filmstrip',
+  workspace: 'Workspace',
+  notes: 'Speaker notes',
+  notesPlaceholder: 'Click to add speaker notes',
+  slideCount: (n) => (n === 1 ? '1 slide' : `${n} slides`),
+  panels: 'Panels',
+  details: 'Details',
+  closePanel: 'Close the panel',
+  themeInPresentation: 'In this presentation',
+  importTheme: 'Import theme',
+  importThemeHint: 'From a .pptx or another brand in the space',
+  transitionNone: 'None',
+  transitionFade: 'Fade',
+  transitionApplyAll: 'Apply to all slides',
+  presenting: 'Presentation',
+  previous: 'Previous',
+  next: 'Next',
+  counter: (i, n) => `${i} / ${n}`,
+  presenterView: 'Presenter view',
+  presenterNext: 'Next',
+  presenterEnd: 'End of presentation',
+  presenterTimer: 'Time',
+  exit: 'Exit',
+  escToExit: 'Esc to exit',
+  presenterBlocked: 'The browser blocked the presenter view window',
+  importSlides: 'Import slides…',
+  importing: 'Importing…',
+  imported: (n) => (n === 1 ? '1 slide imported' : `${n} slides imported`),
+  importFailed: 'The file could not be imported',
+  keys: { shift: 'Shift', enter: 'Enter', del: 'Del' },
+};
 
 export const DEFAULT_LABELS: Canvas2Labels = {
   workspace: {
@@ -247,11 +592,17 @@ export const DEFAULT_LABELS: Canvas2Labels = {
     excalidraw: 'Excalidraw',
     design: 'Canva',
     advanced: 'Experta',
+    slides: 'Presentación',
     panels: 'Paneles del editor',
+    openPanel: 'Abrir el panel',
     showPanels: 'Mostrar paneles',
     hidePanels: 'Ocultar paneles',
     frameTool: 'Marco',
     findOnCanvas: 'Buscar en el lienzo',
+    theme: 'Tema del lienzo',
+    themeApp: 'Como la app',
+    themeLight: 'Claro',
+    themeDark: 'Oscuro',
   },
   library: {
     title: 'Biblioteca',
@@ -284,6 +635,8 @@ export const DEFAULT_LABELS: Canvas2Labels = {
     exportPngAll: 'PNG · todas las páginas',
     exportSvg: 'SVG · página actual',
     exportPdf: 'PDF · todas las páginas',
+    exportPptx: 'PowerPoint (.pptx)',
+    exportPotx: 'Plantilla de PowerPoint (.potx)',
     toPages: 'Convertir en páginas',
     toPagesHint: (count) => `${count} suelto${count === 1 ? '' : 's'}`,
     toPagesDone: (count) => `${count} página${count === 1 ? '' : 's'} creada${count === 1 ? '' : 's'}`,
@@ -309,6 +662,7 @@ export const DEFAULT_LABELS: Canvas2Labels = {
   pages: {
     add: 'Agregar página después',
     addAtEnd: 'Añadir página',
+    addShort: 'Añadir',
     insertHere: 'Insertar página aquí',
     addFailed: 'No se pudo crear la página',
     duplicate: 'Duplicar página',
@@ -336,6 +690,10 @@ export const DEFAULT_LABELS: Canvas2Labels = {
     freedraw: 'Trazo',
     text: 'Texto',
     textWith: (excerpt) => `Texto: ${excerpt}`,
+    group: 'Grupo',
+    expandGroup: 'Ver lo que hay dentro',
+    collapseGroup: 'Plegar el grupo',
+    groupCount: (n) => (n === 1 ? '1 capa' : `${n} capas`),
     useAsBackground: 'Usar como fondo',
     extendToPage: 'Extender a la página',
     show: 'Mostrar',
@@ -396,6 +754,7 @@ export const DEFAULT_LABELS: Canvas2Labels = {
     a4: 'A4',
     default: 'Lienzo clásico',
   },
+  slides: SLIDES_ES,
   mode: {
     group: 'Modo del lienzo',
     view: 'Ver',
@@ -404,6 +763,215 @@ export const DEFAULT_LABELS: Canvas2Labels = {
     done: 'Listo',
   },
 };
+
+/**
+ * Los mismos textos en inglés. Lo que también traduce la web
+ * (`apps/web/src/shared/lib/i18n/locales/en/canvas2.json`) va con sus mismas
+ * palabras, para que el editor no cambie de voz de una clave a la de al lado.
+ */
+export const EN_LABELS: Canvas2Labels = {
+  workspace: {
+    elements: 'Elements',
+    text: 'Text',
+    brand: 'Brand',
+    page: 'Page',
+    files: 'Files',
+    searchElements: 'Search elements',
+    noResults: 'No elements found.',
+    rectangle: 'Rectangle',
+    ellipse: 'Circle',
+    diamond: 'Diamond',
+    arrow: 'Arrow',
+    draw: 'Draw',
+    label: 'Workspace',
+    excalidraw: 'Excalidraw',
+    design: 'Design',
+    advanced: 'Advanced',
+    slides: 'Presentation',
+    panels: 'Editor panels',
+    openPanel: 'Open the panel',
+    showPanels: 'Show panels',
+    hidePanels: 'Hide panels',
+    frameTool: 'Frame tool',
+    findOnCanvas: 'Find on canvas',
+    theme: 'Canvas theme',
+    themeApp: 'Same as the app',
+    themeLight: 'Light',
+    themeDark: 'Dark',
+  },
+  library: {
+    title: 'Library',
+    close: 'Close',
+  },
+  components: {
+    title: 'Components',
+    empty: 'No components in this project yet. Save a page as a component from the menu.',
+    insert: 'Insert as a new page',
+    inserted: 'Component inserted',
+    insertFailed: 'Could not insert the component',
+    save: 'Save page as component',
+    saved: 'Page saved as a component',
+    saveFailed: 'Could not save the component',
+  },
+  menu: {
+    background: 'Page background',
+    backgroundOther: 'Other colour…',
+    backgroundRemove: 'Remove background',
+    size: 'Page size',
+    width: 'Width',
+    height: 'Height',
+    apply: 'Apply',
+    scaleContent: 'Scale contents',
+    insertText: 'Insert text',
+    export: 'Export',
+    exporting: 'Exporting…',
+    exportFailed: 'Export · failed',
+    exportPngPage: 'PNG · current page',
+    exportPngAll: 'PNG · all pages',
+    exportSvg: 'SVG · current page',
+    exportPdf: 'PDF · all pages',
+    exportPptx: 'PowerPoint (.pptx)',
+    exportPotx: 'PowerPoint template (.potx)',
+    toPages: 'Turn into pages',
+    toPagesHint: (count) => `${count} loose`,
+    toPagesDone: (count) => `${count} page${count === 1 ? '' : 's'} created`,
+    exportName: 'design',
+  },
+  video: {
+    pickFrame: 'Pick a frame',
+    loading: 'Loading video…',
+    useFrame: 'Use this one',
+    saving: 'Saving…',
+    cancel: 'Cancel',
+    failed: 'Could not capture the frame',
+    unavailable: 'The frame picker is not available here',
+  },
+  loose: {
+    warning: (count) =>
+      count === 1
+        ? 'There is 1 element outside every page: it will not be exported or shown in the thumbnail.'
+        : `There are ${count} elements outside every page: they will not be exported or shown in the thumbnail.`,
+    adopt: 'Move into this page',
+    dismiss: 'Dismiss warning',
+  },
+  pages: {
+    add: 'Add page after',
+    addAtEnd: 'Add page',
+    addShort: 'Add',
+    insertHere: 'Insert a page here',
+    addFailed: "Couldn't create the page",
+    duplicate: 'Duplicate page',
+    rename: 'Rename page',
+    lock: 'Lock page',
+    unlock: 'Unlock page',
+    delete: 'Delete page',
+    confirmDelete: 'Delete?',
+    moveLeft: 'Move left',
+    moveRight: 'Move right',
+    lastPage: 'This is the only page: a design cannot be left without one',
+    fitAll: 'See all pages',
+    // «Page» es una de las palabras que reconoce `core/pageNames.ts`: una
+    // página nueva en inglés se sigue renumerando como las de siempre.
+    defaultName: (n) => `Page ${n}`,
+    untitled: 'Page',
+    copyName: (name) => `${name} (copy)`,
+  },
+  layers: {
+    empty: 'This page is empty.',
+    image: 'Image',
+    rectangle: 'Rectangle',
+    ellipse: 'Ellipse',
+    diamond: 'Diamond',
+    line: 'Line',
+    arrow: 'Arrow',
+    freedraw: 'Stroke',
+    text: 'Text',
+    textWith: (excerpt) => `Text: ${excerpt}`,
+    group: 'Group',
+    expandGroup: 'Show what is inside',
+    collapseGroup: 'Collapse the group',
+    groupCount: (n) => (n === 1 ? '1 layer' : `${n} layers`),
+    useAsBackground: 'Use as background',
+    extendToPage: 'Extend to page',
+    show: 'Show',
+    hide: 'Hide',
+    lock: 'Lock',
+    unlock: 'Unlock',
+    delete: 'Delete',
+    renameHint: 'Double-click to rename the page',
+    alignHeading: 'Align',
+  },
+  align: {
+    left: 'Align left',
+    centerX: 'Centre horizontally',
+    right: 'Align right',
+    top: 'Align top',
+    centerY: 'Centre vertically',
+    bottom: 'Align bottom',
+  },
+  text: {
+    heading: 'Heading',
+    subheading: 'Subheading',
+    body: 'Body text',
+    headingText: 'Heading',
+    subheadingText: 'Subheading',
+    bodyText: 'Write something…',
+  },
+  dock: {
+    design: 'Design',
+    layers: 'Layers',
+    components: 'Components',
+    agent: 'Agent',
+    page: 'Page',
+    brand: 'Brand',
+    collapse: 'Collapse',
+    expand: 'Expand',
+  },
+  brand: {
+    title: 'Brand',
+    defaultColor: 'default colour',
+    applyToSelection: (color) => `Apply ${color} to selection`,
+    applied: (count) => `${count} element${count === 1 ? '' : 's'}`,
+    insertLogo: (label) => `Insert ${label.toLowerCase()}`,
+    logoInserted: 'logo inserted',
+    logo: 'Logo',
+    black: 'Black',
+    white: 'White',
+    insertFailed: 'could not insert it',
+    imageTimeout: 'The image took too long to load',
+    imageNoSize: 'The image has no usable dimensions',
+    imageUnreachable: 'Could not load the image',
+  },
+  sizes: {
+    'ig-post': 'Post 4:5',
+    square: 'Square 1:1',
+    story: 'Story / Reel 9:16',
+    landscape: 'Landscape 16:9',
+    'yt-thumb': 'YouTube thumbnail',
+    a4: 'A4',
+    default: 'Classic canvas',
+  },
+  slides: SLIDES_EN,
+  mode: {
+    group: 'Canvas mode',
+    view: 'View',
+    comment: 'Comment',
+    edit: 'Edit',
+    done: 'Done',
+  },
+};
+
+/**
+ * Los textos de serie para un `langCode` de Excalidraw (`en`, `es-ES`…).
+ *
+ * Solo hay dos juegos: cualquier inglés (`en`, `en-GB`) va al inglés y todo lo
+ * demás al español, el de siempre. Un idioma que Excalidraw traduce y este
+ * paquete no (el alemán, pongamos) se queda con lo propio en español hasta que
+ * el host pase sus textos.
+ */
+export function labelsFor(langCode?: string | null): Canvas2Labels {
+  return /^en(?:-|$)/i.test(langCode ?? '') ? EN_LABELS : DEFAULT_LABELS;
+}
 
 /**
  * Rótulo de un texto que se puede insertar (título, subtítulo, cuerpo).
@@ -425,18 +993,20 @@ export type PartialLabels = {
 };
 
 /**
- * Mezcla las etiquetas del host sobre las de serie.
+ * Mezcla las etiquetas del host sobre las de serie del idioma (`labelsFor`).
  *
  * La mezcla es de DOS niveles y no recursiva a propósito: el contrato tiene
  * exactamente esa forma, y una mezcla profunda genérica invitaría a añadir
  * anidamiento sin pensarlo. Un valor `undefined` o vacío NO pisa al de serie —
- * una traducción a medias debe caer al español, no dejar un botón sin texto.
+ * una traducción a medias debe caer al de serie de su idioma, no dejar un botón
+ * sin texto.
  */
-export function mergeLabels(custom?: PartialLabels | null): Canvas2Labels {
-  if (!custom) return DEFAULT_LABELS;
+export function mergeLabels(custom?: PartialLabels | null, langCode?: string | null): Canvas2Labels {
+  const defaults = labelsFor(langCode);
+  if (!custom) return defaults;
   const out = {} as Canvas2Labels;
-  for (const key of Object.keys(DEFAULT_LABELS) as (keyof Canvas2Labels)[]) {
-    const base = DEFAULT_LABELS[key] as Record<string, unknown>;
+  for (const key of Object.keys(defaults) as (keyof Canvas2Labels)[]) {
+    const base = defaults[key] as Record<string, unknown>;
     const over = (custom[key] ?? {}) as Record<string, unknown>;
     const merged: Record<string, unknown> = { ...base };
     for (const k of Object.keys(over)) {

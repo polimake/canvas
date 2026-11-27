@@ -15,12 +15,30 @@ function Demo() {
       <button onClick={() => setTheme(value => value === 'light' ? 'dark' : 'light')}>Claro / oscuro</button>
     </div>
     <div style={{ flex: 1, minHeight: 0 }}>
-      <Canvas2Editor pages layers theme={theme} viewMode={mode !== 'edit'}
+      <Canvas2Editor pages layers pageThumbnails theme={theme} viewMode={mode !== 'edit'}
         modeControl={{ mode, onChange: setMode, modes: ['view', 'comment', 'edit'] }}
         pageSize={{ width: 1080, height: 1080 }}
         brandKit={{ mainColor: '#3a39f5', secondaryColor: '#e0533d' }}
         componentsPanel={<p>Componentes del proyecto</p>}
-        toolbarActions={[{ id: 'resources', label: 'Recursos', pressed: resources, onSelect: () => setResources(v => !v) }]} />
+        // Paneles del host como pestañas del inspector (Comentarios, IA…).
+        panels={[
+          { id: 'comments', title: 'Comentarios', content: <p>Los comentarios del diseño</p> },
+          { id: 'assist', title: 'IA', content: <p>El chat de IA</p> },
+        ]}
+        toolbarActions={[{ id: 'resources', label: 'Recursos', pressed: resources, onSelect: () => setResources(v => !v) }]}
+        // Presentación: título e «Importar diapositivas» con el lector del propio
+        // paquete (las imágenes quedan como marcadores: aquí no hay almacén).
+        slides={{
+          title: 'Presentación de prueba',
+          importSlides: {
+            accept: '.pptx,.potx',
+            load: async (file) => {
+              const [{ parsePptx }, { documentToScene }] = await Promise.all([import('../../src/parsers'), import('../../src/converters')]);
+              const scene = documentToScene(parsePptx(new Uint8Array(await file.arrayBuffer())), { idPrefix: `demo${Date.now().toString(36)}` });
+              return { elements: scene.elements, files: scene.files };
+            },
+          },
+        }} />
     </div>
   </main>;
 }

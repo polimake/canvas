@@ -1,7 +1,8 @@
 'use client';
 export { Canvas2, Canvas2Editor, default } from './editor/Canvas2';
-export type { Canvas2EditorProps, Canvas2Api, Canvas2Scene, Canvas2ToolbarAction } from './editor/Canvas2';
+export type { Canvas2EditorProps, Canvas2Api, Canvas2Scene, Canvas2ToolbarAction, Canvas2HostPanel } from './editor/Canvas2';
 export type { CanvasWorkspace } from './workspaces/types';
+export type { SlidesHostOptions, SlidesImport } from './workspaces/slides/SlidesWorkspace';
 export { CanvasMenu } from './navigation/CanvasMenu';
 export type { CanvasMenuProps } from './navigation/CanvasMenu';
 export { PageNavigator } from './navigation/PageNavigator';
@@ -22,6 +23,6 @@ export { VideoFramePicker } from './overlays/VideoFramePicker';
 export type { VideoFramePickerProps } from './overlays/VideoFramePicker';
 export { DragPreview } from './overlays/DragPreview';
 export type { DragPreviewProps } from './overlays/DragPreview';
-export { DEFAULT_LABELS, mergeLabels } from './shared/labels';
+export { DEFAULT_LABELS, EN_LABELS, labelsFor, mergeLabels } from './shared/labels';
 export type { Canvas2Labels, PartialLabels } from './shared/labels';
 export { palette, PANEL_FONT } from './shared/theme';

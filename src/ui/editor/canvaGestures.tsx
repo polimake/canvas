@@ -10,7 +10,7 @@
  * icono: el CSS del lienzo y el de Excalidraw lo siguen pintando igual.
  */
 import { useEffect, useReducer } from 'react';
-import { CaptureUpdateAction, useI18n, type ExcalidrawImperativeAPI, type SceneElement } from '../../core/excal';
+import { CaptureUpdateAction, useI18n, type ExcalidrawImperativeAPI, type SceneAppState, type SceneElement } from '../../core/excal';
 import {
   ARROW_OFFSETS,
   SHIFT_NUDGE_PX,
@@ -80,13 +80,13 @@ function historyAction(direction: HistoryDirection): Action {
     viewMode: false,
     trackEvent: false,
     keyTest: (event: KeyboardEvent) => (direction === 'undo' ? isUndoKey(event) : isRedoKey(event)),
-    perform: (elements: readonly SceneElement[], appState: any, _value: unknown, app: unknown) => {
+    perform: (elements: readonly SceneElement[], appState: SceneAppState, _value: unknown, app: unknown) => {
       const result = performHistory(direction, elements, appState, app as AppLike);
       // Igual que Excalidraw: aplicar la historia no es un cambio nuevo.
       if (!result) return { captureUpdate: CaptureUpdateAction.EVENTUALLY };
       return { ...result, captureUpdate: CaptureUpdateAction.NEVER };
     },
-    PanelComponent: ({ updateData, data, app }: any) => (
+    PanelComponent: ({ updateData, data, app }: { updateData: () => void; data?: { size?: string }; app: unknown }) => (
       <HistoryButton direction={direction} app={app as AppLike} updateData={updateData} size={data?.size} />
     ),
   } as unknown as Action;
@@ -99,14 +99,14 @@ function shiftNudgeAction(key: ArrowKey): Action {
     label: 'Mover 10 px',
     viewMode: false,
     trackEvent: false,
-    keyTest: (event: KeyboardEvent, appState: any, _elements: unknown, app: unknown) =>
+    keyTest: (event: KeyboardEvent, appState: SceneAppState, _elements: unknown, app: unknown) =>
       event.key === key &&
       event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey &&
       // Con la cuadrícula puesta manda su paso: eso lo sigue haciendo Excalidraw.
       !(app as AppLike | undefined)?.getEffectiveGridSize?.() &&
       !appState.editingLinearElement && !appState.editingTextElement &&
       Object.values(appState.selectedElementIds ?? {}).some(Boolean),
-    perform: (elements: readonly SceneElement[], appState: any) => {
+    perform: (elements: readonly SceneElement[], appState: SceneAppState) => {
       const next = nudgeSelection(elements, appState.selectedElementIds ?? {}, ux * SHIFT_NUDGE_PX, uy * SHIFT_NUDGE_PX);
       if (!next) return { captureUpdate: CaptureUpdateAction.EVENTUALLY };
       // Cada toque es un paso de deshacer, como en Canva.

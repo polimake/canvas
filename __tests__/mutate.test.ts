@@ -68,3 +68,47 @@ describe('commitElements y el orden', () => {
     expect(out[4]).toBe(e);
   });
 });
+
+describe('commitElements y lo borrado', () => {
+  const borrado = (id: string, index: string) => ({ ...el(id, index), isDeleted: true });
+
+  it('lo borrado que falta en la lista se queda en su sitio, el mismo objeto', () => {
+    // Nightly del 14/11: duplicar una página armaba la escena con
+    // getSceneElements() y los textos borrados desaparecían; al deshacer
+    // volvían con el orden de apilado cambiado.
+    const a = el('a', 'a0');
+    const x = borrado('x', 'a1');
+    const y = borrado('y', 'a2');
+    const b = el('b', 'a3');
+    const { api, get } = escena([a, x, y, b]);
+    const c = el('c', null);
+    commitElements(api as any, [a, b, c], 'never');
+    expect(get().map((e: any) => e.id)).toEqual(['a', 'x', 'y', 'b', 'c']);
+    expect(get()[1]).toBe(x);
+    expect([x.index, x.version, y.index, y.version]).toEqual(['a1', 1, 'a2', 1]);
+  });
+
+  it('un borrado sin nada vivo delante vuelve al principio', () => {
+    const x = borrado('x', 'a0');
+    const a = el('a', 'a1');
+    const { api, get } = escena([x, a]);
+    commitElements(api as any, [a], 'never');
+    expect(get().map((e: any) => e.id)).toEqual(['x', 'a']);
+  });
+
+  it('lo que ya viene en la lista no se repite', () => {
+    const a = el('a', 'a0');
+    const x = borrado('x', 'a1');
+    const { api, get } = escena([a, x]);
+    commitElements(api as any, [a, x], 'never');
+    expect(get().map((e: any) => e.id)).toEqual(['a', 'x']);
+  });
+
+  it('quitar algo vivo de la lista lo sigue quitando', () => {
+    const a = el('a', 'a0');
+    const b = el('b', 'a1');
+    const { api, get } = escena([a, b]);
+    commitElements(api as any, [a], 'never');
+    expect(get().map((e: any) => e.id)).toEqual(['a']);
+  });
+});

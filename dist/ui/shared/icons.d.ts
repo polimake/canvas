@@ -1,5 +1,8 @@
 export declare const ChevronLeftIcon: () => import("react").JSX.Element;
 export declare const ChevronRightIcon: () => import("react").JSX.Element;
+export declare const ChevronDownIcon: () => import("react").JSX.Element;
+/** Un grupo en la lista de capas: dos piezas solapadas. */
+export declare const GroupIcon: () => import("react").JSX.Element;
 export declare const DuplicateIcon: () => import("react").JSX.Element;
 export declare const LockIcon: () => import("react").JSX.Element;
 export declare const UnlockIcon: () => import("react").JSX.Element;

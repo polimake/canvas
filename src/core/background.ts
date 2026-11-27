@@ -6,6 +6,7 @@ import {
 } from './excal';
 import { commitElements, patchElement, type CaptureMode } from './mutate';
 import { reorderMembersInArray } from './zorder';
+import { BG_MARKER, isPageBackground } from './pageModel';
 
 /**
  * Per-page background color — Canva-clone parity. Excalidraw frames have no
@@ -15,12 +16,8 @@ import { reorderMembersInArray } from './zorder';
  * existing background in place (stable element id) instead of rebuilding it.
  */
 
-const BG_MARKER = 'pageBackground';
-
-/** Whether an element is a page's background "paper" sheet. */
-export function isPageBackground(el: SceneElement): boolean {
-  return (el.customData as { c2?: string } | undefined)?.c2 === BG_MARKER;
-}
+// El marcador y su lectura, en pageModel.ts (puro: también los conversores).
+export { isPageBackground };
 
 /**
  * Build the background "paper" element for a page: a locked, full-bleed,

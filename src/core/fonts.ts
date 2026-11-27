@@ -162,6 +162,56 @@ export function fontFamilyAlias(name: string): string {
   return BUILTIN.has(limpio.toLowerCase()) ? `${limpio}${ALIAS_SUFFIX}` : limpio;
 }
 
+/** Palabras que, sueltas como familia, el atajo `font` lee como otra cosa. */
+const RESERVADAS_CSS = new Set([
+  'serif',
+  'sans-serif',
+  'monospace',
+  'cursive',
+  'fantasy',
+  'system-ui',
+  'math',
+  'emoji',
+  'fangsong',
+  'ui-serif',
+  'ui-sans-serif',
+  'ui-monospace',
+  'ui-rounded',
+  'inherit',
+  'initial',
+  'unset',
+  'revert',
+  'revert-layer',
+  'default',
+]);
+
+/** Un identificador CSS que vale como palabra de un nombre de familia sin comillas. */
+const IDENTIFICADOR_CSS = /^-?[_a-zA-Z -\u{10FFFF}][_a-zA-Z0-9 -\u{10FFFF}-]*$/u;
+
+/**
+ * La familia tal como tiene que ir en un atajo `font` (`ctx.font`,
+ * `document.fonts.check/load`): tal cual si todas sus palabras son
+ * identificadores CSS, entre comillas si no.
+ *
+ * Excalidraw compone ese atajo con la CLAVE de `FONT_FAMILY` y sin comillas
+ * (ver la cabecera). Un nombre con paréntesis —el alias "Helvetica (marca)" de
+ * una fuente de marca homónima de una de serie, que es justo lo que trae un PDF
+ * con texto en Helvetica— no es un identificador: `ctx.font` descarta la
+ * declaración y `document.fonts.check('16px Helvetica (marca), Segoe UI Emoji')`
+ * LANZA un `SyntaxError`, que tumbaba la miniatura de la página entera. Por eso
+ * la clave que se escribe en `FONT_FAMILY` es esta, y no el alias pelado. El
+ * `@font-face` sigue declarando el alias (allí va siempre entre comillas, ver
+ * `buildFontFaceCss`), y entrecomillado es el mismo nombre de familia.
+ */
+export function fontFamilyCss(alias: string): string {
+  const palabras = alias.split(' ');
+  const suelto =
+    alias.length > 0 &&
+    palabras.every((p) => IDENTIFICADOR_CSS.test(p)) &&
+    !(palabras.length === 1 && RESERVADAS_CSS.has(alias.toLowerCase()));
+  return suelto ? alias : `"${dentroDeCadenaCss(alias)}"`;
+}
+
 /**
  * Id numérico de una familia propia, derivado SOLO de su nombre.
  *
@@ -212,6 +262,27 @@ export function fontFormatHint(src: string): string | null {
 }
 
 /**
+ * Un texto dentro de una cadena CSS entre comillas dobles. Las letras llegan de
+ * escenas, de `editorConfig` y del kit de marca, y este CSS va a un `<style>` del
+ * documento: una comilla o un salto de línea sin escapar dejarían reglas para toda
+ * la ventana. Con `<` y `>` tampoco sale del `<style>` de un SVG.
+ */
+function dentroDeCadenaCss(texto: string): string {
+  // eslint-disable-next-line no-control-regex
+  return texto.replace(/["\\<>\u0000-\u001f\u007f]/g, (c) => `\\${c.charCodeAt(0).toString(16)} `);
+}
+
+/** Un `font-weight` de verdad, o `normal`. Va sin comillas: no se puede escapar. */
+function pesoCss(peso: string | undefined): string {
+  return peso && /^(normal|bold|bolder|lighter|\d{1,4}( \d{1,4})?)$/.test(peso) ? peso : 'normal';
+}
+
+/** Un `font-style` de verdad, o `normal`. Va sin comillas: no se puede escapar. */
+function estiloCss(estilo: string | undefined): string {
+  return estilo && /^(normal|italic|oblique( -?\d{1,3}(\.\d+)?deg){0,2})$/.test(estilo) ? estilo : 'normal';
+}
+
+/**
  * CSS de las `@font-face`. PURA: la usan tanto la inyección en pantalla como el
  * embebido en el SVG exportado, y así las dos declaran exactamente lo mismo.
  */
@@ -223,10 +294,11 @@ export function buildFontFaceCss(
     .filter((f) => f.family && f.src)
     .map((f) => {
       const hint = fontFormatHint(f.src);
-      const src = hint ? `url("${f.src}") format("${hint}")` : `url("${f.src}")`;
+      const direccion = `url("${dentroDeCadenaCss(f.src)}")`;
+      const src = hint ? `${direccion} format("${hint}")` : direccion;
       return (
-        `@font-face{font-family:"${f.family}";src:${src};` +
-        `font-weight:${f.weight ?? 'normal'};font-style:${f.style ?? 'normal'};` +
+        `@font-face{font-family:"${dentroDeCadenaCss(f.family)}";src:${src};` +
+        `font-weight:${pesoCss(f.weight)};font-style:${estiloCss(f.style)};` +
         (opts?.display ? `font-display:${opts.display};` : '') +
         '}'
       );

@@ -82,17 +82,20 @@ Las coordenadas se convierten de EMU a píxeles CSS a 96 ppp.
 | Contenido | Resultado |
 | --- | --- |
 | Diapositivas y tamaño | Conservados en orden |
-| Textos con geometría directa | Editables; se aproximan estilos y métricas |
-| Texto de placeholders sin geometría | Indexado; no se coloca sin resolver el layout |
-| Rectángulos y elipses | Formas editables; colores directos y trazo básico |
+| Tema, patrón y diseño | Colores, fuentes, fondos, obras de arte y marcadores heredados |
+| Textos | Editables, con tamaño, color, alineación, anclaje, márgenes e interlineado; un elemento por párrafo si cambia el estilo |
+| Negrita, cursiva y estilos mezclados en un párrafo | Simplificados, con aviso |
+| Rectángulos, redondeados, elipses y rombos | Formas editables con relleno, trazo y transparencia |
+| Geometrías libres y polígonos habituales | Contornos editables, con sus huecos |
 | Otras geometrías | Rectángulo aproximado con aviso |
-| Grupos trasladados/escalados | Coordenadas de hijos transformadas |
-| Rotación/reflejo de grupos | No conservados, con aviso |
-| Imágenes embebidas | Bytes separados y referencia por `assetId` |
+| Conectores | Líneas con trazo, discontinuidad y flechas; los curvos, rectos con aviso |
+| Tablas | Celdas con su texto, relleno y bordes directos; sin los estilos de tabla |
+| Grupos | Se conservan; su rotación o reflejo no, con aviso |
+| Imágenes embebidas | Bytes separados, recorte y reflejo |
 | Imágenes externas | No se descargan; aviso |
-| Notas | Texto indexable; puede incluir placeholders de notas |
-| Patrones, layouts y temas | No se resuelven; aviso por diapositiva |
-| Tablas, gráficos, SmartArt, conectores y media | No convertidos; aviso |
+| Notas | Texto indexable |
+| Gráficos, SmartArt y media | No convertidos; aviso |
+| Degradados y sombras | Primer color del degradado; sin sombra; aviso |
 | Animaciones/transiciones | No importadas |
 
 Un `.ppt` binario debe convertirse externamente a `.pptx`. El parser no inicia

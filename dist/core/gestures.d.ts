@@ -19,7 +19,7 @@
  * Mayúsculas+flecha. Excalidraw mueve 5 px; Canva, 10. Las flechas solas no se
  * tocan (1 px), ni el paso de la cuadrícula cuando está puesta.
  */
-import { type SceneElement } from './excal';
+import { type SceneAppState, type SceneElement } from './excal';
 /** Lo que se lee de una entrada de la historia de Excalidraw (`HistoryEntry`). */
 export interface HistoryEntryLike {
     elementsChange?: {
@@ -36,8 +36,8 @@ export interface HistoryEntryLike {
 export interface HistoryLike {
     undoStack: HistoryEntryLike[];
     redoStack: HistoryEntryLike[];
-    undo: (elements: Map<string, SceneElement>, appState: any, snapshot: unknown) => [Map<string, SceneElement>, any] | void;
-    redo: (elements: Map<string, SceneElement>, appState: any, snapshot: unknown) => [Map<string, SceneElement>, any] | void;
+    undo: (elements: Map<string, SceneElement>, appState: SceneAppState, snapshot: unknown) => [Map<string, SceneElement>, SceneAppState] | void;
+    redo: (elements: Map<string, SceneElement>, appState: SceneAppState, snapshot: unknown) => [Map<string, SceneElement>, SceneAppState] | void;
     onHistoryChangedEmitter?: {
         on: (cb: () => void) => () => void;
     };
@@ -63,16 +63,16 @@ export declare function hasRealEntry(stack: readonly HistoryEntryLike[] | undefi
  * Lo mismo que comprueba el `executeHistoryAction` de Excalidraw: con un gesto
  * a medias (arrastre, texto en edición, dibujo) no se deshace nada.
  */
-export declare function historyIsBusy(appState: any, app: AppLike | undefined): boolean;
+export declare function historyIsBusy(appState: SceneAppState, app: AppLike | undefined): boolean;
 export type HistoryDirection = 'undo' | 'redo';
 /**
  * Deshace o rehace el último cambio de verdad. Devuelve el resultado de acción
  * de Excalidraw sin `captureUpdate` (lo pone quien llama) o `null` si no hay
  * nada que aplicar.
  */
-export declare function performHistory(direction: HistoryDirection, elements: readonly SceneElement[], appState: any, app: AppLike | undefined): {
+export declare function performHistory(direction: HistoryDirection, elements: readonly SceneElement[], appState: SceneAppState, app: AppLike | undefined): {
     elements: SceneElement[];
-    appState: any;
+    appState: SceneAppState;
 } | null;
 /** ¿Hay en `after` un texto vacío y vivo que en `before` no lo era? */
 export declare function leavesNewEmptyText(before: ReadonlyMap<string, SceneElement>, after: ReadonlyMap<string, SceneElement>): boolean;

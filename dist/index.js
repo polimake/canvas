@@ -1,19 +1,20 @@
 "use client";
-import { h as packPagesInArray, r as renumberPagesInArray, i as commitElements, j as goToPage, k as pageElementsInOrder, l as buildPersistableFiles } from "./chunks/LibraryPanel-DHmBBq9g.js";
-import { B, C, a, b, f, q, D, e, a2, at, L, c, n, X, s, g, d, P, au, aH, w, Q, G, Y, ac, am, S, aw, O, t, as, a as a3, x, ad, A, az, ab, a9, aa, af, ae, _, ao, aq, y, aA, N, a5, ax, v, aG, aF, ap, o, an, ah, ai, aj, av, aC, ar, aB, J, aE, u, T, m, H, I, R, p, a7, U, a3 as a32, a4, F, z, $, ak, E, a1, al, a8, a0, a6, Z, ay, K, aD, ag, W } from "./chunks/LibraryPanel-DHmBBq9g.js";
-import { P as P2 } from "./chunks/layout-BEpoNps2.js";
+import { h as pageElementsInOrder, i as buildPersistableFiles, j as packPagesInArray, r as renumberPagesInArray, k as commitElements, n as goToPage } from "./chunks/LibraryPanel-BzPgblje.js";
+import { B, C, a, b, D, o, c, d, q, E, I, L, e, s, t, u, P, f, g, T, v, w, x, y, z, A, F, G, H, J, K, N, a as a2, O, Q, R, S, U, W, X, Y, Z, _, $, a0, a1, a2 as a22, a3, a4, a5, a6, a7, a8, a9, aa, ab, ac, ad, ae, af, ag, ah, ai, aj, ak, al, am, an, ao, l, ap, aq, m, ar, as, at, p, au, av, aw, ax, ay, az, aA, aB, aC, aD, aE, aF, aG, aH, aI, aJ, aK, aL, aM, aN, aO, aP, aQ } from "./chunks/LibraryPanel-BzPgblje.js";
+import { P as P2 } from "./chunks/layout-L5bQ5REv.js";
 import "@excalidraw/excalidraw/index.css";
 import { convertToExcalidrawElements } from "@excalidraw/excalidraw";
-import { D as D2, P as P3, c as c2, f as f2, g as g2, h, l, e as e2, a as a10, p as p2, b as b2, r, s as s2 } from "./chunks/psd-BkuMvcm9.js";
+import { D as D2, P as P3, c as c2, f as f2, g as g2, l as l2, a as a10, p as p2, b as b2, d as d2, e as e2, h, s as s2 } from "./chunks/legacy-DAAEWkHb.js";
 import { EXCALIDRAW_BUILTIN_FAMILIES, buildFontFaceCss, customFontFamilyId, dedupeFontFaces, fontFamilyAlias, normalizeFontName } from "./fonts.js";
 import { instantiateComponent } from "./components.js";
 import { appendComponentToEditorConfig, cloneSceneElements, deriveComponentMeta, extractComponentFragment, fitImageInBox, listSlots, measureWrappedText } from "./components.js";
+import { i } from "./chunks/documentToPptx-CsrYYM5a.js";
 async function blobToDataUrl(blob, fallbackMime) {
   const bytes = new Uint8Array(await blob.arrayBuffer());
   const CHUNK = 32768;
   let binary = "";
-  for (let i = 0; i < bytes.length; i += CHUNK) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  for (let i2 = 0; i2 < bytes.length; i2 += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(i2, i2 + CHUNK));
   }
   return `data:${blob.type || fallbackMime};base64,${btoa(binary)}`;
 }
@@ -59,11 +60,11 @@ function cacheGet(key) {
   return hit;
 }
 function cacheSet(key, entry) {
-  if (entry.bytes > CACHE_MAX_BYTES) return;
+  if (entry.bytes > CACHE_MAX_BYTES) return entry;
   const previo = BYTES_CACHE.get(key);
   if (previo) {
-    cacheBytes -= previo.bytes;
-    releaseEntry(previo);
+    releaseEntry(entry);
+    return previo;
   }
   BYTES_CACHE.set(key, entry);
   cacheBytes += entry.bytes;
@@ -77,6 +78,7 @@ function cacheSet(key, entry) {
       releaseEntry(victima);
     }
   }
+  return entry;
 }
 function clearHydrationCache() {
   for (const entry of BYTES_CACHE.values()) releaseEntry(entry);
@@ -108,8 +110,8 @@ async function buildHydratedFiles(api, fetcher, { output = "blob", preferProxy =
           const dataURL = await blobToDataUrl(blob, file.mimeType);
           return { url: dataURL, mimeType, bytes: dataURL.length, revocable: false };
         })();
-        cacheSet(key, entry);
-        files[file.id] = { ...file, dataURL: entry.url, mimeType: entry.mimeType };
+        const used = cacheSet(key, entry);
+        files[file.id] = { ...file, dataURL: used.url, mimeType: used.mimeType };
         hydrated += 1;
       } catch {
         failed.push(remota);
@@ -165,130 +167,140 @@ export {
   C as Canvas2,
   a as Canvas2Editor,
   b as CanvasMenu,
-  f as DEFAULT_LABELS,
+  D as DEFAULT_LABELS,
   D2 as DEFAULT_MAX_SUBPATHS,
-  q as DEFAULT_PAGE_SIZE,
-  D as DesignPanel,
-  e as DragPreview,
-  a2 as EMPTY_BRAND,
+  o as DEFAULT_PAGE_SIZE,
+  c as DesignPanel,
+  d as DragPreview,
+  q as EMPTY_BRAND,
+  E as EN_LABELS,
   EXCALIDRAW_BUILTIN_FAMILIES,
-  at as ImageLoadError,
+  I as ImageLoadError,
   L as LayersPanel,
-  c as LibraryPanel,
-  n as MEDIA_DROP_TYPE,
-  X as PAGE_ALIGNMENTS,
+  e as LibraryPanel,
+  s as MEDIA_DROP_TYPE,
+  t as PAGE_ALIGNMENTS,
   P2 as PAGE_GAP,
-  s as PAGE_SIZE_PRESETS,
-  g as PANEL_FONT,
+  u as PAGE_SIZE_PRESETS,
+  P as PANEL_FONT,
   P3 as PSD_IMAGE_MARKER,
-  d as PageActions,
-  P as PageNavigator,
-  au as TEXT_PRESETS,
-  aH as VIDEO_MARKER,
+  f as PageActions,
+  g as PageNavigator,
+  T as TEXT_PRESETS,
+  v as VIDEO_MARKER,
   w as addPage,
-  Q as adoptLooseIntoPage,
-  G as adoptStrayFramesInArray,
-  Y as alignToPage,
+  x as adoptLooseIntoPage,
+  y as adoptStrayFramesInArray,
+  z as alignToPage,
   appendComponentToEditorConfig,
   buildFontFaceCss,
   buildHydratedFiles,
   buildPersistableFiles,
-  ac as captureThumbnail,
-  am as cascadePoints,
+  A as captureThumbnail,
+  F as cascadePoints,
   clearHydrationCache,
   cloneSceneElements,
-  S as clusterLooseElements,
+  G as clusterLooseElements,
   commitElements,
-  aw as contrastTextColor,
+  H as contrastTextColor,
   convertToExcalidrawElements,
-  O as convertToPages,
+  J as convertToPages,
   c2 as countSubpaths,
-  t as createBlankScene,
+  K as createBlankScene,
   customFontFamilyId,
-  as as dataUrlToBlob,
+  N as dataUrlToBlob,
   dedupeFontFaces,
-  a3 as default,
-  x as deletePage,
+  a2 as default,
+  O as deletePage,
   deriveComponentMeta,
-  ad as downloadBlob,
-  A as duplicatePage,
-  az as ensurePagePapers,
-  ab as exportScenePdf,
-  a9 as exportScenePng,
-  aa as exportSceneSvg,
-  af as exportStoredScenePng,
-  ae as exportStoredSceneSvg,
-  _ as extendToPage,
-  ao as externalizeInlineImages,
+  Q as displayPageName,
+  R as downloadBlob,
+  S as duplicatePage,
+  U as ensurePagePapers,
+  W as exportScenePdf,
+  X as exportScenePng,
+  Y as exportSceneSvg,
+  Z as exportStoredScenePng,
+  _ as exportStoredSceneSvg,
+  $ as extendToPage,
+  a0 as externalizeInlineImages,
   extractComponentFragment,
   extractPageForComponent,
-  aq as findInlineImageIds,
-  y as fitAllPages,
+  a1 as findInlineImageIds,
+  a22 as fitAllPages,
   fitImageInBox,
-  aA as fitPagePapersInArray,
+  a3 as fitPagePapersInArray,
   f2 as flattenBezierPath,
-  N as focusLayer,
+  a4 as focusLayer,
   fontFamilyAlias,
   a5 as fontFamilyId,
-  ax as getPageBackground,
-  v as getPageSize,
-  aG as getSelectedVideo,
-  aF as getVideoMeta,
+  a6 as getPageBackground,
+  a7 as getPageNotes,
+  a8 as getPageSize,
+  a9 as getPageTransition,
+  aa as getSelectedVideo,
+  ab as getVideoMeta,
   goToPage,
   g2 as groupStyleRuns,
-  ap as hasUploadsInFlight,
-  o as hideNativeDragImage,
-  an as imageAtScenePoint,
+  ac as hasUploadsInFlight,
+  ad as hideNativeDragImage,
+  ae as imageAtScenePoint,
   insertComponentIntoScene,
-  ah as insertImageFromBlob,
-  ai as insertImageFromUrl,
-  aj as insertImageWithPreview,
-  av as insertTextPreset,
-  aC as insertVideo,
+  af as insertImageFromBlob,
+  ag as insertImageFromUrl,
+  ah as insertImageWithPreview,
+  ai as insertPagesIntoScene,
+  aj as insertTextPreset,
+  ak as insertVideo,
   instantiateComponent,
-  ar as isInlineDataUrl,
-  aB as isPageBackground,
-  J as isPageLocked,
-  aE as isVideoElement,
-  h as legacyToScene,
-  l as listImagePlaceholders,
-  u as listPages,
+  al as isInlineDataUrl,
+  i as isPageBackground,
+  am as isPageLocked,
+  an as isPageSkipped,
+  ao as isVideoElement,
+  l as labelsFor,
+  l2 as legacyToScene,
+  a10 as listImagePlaceholders,
+  ap as listPages,
   listSlots,
-  T as looseElements,
+  aq as looseElements,
   measureWrappedText,
   m as mergeLabels,
-  H as movePage,
-  I as movePageTo,
+  ar as movePage,
+  as as movePageTo,
   normalizeFontName,
   packPagesInArray,
-  R as paginateSceneInArray,
+  at as paginateSceneInArray,
   p as palette,
-  e2 as parseLegacyText,
-  a7 as parseScene,
-  U as patchElement,
-  a10 as postScriptStyleToCss,
-  p2 as psdColorToHex,
-  b2 as psdToScene,
-  a32 as registerCustomFont,
-  a4 as registerCustomFonts,
-  F as relayoutPages,
-  z as renamePage,
+  p2 as parseLegacyText,
+  au as parseScene,
+  av as patchElement,
+  b2 as postScriptStyleToCss,
+  d2 as psdColorToHex,
+  e2 as psdToScene,
+  aw as registerCustomFont,
+  ax as registerCustomFonts,
+  ay as relayoutPages,
+  az as renamePage,
   renumberPagesInArray,
-  $ as reorderPageMembers,
-  ak as replaceImageFromUrl,
-  r as resetPsdIdCounter,
-  E as resizePage,
-  a1 as resolveBrandKit,
-  al as resolveInsertPageId,
-  a8 as restoreScene,
-  a0 as sendMemberToBack,
-  a6 as serializeScene,
-  Z as setAsBackground,
-  ay as setPageBackgroundColor,
-  K as setPageLocked,
-  aD as setVideoPoster,
+  aA as reorderPageMembers,
+  aB as replaceImageFromUrl,
+  h as resetPsdIdCounter,
+  aC as resizePage,
+  aD as resolveBrandKit,
+  aE as resolveInsertPageId,
+  aF as restoreScene,
+  aG as sendMemberToBack,
+  aH as serializeScene,
+  aI as setAsBackground,
+  aJ as setPageBackgroundColor,
+  aK as setPageLocked,
+  aL as setPageNotes,
+  aM as setPageSkipped,
+  aN as setPageTransition,
+  aO as setVideoPoster,
   s2 as splitPostScriptFont,
-  ag as storedScenePageCount,
-  W as usePageThumbnails
+  aP as storedScenePageCount,
+  aQ as usePageThumbnails
 };
 //# sourceMappingURL=index.js.map

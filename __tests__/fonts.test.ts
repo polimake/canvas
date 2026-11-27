@@ -8,9 +8,27 @@ import {
   customFontFamilyId,
   dedupeFontFaces,
   fontFamilyAlias,
+  fontFamilyCss,
   normalizeFontName,
   normalizeFontSrc,
 } from '../src/core/fonts';
+
+describe('fontFamilyCss', () => {
+  it('deja sin comillas lo que ya es un nombre de familia válido', () => {
+    expect(fontFamilyCss('Montserrat')).toBe('Montserrat');
+    expect(fontFamilyCss('Instrument Serif')).toBe('Instrument Serif');
+    expect(fontFamilyCss('Space-Grotesk')).toBe('Space-Grotesk');
+  });
+
+  it('entrecomilla lo que el atajo font no sabe leer suelto', () => {
+    expect(fontFamilyCss('Helvetica (marca)')).toBe('"Helvetica (marca)"');
+    expect(fontFamilyCss('Nunito (marca)')).toBe('"Nunito (marca)"');
+    expect(fontFamilyCss('Serif')).toBe('"Serif"');
+    expect(fontFamilyCss('Ben & Jerry')).toBe('"Ben & Jerry"');
+    // Una comilla dentro no cierra la cadena.
+    expect(fontFamilyCss('A"B (x)')).toBe('"A\\22 B (x)"');
+  });
+});
 
 describe('nombres de familia', () => {
   it('normaliza comillas y espacios', () => {
@@ -184,7 +202,28 @@ describe('registro contra FONT_FAMILY', () => {
     const { registerCustomFont } = await cargar(tabla);
     registerCustomFont('Nunito');
     expect(tabla.Nunito).toBe(6);
-    expect(tabla['Nunito (marca)']).toBe(customFontFamilyId('Nunito'));
+    expect((tabla as Record<string, number>)['"Nunito (marca)"']).toBe(customFontFamilyId('Nunito'));
+  });
+
+  it('la clave de un alias con paréntesis va entre comillas, que es como la usa el atajo font', async () => {
+    // Un PDF con texto en Helvetica trae la marca "Helvetica" → alias
+    // "Helvetica (marca)". Excalidraw pone la clave sin comillas en
+    // `document.fonts.check('16px <clave>, Segoe UI Emoji')`, y con los
+    // paréntesis sueltos eso lanza y tumba la miniatura de la página.
+    const tabla = tablaFalsa();
+    const { registerCustomFont, fontFamilyId, resetFontRegistry } = await cargar(tabla);
+    const reg = registerCustomFont('Helvetica');
+    expect(reg).toEqual({ alias: 'Helvetica (marca)', id: customFontFamilyId('Helvetica') });
+    expect(tabla).not.toHaveProperty('Helvetica (marca)');
+    expect((tabla as Record<string, number>)['"Helvetica (marca)"']).toBe(customFontFamilyId('Helvetica'));
+    expect(tabla.Helvetica).toBe(2);
+    expect(fontFamilyId('Helvetica')).toBe(customFontFamilyId('Helvetica'));
+    // Volver a registrarla no la confunde con una colisión.
+    const aviso = vi.spyOn(console, 'error').mockImplementation(() => {});
+    resetFontRegistry();
+    expect(registerCustomFont('Helvetica')).toEqual(reg);
+    expect(aviso).not.toHaveBeenCalled();
+    aviso.mockRestore();
   });
 
   it('es idempotente', async () => {
@@ -242,5 +281,63 @@ describe('normalizeFontSrc', () => {
   it('deja en paz lo que ya es https o un data URI', () => {
     expect(normalizeFontSrc('https://x/y.woff2')).toBe('https://x/y.woff2');
     expect(normalizeFontSrc('data:font/woff2;base64,AAA')).toBe('data:font/woff2;base64,AAA');
+  });
+});
+
+// seguridad run-3 49: una letra da exactamente una regla, diga lo que diga. Las
+// letras llegan de escenas, de `editorConfig` y del kit de marca, y este CSS va a
+// un <style> del documento de la app.
+describe('buildFontFaceCss no deja salir nada de sus cadenas', () => {
+  /** Lo que queda tras quitar el contenido de las cadenas, como lo lee el navegador. */
+  const sinCadenas = (css: string) => {
+    let fuera = '';
+    let dentro = false;
+    for (let i = 0; i < css.length; i++) {
+      const c = css[i];
+      if (dentro) {
+        if (c === '\\') i++;
+        else if (c === '"' || c === '\n') dentro = false;
+      } else if (c === '"') dentro = true;
+      else fuera += c;
+    }
+    return fuera;
+  };
+  const llaves = (css: string) => sinCadenas(css).replace(/[^{}]/g, '');
+  const trampa = 'X";}body{outline:thick solid red}@font-face{font-family:"Y';
+
+  it('una familia o un src con comillas no cierra la cadena', () => {
+    for (const cara of [
+      { family: trampa, src: 'a.woff2' },
+      { family: 'F', src: 'a.woff2") } body{outline:thick solid red} @font-face{src:url("y' },
+    ]) {
+      const css = buildFontFaceCss([cara]);
+      expect(llaves(css)).toBe('{}');
+      expect(sinCadenas(css)).not.toContain('body');
+    }
+  });
+
+  it('tampoco con barra invertida, salto de línea o <', () => {
+    for (const family of ['A\\', 'A\n}body{color:red}', 'A\r}body{color:red}', 'A\f}body{color:red}', 'A</style><b>']) {
+      const css = buildFontFaceCss([{ family, src: 'a.woff2' }]);
+      expect(llaves(css)).toBe('{}');
+      expect(css).not.toContain('<');
+      expect(css.split('\n')).toHaveLength(1);
+    }
+  });
+
+  it('el peso y el estilo solo valen si son eso', () => {
+    const css = buildFontFaceCss([
+      { family: 'F', src: 'a.woff2', weight: '700;}body{color:red}', style: 'italic;}body{color:red}' } as never,
+    ]);
+    expect(llaves(css)).toBe('{}');
+    expect(css).not.toContain('body');
+    expect(css).toContain('font-weight:normal');
+    expect(css).toContain('font-style:normal');
+  });
+
+  it('una letra normal sale igual que siempre', () => {
+    expect(buildFontFaceCss([{ family: 'Bebas Neue', src: '/letras/Titular (de E).ttf', weight: '700', style: 'italic' }], { display: 'swap' })).toBe(
+      '@font-face{font-family:"Bebas Neue";src:url("/letras/Titular (de E).ttf") format("truetype");font-weight:700;font-style:italic;font-display:swap;}',
+    );
   });
 });

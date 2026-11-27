@@ -26,6 +26,33 @@ function fontFamilyAlias(name) {
   if (!limpio) return "";
   return BUILTIN.has(limpio.toLowerCase()) ? `${limpio}${ALIAS_SUFFIX}` : limpio;
 }
+const RESERVADAS_CSS = /* @__PURE__ */ new Set([
+  "serif",
+  "sans-serif",
+  "monospace",
+  "cursive",
+  "fantasy",
+  "system-ui",
+  "math",
+  "emoji",
+  "fangsong",
+  "ui-serif",
+  "ui-sans-serif",
+  "ui-monospace",
+  "ui-rounded",
+  "inherit",
+  "initial",
+  "unset",
+  "revert",
+  "revert-layer",
+  "default"
+]);
+const IDENTIFICADOR_CSS = /^-?[_a-zA-Z -\u{10FFFF}][_a-zA-Z0-9 -\u{10FFFF}-]*$/u;
+function fontFamilyCss(alias) {
+  const palabras = alias.split(" ");
+  const suelto = alias.length > 0 && palabras.every((p) => IDENTIFICADOR_CSS.test(p)) && !(palabras.length === 1 && RESERVADAS_CSS.has(alias.toLowerCase()));
+  return suelto ? alias : `"${dentroDeCadenaCss(alias)}"`;
+}
 function customFontFamilyId(name) {
   const alias = fontFamilyAlias(name);
   if (!alias) return 0;
@@ -48,11 +75,21 @@ function fontFormatHint(src) {
   if (limpio.endsWith(".ttf")) return "truetype";
   return null;
 }
+function dentroDeCadenaCss(texto) {
+  return texto.replace(/["\\<>\u0000-\u001f\u007f]/g, (c) => `\\${c.charCodeAt(0).toString(16)} `);
+}
+function pesoCss(peso) {
+  return peso && /^(normal|bold|bolder|lighter|\d{1,4}( \d{1,4})?)$/.test(peso) ? peso : "normal";
+}
+function estiloCss(estilo) {
+  return estilo && /^(normal|italic|oblique( -?\d{1,3}(\.\d+)?deg){0,2})$/.test(estilo) ? estilo : "normal";
+}
 function buildFontFaceCss(faces, opts) {
   return faces.filter((f) => f.family && f.src).map((f) => {
     const hint = fontFormatHint(f.src);
-    const src = hint ? `url("${f.src}") format("${hint}")` : `url("${f.src}")`;
-    return `@font-face{font-family:"${f.family}";src:${src};font-weight:${f.weight ?? "normal"};font-style:${f.style ?? "normal"};` + ((opts == null ? void 0 : opts.display) ? `font-display:${opts.display};` : "") + "}";
+    const direccion = `url("${dentroDeCadenaCss(f.src)}")`;
+    const src = hint ? `${direccion} format("${hint}")` : direccion;
+    return `@font-face{font-family:"${dentroDeCadenaCss(f.family)}";src:${src};font-weight:${pesoCss(f.weight)};font-style:${estiloCss(f.style)};` + ((opts == null ? void 0 : opts.display) ? `font-display:${opts.display};` : "") + "}";
   }).join("\n");
 }
 function dedupeFontFaces(faces) {
@@ -69,6 +106,7 @@ export {
   customFontFamilyId,
   dedupeFontFaces,
   fontFamilyAlias,
+  fontFamilyCss,
   fontFormatHint,
   normalizeFontName,
   normalizeFontSrc,

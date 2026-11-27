@@ -1,6 +1,7 @@
 export { Canvas2Editor, Canvas2, default } from './ui/editor/Canvas2';
-export type { Canvas2EditorProps, Canvas2Scene, Canvas2Api } from './ui/editor/Canvas2';
+export type { Canvas2EditorProps, Canvas2Scene, Canvas2Api, Canvas2HostPanel } from './ui/editor/Canvas2';
 export type { CanvasWorkspace } from './ui/workspaces/types';
+export type { SlidesHostOptions, SlidesImport } from './ui/workspaces/slides/SlidesWorkspace';
 export type { Canvas2Mode, Canvas2ModeControl } from './ui/navigation/ModeSwitch';
 // Tipo de dataTransfer para soltar media de la biblioteca sobre el lienzo.
 export { MEDIA_DROP_TYPE } from './ui/editor/Canvas2';
@@ -39,6 +40,8 @@ export type { PageInfo, PageSize, PageSizePreset } from './core/pages';
 // Los nombres que el editor pone a las páginas, que se guardan con el diseño:
 // los aceptan `createBlankScene`, `addPage`, `duplicatePage` y compañía.
 export type { PageNames } from './core/pageNames';
+// Cómo se lee un nombre de serie en el idioma de ahora, sin cambiar el guardado.
+export { displayPageName } from './core/pageNames';
 // Paginar una escena que llegó sin páginas (importada, pegada, arrastrada).
 export {
   convertToPages,
@@ -105,7 +108,7 @@ export type { LayersPanelProps } from './ui/panels/LayersPanel';
 // Menú principal del editor (fondo de página, tamaño, exportar). Lo monta
 // Canvas2Editor; se exporta para hosts que compongan su propio editor.
 export { CanvasMenu } from './ui/navigation/CanvasMenu';
-export type { CanvasMenuProps } from './ui/navigation/CanvasMenu';
+export type { CanvasMenuProps, CanvasThemeChoice, CanvasThemeChoiceValue } from './ui/navigation/CanvasMenu';
 // Acciones de la página activa, flotando sobre el lienzo junto a su nombre.
 export { PageActions } from './ui/navigation/PageActions';
 export type { PageActionsProps } from './ui/navigation/PageActions';
@@ -113,7 +116,7 @@ export { setAsBackground, extendToPage } from './core/imageOps';
 export { reorderPageMembers, sendMemberToBack } from './core/zorder';
 export { palette, PANEL_FONT } from './ui/shared/theme';
 // Contrato de textos: canvas2 no lleva i18n dentro, el host inyecta.
-export { DEFAULT_LABELS, mergeLabels } from './ui/shared/labels';
+export { DEFAULT_LABELS, EN_LABELS, labelsFor, mergeLabels } from './ui/shared/labels';
 export type { Canvas2Labels, PartialLabels } from './ui/shared/labels';
 export type { Palette, Canvas2Theme } from './ui/shared/theme';
 
@@ -224,6 +227,10 @@ export type {
   SlotValues,
 } from './core/components';
 export { insertComponentIntoScene, extractPageForComponent } from './core/insertComponent';
+// Páginas de un .pptx/.pdf ya convertidas, al final de la presentación (una entrada de deshacer).
+export { insertPagesIntoScene, type IncomingPages } from './core/insertPages';
+// Notas del orador, saltar y transición de cada diapositiva (espacio Presentación).
+export { getPageNotes, setPageNotes, isPageSkipped, setPageSkipped, getPageTransition, setPageTransition } from './core/slideMeta';
 
 // ─── Text presets + page background ───────────────────────────────────────────
 export { TEXT_PRESETS, insertTextPreset, contrastTextColor } from './core/text';

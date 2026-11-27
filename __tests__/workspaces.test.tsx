@@ -72,15 +72,18 @@ describe('workspace switching', () => {
     expect(onChange.mock.calls).toEqual([['advanced'], ['design'], ['excalidraw']]);
   });
 
-  it('lets a controlled host accept a choice before persisting it', () => {
+  it('lets a controlled host accept a choice, and remembers only what the user picks', () => {
     const onChange = vi.fn();
     const { rerender } = render(<Canvas2Editor workspace="design" onWorkspaceChange={onChange} />);
+    // Lo que impone el host (un diseño que se abre así) no es gusto del navegador.
+    expect(localStorage.getItem(WORKSPACE_STORAGE_KEY)).toBeNull();
     choose('Experta');
     expect(onChange).toHaveBeenCalledWith('advanced');
     expect(checked('Canva')).toBe('true');
-    expect(localStorage.getItem(WORKSPACE_STORAGE_KEY)).toBe('design');
+    expect(localStorage.getItem(WORKSPACE_STORAGE_KEY)).toBe('advanced');
     rerender(<Canvas2Editor workspace="advanced" onWorkspaceChange={onChange} />);
     expect(checked('Experta')).toBe('true');
+    rerender(<Canvas2Editor workspace="slides" onWorkspaceChange={onChange} />);
     expect(localStorage.getItem(WORKSPACE_STORAGE_KEY)).toBe('advanced');
     expect(mounted).toHaveBeenCalledTimes(1);
   });
@@ -110,10 +113,9 @@ describe('workspace switching', () => {
     expect(root().style.getPropertyValue('--c2-find-on-canvas')).toBe('"Find on canvas"');
   });
 
-  it('keeps workspace choices and host insertion slots out of read-only previews', () => {
+  it('keeps host insertion slots out of read-only previews (switching workspace is allowed)', () => {
     render(<Canvas2Editor viewMode library={<div>Assets</div>} componentsPanel={<div>Components</div>}
       agentPanel={<div>Agent conversation</div>} />);
-    expect(screen.queryByRole('menuitemradio')).toBeNull();
     expect(screen.queryByRole('complementary')).toBeNull();
     expect(screen.queryByText('Assets')).toBeNull();
     expect(screen.queryByText('Components')).toBeNull();
@@ -192,5 +194,48 @@ describe('dark theme', () => {
     // Una pizarra sin páginas conserva el modo noche nativo.
     render(<Canvas2Editor theme="dark" />);
     expect(screen.getByTestId('engine').getAttribute('data-theme')).toBe('dark');
+  });
+});
+
+describe('Presentación', () => {
+  it('pone el cromo de Slides sobre el MISMO motor y guarda las notas en la página', () => {
+    // Un contenedor de escritorio: a menos de 861 px el espacio cae a Diseño (móvil).
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(
+      { x: 0, y: 0, left: 0, top: 0, right: 1600, bottom: 900, width: 1600, height: 900, toJSON: () => ({}) } as DOMRect,
+    );
+    engine = fakeApi([frame('p1', 0, 0, 1920, 1080), frame('p2', 1968, 0, 1920, 1080)]);
+    const { container } = render(<Canvas2Editor pages onWorkspaceChange={vi.fn()} />);
+    act(() => { engine.api.updateScene({ elements: engine.get() }); });
+    const surface = screen.getByTestId('engine');
+    choose('Presentación');
+    expect(container.querySelector('[data-workspace="slides"]')).toBeTruthy();
+    expect(screen.getByTestId('engine')).toBe(surface);
+    expect(mounted).toHaveBeenCalledTimes(1);
+    expect(unmounted).not.toHaveBeenCalled();
+    expect(screen.getByRole('menubar', { name: 'Menús de la presentación' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Diapositiva 1' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Diapositiva 2' })).toBeTruthy();
+    // La tira de páginas y la barra de la página son las de los otros espacios.
+    expect(container.querySelector('[data-canvas2-pages]')).toBeNull();
+    expect(container.querySelector('[data-testid="canvas2-page-actions"]')).toBeNull();
+
+    const notes = screen.getByRole('textbox', { name: 'Notas del orador' });
+    const before = engine.commits.length;
+    fireEvent.focus(notes);
+    fireEvent.change(notes, { target: { value: 'Abrir con la pregunta' } });
+    expect(engine.commits.length).toBe(before);
+    fireEvent.blur(notes);
+    expect(engine.commits.length).toBe(before + 1);
+    const withNotes = engine.get().filter((e) => e.customData?.c2notes === 'Abrir con la pregunta');
+    expect(withNotes).toHaveLength(1);
+    expect(withNotes[0].type).toBe('frame');
+  });
+
+  it('sin páginas (pizarra libre) se pinta como Diseño y conserva la elección', () => {
+    localStorage.setItem(WORKSPACE_STORAGE_KEY, 'slides');
+    const { container } = render(<Canvas2Editor />);
+    expect(container.querySelector('[data-workspace="design"]')).toBeTruthy();
+    expect(screen.queryByRole('menubar')).toBeNull();
+    expect(localStorage.getItem(WORKSPACE_STORAGE_KEY)).toBe('slides');
   });
 });

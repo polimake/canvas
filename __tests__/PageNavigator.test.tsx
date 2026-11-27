@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, within, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, within, cleanup, act } from '@testing-library/react';
 import { excalMock, fakeApi, frame } from './helpers';
 
 vi.mock('../src/core/excal', () => excalMock);
@@ -27,21 +27,30 @@ const tresPaginas = () =>
     frame('c', 2256, 0, 1080, 1350, { name: 'Página 3' }),
   ]);
 
-/** El `dataTransfer` que jsdom no trae. */
-function dt() {
-  const store: Record<string, string> = {};
-  return {
-    setData: (t: string, v: string) => {
-      store[t] = v;
-    },
-    getData: (t: string) => store[t] ?? '',
-    setDragImage: vi.fn(),
-    get types() {
-      return Object.keys(store);
-    },
-    effectAllowed: '',
-    dropEffect: '',
+/**
+ * Arrastra con el puntero, como en el escritorio (desktop#371): jsdom no mide
+ * nada, así que cada ficha dice dónde está por su orden (120 px de ancho).
+ */
+function arrastrar(desde: HTMLElement, hastaX: number) {
+  const fichas = Array.from(document.querySelectorAll<HTMLElement>('.canvas2-page-chip'));
+  fichas.forEach((f, i) => {
+    f.getBoundingClientRect = () =>
+      ({ left: i * 120, top: 0, width: 100, height: 120, right: i * 120 + 100, bottom: 120, x: i * 120, y: 0 }) as DOMRect;
+  });
+  const x0 = desde.getBoundingClientRect().left + 50;
+  fireEvent.pointerDown(desde, { button: 0, pointerId: 1, clientX: x0, clientY: 60 });
+  const mover = (tipo: string, x: number) => {
+    const ev = new MouseEvent(tipo, { clientX: x, clientY: 60, bubbles: true, cancelable: true });
+    Object.defineProperty(ev, 'pointerId', { value: 1 });
+    act(() => {
+      window.dispatchEvent(ev);
+    });
   };
+  mover('pointermove', x0 + (hastaX > x0 ? 20 : -20));
+  mover('pointermove', hastaX);
+  mover('pointerup', hastaX);
+  // El navegador manda un clic tras el `pointerup`: el arrastre se lo traga.
+  act(() => desde.click());
 }
 
 describe('PageNavigator', () => {
@@ -72,11 +81,8 @@ describe('PageNavigator', () => {
   it('arrastrar y soltar reordena de verdad la escena', () => {
     const { api, get } = tresPaginas();
     render(<PageNavigator api={api as never} />);
-    const transfer = dt();
 
-    fireEvent.dragStart(screen.getByTitle('Página 3'), { dataTransfer: transfer });
-    fireEvent.dragOver(screen.getByTitle('Portada'), { dataTransfer: transfer });
-    fireEvent.drop(screen.getByTitle('Portada'), { dataTransfer: transfer });
+    arrastrar(screen.getByTitle('Página 3'), 10);
 
     const orden = get()
       .filter((e: { type: string }) => e.type === 'frame')
@@ -88,18 +94,15 @@ describe('PageNavigator', () => {
   it('soltar una página sobre sí misma no cambia nada', () => {
     const { api, commits } = tresPaginas();
     render(<PageNavigator api={api as never} />);
-    const transfer = dt();
-    const chip = screen.getByTitle('Portada');
-
-    fireEvent.dragStart(chip, { dataTransfer: transfer });
-    fireEvent.drop(chip, { dataTransfer: transfer });
+    arrastrar(screen.getByTitle('Portada'), 40);
     expect(commits).toHaveLength(0);
   });
 
   it('en modo lectura las tarjetas no se pueden arrastrar', () => {
-    const { api } = tresPaginas();
+    const { api, commits } = tresPaginas();
     render(<PageNavigator api={api as never} viewMode />);
-    expect(screen.getByTitle('Portada').getAttribute('draggable')).toBe('false');
+    arrastrar(screen.getByTitle('Página 3'), 10);
+    expect(commits).toHaveLength(0);
   });
 
   it('doble clic abre el renombrado y Enter lo guarda', () => {

@@ -12,6 +12,7 @@ import { mergeLabels, type Canvas2Labels, type PartialLabels } from '../shared/l
 import { reorderPageMembers } from '../../core/zorder';
 import { setAsBackground, extendToPage } from '../../core/imageOps';
 import { renamePage } from '../../core/pages';
+import { displayPageName } from '../../core/pageNames';
 import { isPageBackground } from '../../core/background';
 import { PAGE_ALIGNMENTS, alignToPage, type PageAlignment } from '../../core/align';
 import {
@@ -22,6 +23,8 @@ import {
   AlignRightIcon,
   AlignTopIcon,
   ArrowIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
   CircleIcon,
   CoverIcon,
   DiamondIcon,
@@ -29,6 +32,7 @@ import {
   EyeIcon,
   EyeOffIcon,
   FrameIcon,
+  GroupIcon,
   ImageIcon,
   LineIcon,
   LockIcon,
@@ -80,7 +84,8 @@ function typeIcon(type: string): ReactNode {
 function displayName(el: SceneElement, L: Canvas2Labels['layers']): string {
   if (el.type === 'text') {
     const t = (el.text ?? '').replace(/\s+/g, ' ').trim();
-    return t ? L.textWith(t.slice(0, 20)) : L.text;
+    // Corta la fila con «…» (CSS); aquí solo se acota lo que se pasa.
+    return t ? L.textWith(t.slice(0, 60)) : L.text;
   }
   const typeName: Record<string, string> = {
     image: L.image,
@@ -92,6 +97,56 @@ function displayName(el: SceneElement, L: Canvas2Labels['layers']): string {
     freedraw: L.freedraw,
   };
   return typeName[el.type] ?? el.type;
+}
+
+/** Una fila de la lista: una capa suelta (o dentro de un grupo abierto) o un grupo. */
+export type LayerItem =
+  | { kind: 'element'; el: SceneElement; depth: 0 | 1 }
+  | { kind: 'group'; id: string; members: SceneElement[] };
+
+/** El grupo más EXTERIOR de una capa: Excalidraw los guarda de dentro a fuera. */
+function outerGroup(el: SceneElement): string | null {
+  const ids = (el as { groupIds?: readonly string[] }).groupIds;
+  return ids && ids.length ? ids[ids.length - 1] : null;
+}
+
+/**
+ * La lista tal y como se pinta, de arriba abajo. Cada grupo de dos o más capas
+ * sale UNA vez, en el sitio de su capa más alta, y sus capas solo debajo de él
+ * y si está desplegado. Antes salía cada línea y cada elipse por separado, y
+ * una pieza de la IA eran treinta filas de «Línea» y «Elipse» sin forma de
+ * saber cuál era cuál.
+ */
+export function layerItems(rows: readonly SceneElement[], open: ReadonlySet<string>): LayerItem[] {
+  const items: LayerItem[] = [];
+  const seen = new Set<string>();
+  for (const el of rows) {
+    const group = outerGroup(el);
+    if (!group) {
+      items.push({ kind: 'element', el, depth: 0 });
+      continue;
+    }
+    if (seen.has(group)) continue;
+    seen.add(group);
+    const members = rows.filter((r) => outerGroup(r) === group);
+    if (members.length < 2) {
+      items.push({ kind: 'element', el, depth: 0 });
+      continue;
+    }
+    items.push({ kind: 'group', id: group, members });
+    if (open.has(group)) for (const m of members) items.push({ kind: 'element', el: m, depth: 1 });
+  }
+  return items;
+}
+
+/** Un grupo se llama como su primer texto («Bordado»); sin texto, «Grupo». */
+export function groupName(members: readonly SceneElement[], L: Canvas2Labels['layers']): string {
+  for (const el of members) {
+    if (el.type !== 'text') continue;
+    const t = (el.text ?? '').replace(/\s+/g, ' ').trim();
+    if (t) return t.slice(0, 60);
+  }
+  return L.group;
 }
 
 /** Stable string of everything the panel renders from, to gate re-renders. */
@@ -142,6 +197,9 @@ export function LayersPanel({
   });
   // Inline rename for the page footer (replaces window.prompt).
   const [renamingPage, setRenamingPage] = useState<string | null>(null);
+  // Grupos desplegados (por id de grupo). Plegados de serie: una pieza hecha
+  // con la IA trae decenas de líneas y elipses sueltas dentro de cada grupo.
+  const [openGroups, setOpenGroups] = useState<ReadonlySet<string>>(() => new Set());
 
   useEffect(() => {
     const refresh = () => {
@@ -177,6 +235,7 @@ export function LayersPanel({
   // Array order is ascending z (bottom→top); reverse for top-first display.
   const rows = [...members].reverse();
   const selected = api.getAppState().selectedElementIds;
+  const items = layerItems(rows, openGroups);
 
   // Ficheros de la escena, para pintar la miniatura de las capas de imagen.
   // `getFiles()` devuelve el mapa vivo; la url puede ser de MediaMonster o un
@@ -217,6 +276,45 @@ export function LayersPanel({
       patch(el.id, { opacity: 0 });
     }
   };
+
+  // ── Grupos: lo mismo que una capa, sobre todas las suyas de una vez ──
+  const patchMany = (ids: ReadonlySet<string>, changes: (e: SceneElement) => Partial<SceneElement>) => {
+    const next = api.getSceneElements().map((e) => (ids.has(e.id) ? patchElement(e, changes(e)) : e));
+    commitElements(api, next);
+  };
+  const selectGroup = (id: string, members: readonly SceneElement[]) => {
+    api.updateScene({
+      appState: {
+        selectedElementIds: Object.fromEntries(members.map((m) => [m.id, true])),
+        selectedGroupIds: { [id]: true },
+      },
+      captureUpdate: CaptureUpdateAction.NEVER,
+    });
+  };
+  const toggleGroupVisibility = (members: readonly SceneElement[]) => {
+    const ids = new Set(members.map((m) => m.id));
+    const allHidden = members.every((m) => m.opacity === 0);
+    if (!allHidden) for (const m of members) if (m.opacity !== 0) priorOpacity.current.set(m.id, m.opacity);
+    patchMany(ids, (e) => ({ opacity: allHidden ? priorOpacity.current.get(e.id) ?? 100 : 0 }));
+  };
+  const toggleGroupLock = (members: readonly SceneElement[]) => {
+    const lock = !members.every((m) => m.locked);
+    patchMany(new Set(members.map((m) => m.id)), () => ({ locked: lock }) as Partial<SceneElement>);
+  };
+  const removeGroup = (members: readonly SceneElement[]) => {
+    const ids = new Set(members.map((m) => m.id));
+    const next = api
+      .getSceneElements()
+      .filter((e) => !ids.has(e.id) && !ids.has((e as { containerId?: string }).containerId ?? ''));
+    commitElements(api, next);
+  };
+  const toggleOpen = (id: string) =>
+    setOpenGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   const handleDrop = (targetId: string) => {
     const fromId = dragId.current;
@@ -361,7 +459,76 @@ export function LayersPanel({
           </div>
         )}
 
-        {rows.map((el) => {
+        {items.map((item) => {
+          if (item.kind === 'group') {
+            const { id, members } = item;
+            const open = openGroups.has(id);
+            const isSel = members.every((m) => selected[m.id]);
+            const hidden = members.every((m) => m.opacity === 0);
+            const locked = members.every((m) => m.locked);
+            return (
+              <div
+                key={`group:${id}`}
+                onClick={() => selectGroup(id, members)}
+                className="canvas2-layer-row"
+                data-selected={isSel ? '' : undefined}
+                data-group=""
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '5px 6px 5px 2px',
+                  borderRadius: 12,
+                  cursor: 'pointer',
+                  background: isSel ? c.hover : 'transparent',
+                  color: c.fg,
+                  opacity: hidden ? 0.45 : 1,
+                }}
+              >
+                <button
+                  type="button"
+                  aria-label={open ? L.layers.collapseGroup : L.layers.expandGroup}
+                  title={open ? L.layers.collapseGroup : L.layers.expandGroup}
+                  aria-expanded={open}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleOpen(id);
+                  }}
+                  className="canvas2-layer-btn"
+                  style={{ all: 'unset', cursor: 'pointer', display: 'inline-grid', placeItems: 'center', width: 18, height: 26, borderRadius: 6, color: c.sub }}
+                >
+                  {open ? <ChevronDownIcon /> : <ChevronRightIcon />}
+                </button>
+                <span style={{ width: 32, height: 32, flexShrink: 0, display: 'inline-grid', placeItems: 'center', borderRadius: 6, background: c.hover, color: c.sub }}>
+                  <GroupIcon />
+                </span>
+                <span
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    fontSize: 13,
+                    fontWeight: isSel ? 600 : 500,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {groupName(members, L.layers)}
+                </span>
+                <span className="canvas2-layer-count" style={{ flexShrink: 0, fontSize: 12, color: c.sub, paddingRight: 4 }}>
+                  {L.layers.groupCount(members.length)}
+                </span>
+                {!viewMode && (
+                  <span className="canvas2-layer-actions" style={{ display: 'inline-flex', flexShrink: 0 }}>
+                    {iconBtn(hidden ? L.layers.show : L.layers.hide, () => toggleGroupVisibility(members), hidden ? <EyeOffIcon /> : <EyeIcon />)}
+                    {iconBtn(locked ? L.layers.unlock : L.layers.lock, () => toggleGroupLock(members), locked ? <LockIcon /> : <UnlockIcon />)}
+                    {iconBtn(L.layers.delete, () => removeGroup(members), <TrashIcon />, true)}
+                  </span>
+                )}
+              </div>
+            );
+          }
+          const { el, depth } = item;
           const isSel = !!selected[el.id];
           const hidden = el.opacity === 0;
           return (
@@ -382,7 +549,8 @@ export function LayersPanel({
                 display: 'flex',
                 alignItems: 'center',
                 gap: 10,
-                padding: '5px 6px',
+                // Dentro de un grupo desplegado, sangrada bajo él.
+                padding: depth ? '5px 6px 5px 30px' : '5px 6px',
                 borderRadius: 12,
                 cursor: 'pointer',
                 // Seleccionada = relleno cálido y peso, no una losa de tinta:
@@ -392,7 +560,7 @@ export function LayersPanel({
                 opacity: hidden ? 0.45 : 1,
               }}
             >
-              <span style={{ width: 32, height: 32, flexShrink: 0, display: 'inline-grid', placeItems: 'center', borderRadius: 8, overflow: 'hidden', background: c.hover, color: c.sub }}>
+              <span style={{ width: 32, height: 32, flexShrink: 0, display: 'inline-grid', placeItems: 'center', borderRadius: 0, overflow: 'hidden', background: c.hover, color: c.sub }}>
                 {/* La miniatura de la propia imagen en vez del icono genérico:
                     en una escena con decenas de capas es lo único que permite
                     saber CUÁL es cuál sin ir pinchando una por una. */}
@@ -501,7 +669,7 @@ export function LayersPanel({
           />
         ) : (
           <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {frame && frame.type === 'frame' ? frame.name ?? L.pages.untitled : L.pages.untitled}
+            {frame && frame.type === 'frame' ? displayPageName(frame.name, L.pages) : L.pages.untitled}
           </span>
         )}
       </div>

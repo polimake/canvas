@@ -17,10 +17,51 @@ const tres = () =>
   ]);
 
 describe('PageActions', () => {
-  it('no se dibuja sin página activa', () => {
+  it('sin página activa no hay acciones, pero cada página lleva su rótulo', () => {
     const { api } = tres();
-    const { container } = render(<PageActions api={api as never} activePageId={null} />);
-    expect(container.firstChild).toBeNull();
+    render(<PageActions api={api as never} activePageId={null} />);
+    expect(screen.queryByTestId('canvas2-page-actions')).toBeNull();
+    // El rótulo de cada hoja lo pinta canvas2 (Excalidraw ya no lo dibuja).
+    expect(screen.getAllByTestId('canvas2-page-label')).toHaveLength(3);
+  });
+
+  it('el rótulo lleva el número en una ficha y el nombre sin numerar; doble clic renombra', () => {
+    const { api } = fakeApi([
+      frame('a', 0, 0, 1080, 1350, { name: '1. Portada' }),
+      frame('b', 1128, 0, 1080, 1350, { name: 'Página 2' }),
+    ]);
+    render(<PageActions api={api as never} activePageId="a" />);
+    const [portada, segunda] = screen.getAllByTestId('canvas2-page-label');
+    expect(portada.textContent).toBe('1Portada');
+    // Un nombre de serie ya dice su número: sin ficha.
+    expect(segunda.textContent).toBe('Página 2');
+
+    fireEvent.doubleClick(segunda);
+    const input = screen.getByLabelText('Renombrar página') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'Cierre' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(api.getSceneElements().find((e: { id: string }) => e.id === 'b')).toMatchObject({ name: 'Cierre' });
+  });
+
+  it('Esc cancela el nombre a medio escribir, y renombrar sin cambiar nada no deja deshacer', () => {
+    const { api } = fakeApi([
+      frame('a', 0, 0, 1080, 1350, { name: 'Portada' }),
+      frame('b', 1128, 0, 1080, 1350, { name: 'Cierre' }),
+    ]);
+    const update = vi.spyOn(api, 'updateScene');
+    render(<PageActions api={api as never} activePageId="a" />);
+    const segunda = screen.getAllByTestId('canvas2-page-label')[1]!;
+    fireEvent.doubleClick(segunda);
+    let input = screen.getByLabelText('Renombrar página') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'A medias' } });
+    fireEvent.keyDown(input, { key: 'Escape' });
+    // El navegador manda blur al quitar el campo: no tiene que guardar.
+    fireEvent.blur(input);
+    expect(api.getSceneElements().find((e: { id: string }) => e.id === 'b')).toMatchObject({ name: 'Cierre' });
+    fireEvent.doubleClick(screen.getAllByTestId('canvas2-page-label')[1]!);
+    input = screen.getByLabelText('Renombrar página') as HTMLInputElement;
+    fireEvent.blur(input);
+    expect(update).not.toHaveBeenCalled();
   });
 
   it('se ancla a la esquina superior DERECHA del marco', () => {
@@ -72,6 +113,15 @@ describe('PageActions', () => {
     fireEvent.click(screen.getByText('¿Eliminar?'));
     const quedan = get().filter((e: { type: string }) => e.type === 'frame');
     expect(quedan.map((f: { id: string }) => f.id)).toEqual(['a', 'c']);
+  });
+
+  it('la confirmación es un botón con nombre y se lleva el foco', () => {
+    // La papelera se va al armar: sin el foco, el lector no anunciaba nada.
+    const { api } = tres();
+    render(<PageActions api={api as never} activePageId="b" />);
+    fireEvent.click(screen.getByLabelText('Eliminar página'));
+    const confirmar = screen.getByRole('button', { name: '¿Eliminar?' });
+    expect(document.activeElement).toBe(confirmar);
   });
 
   it('cambiar de página desarma el borrado', () => {

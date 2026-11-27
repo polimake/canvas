@@ -1,12 +1,13 @@
 # Espacios de trabajo
 
-Canvas ofrece tres distribuciones sobre una misma sesión de Excalidraw:
+Canvas ofrece cuatro distribuciones sobre una misma sesión de Excalidraw:
 
 | Espacio | Organización | Uso |
 | --- | --- | --- |
 | `excalidraw` (predeterminado) | Controles nativos y una barra de recursos a la derecha, cerrados hasta que se necesitan | Dibujo libre con acceso a todas las capacidades habilitadas |
 | `design` (Canva) | Barra izquierda con iconos y paneles de elementos, texto, marca, página, capas y contenido del host | Composición guiada, una tarea a la vez |
 | `advanced` (Experta) | Herramientas a la izquierda, opciones arriba y panel derecho con pestañas y capas fijas | Editar con una distribución compacta inspirada en Photoshop |
+| `slides` (Presentación) | Menús y barra arriba, tira de diapositivas a la izquierda, notas del orador debajo y paneles a la derecha | Hacer y presentar una presentación con la distribución de Slides |
 
 Los tres conservan las herramientas del motor y la navegación inferior por páginas.
 En Diseño, pulsar una sección abre su panel; repetir la pulsación lo cierra.
@@ -88,3 +89,43 @@ deshacer, arrastre y ancho reducido.
 
 
 El cambio de clave deja de heredar el antiguo valor `design`, que se guardaba automáticamente. No modifica documentos ni historiales. Canva usa una barra de 56 px y un ancho total de 288 px con el panel abierto; Excalidraw ocupa 40 px cerrado y 272 px abierto.
+
+
+## Presentación (`slides`)
+
+`ui/workspaces/slides/`. Cada diapositiva es una página (frame): no hay formato
+nuevo. Lo único que se guarda de más va en el `customData` del marco
+(`core/slideMeta.ts`): notas del orador (`c2notes`), saltar al presentar
+(`c2skip`) y transición (`c2transition`).
+
+El cromo va ENCIMA de Excalidraw, en capas (z 3, entre el lienzo y su interfaz),
+porque su caja recorta lo que sale de ella y las opciones de formato de la
+selección —nativas— tienen que caer dentro de la barra. Por eso:
+
+- la diapositiva activa se encaja en el hueco que dejan las capas
+  (`core/slideView.ts`, sin animación ni historial) y las vecinas se tapan con
+  el color de la mesa;
+- la barra de Excalidraw, su menú ☰ y su pie se ocultan; los menús de la fila
+  superior y la barra hacen lo mismo con las órdenes de `core` o con sus
+  atajos (`slideCommands.ts`, por el mismo reenvío de `keyRouting.ts`);
+- exportar usa `ui/shared/exportActions.ts`, el mismo camino que el menú ☰.
+
+Presentar pinta cada diapositiva con `exportSceneSvg` en línea (usa las fuentes
+ya cargadas) en un portal a `<body>`, a pantalla completa; la vista del orador
+es otro portal del mismo árbol a una ventana aparte. Sin páginas o en móvil el
+espacio se pinta como Diseño, sin cambiar la preferencia guardada. El host
+puede añadir título, «Detalles», «Importar tema» y comentar con la prop
+`slides` de `Canvas2Editor`.
+
+Importar y exportar en Presentación:
+
+- **Archivo › Exportar › PowerPoint (.pptx) / Plantilla (.potx)**: toda la
+  presentación, editable en PowerPoint, Keynote o Google Slides, con notas,
+  ocultas y fundido. Mismo camino que el menú ☰ (`exportActions.ts`).
+- **Archivo › Importar diapositivas…**, solo si el host pasa
+  `slides.importSlides`: el host lee el fichero, sube sus imágenes y lo
+  convierte (`documentToScene`); el espacio añade las diapositivas detrás de la
+  activa en una entrada de deshacer (`core/insertPages.ts`). Studio usa el
+  mismo lector que Carpetas (`importSlidesIntoDesign`).
+- Una diapositiva que aparece (importar, insertar un componente, rehacer) pasa a
+  ser la activa y se encaja en el hueco.

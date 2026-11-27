@@ -133,11 +133,13 @@ export async function exportSceneSvg(
     fontFaces?: readonly SvgFontFace[];
     /** Con esto las fuentes se incrustan como data URI y el SVG queda autocontenido. */
     fontFetcher?: (url: string) => Promise<Blob>;
+    /** Los elementos a exportar en vez de los de la escena (`recortes.ts`). */
+    elements?: readonly SceneElement[];
   },
 ): Promise<SVGSVGElement> {
   const svg = await sinRuidoDeFuentes<SVGSVGElement>(() =>
     exportToSvg({
-      elements: api.getSceneElements(),
+      elements: opts?.elements ?? api.getSceneElements(),
       appState: exportAppState(api, opts),
       files: opts?.files ?? api.getFiles(),
       exportingFrame: findFrame(api, opts?.pageId),
@@ -349,10 +351,10 @@ export function downloadBlob(blob: Blob, filename: string): void {
  */
 export async function exportScenePdf(
   api: ExcalidrawImperativeAPI,
-  opts?: { background?: boolean; scale?: number; files?: ExportOptions['files'] },
+  opts?: { background?: boolean; scale?: number; files?: ExportOptions['files']; elements?: readonly SceneElement[] },
 ): Promise<Blob> {
   const { jsPDF } = await import('jspdf');
-  const elements = api.getSceneElements();
+  const elements = opts?.elements ?? api.getSceneElements();
   // Igual que los otros exportadores: el mapa hidratado del host manda sobre el
   // de la escena, que con imágenes remotas contamina el canvas.
   const files = opts?.files ?? api.getFiles();

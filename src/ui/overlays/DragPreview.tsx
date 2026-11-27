@@ -71,15 +71,20 @@ export function DragPreview({ active, grab, children, radius = 8 }: DragPreviewP
   // evento haría re-renderizar la tira entera en cada muestra.
   useEffect(() => {
     if (!active || !grab) return;
-    const move = (ev: DragEvent) => {
+    const move = (ev: DragEvent | PointerEvent) => {
       const card = cardRef.current;
       // Al soltar, el navegador manda un último evento con coordenadas 0,0 que
       // teletransportaría la tarjeta a la esquina.
       if (!card || (ev.clientX === 0 && ev.clientY === 0)) return;
       card.style.transform = `translate3d(${ev.clientX - grab.x}px, ${ev.clientY - grab.y}px, 0) scale(1.06)`;
     };
+    // `pointermove`: los arrastres que van con punteros (reordenar páginas, desktop#371).
     document.addEventListener('dragover', move);
-    return () => document.removeEventListener('dragover', move);
+    document.addEventListener('pointermove', move);
+    return () => {
+      document.removeEventListener('dragover', move);
+      document.removeEventListener('pointermove', move);
+    };
   }, [active, grab]);
 
   if (!mounted || !active || !grab) return null;

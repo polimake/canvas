@@ -11,7 +11,7 @@ export function canvasUiFonts() {
 			const css = code.replace(/@font-face\s*\{[^}]*\}/gi, (face) =>
 				/font-family\s*:\s*["']?Assistant["']?\s*[;}]/i.test(face) ? '' : face,
 			);
-			return { code: css.replace(/\bAssistant\b/g, 'Funnel Sans'), map: null };
+			return { code: css.replace(/\bAssistant\b/g, 'Polimake Funnel Sans'), map: null };
 		},
 	};
 }

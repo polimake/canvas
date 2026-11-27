@@ -1,0 +1,386 @@
+/*
+ * Espacio «Presentación» (la distribución de Slides). Todo va dentro de
+ * `[data-workspace="slides"]` o de `.canvas2-slides`: no cambia nada de los
+ * otros espacios. Medidas de la maqueta aprobada: menús 34 px, barra 52 px,
+ * tira 224 px, tira de paneles 68 px, panel 336 px, notas 96 px.
+ *
+ * Colores: los del espacio de trabajo (--workspace-*, theme.ts), que ya siguen
+ * el tema claro/oscuro. Lo activo va en tinta, como en el resto de Studio.
+ */
+
+/* ── Lo de Excalidraw que sustituye el cromo de Presentación ───────────────── */
+.canvas2-workspace[data-workspace="slides"] .canvas2-workspace-sidebar { display: none; }
+/* Un contexto de apilamiento propio: las capas de Presentación (z 3) quedan
+   sobre el lienzo (1–2) y bajo la interfaz de Excalidraw (4), donde viven las
+   opciones de formato que se colocan dentro de la barra. */
+.canvas2-workspace[data-workspace="slides"] .canvas2-workspace-surface { isolation: isolate; }
+.canvas2-workspace[data-workspace="slides"] [data-canvas2] :is(
+  .App-toolbar-container, .main-menu-trigger, .layer-ui__wrapper__footer,
+  .layer-ui__wrapper__top-right, .HintViewer, .scroll-back-to-content, .help-icon,
+  .default-sidebar-trigger
+) { display: none !important; }
+/* El buscador de Excalidraw (Buscar en la presentación) se abre junto a la tira
+   de paneles, bajo las barras, y no encima de ellas. */
+.canvas2-workspace[data-workspace="slides"] .canvas2-stage-overlay {
+  top: var(--slides-top, 86px); left: var(--slides-left, 224px);
+  right: var(--slides-right, 68px); bottom: var(--slides-bottom, 96px);
+}
+.canvas2-workspace[data-workspace="slides"] [data-canvas2] .sidebar {
+  top: var(--slides-top, 86px); right: 68px; height: auto; bottom: 0;
+}
+
+/* Las opciones de formato de la selección, nativas, en el hueco derecho de la
+   píldora (SlidesToolbar las deja sitio al haber selección). */
+.canvas2-workspace[data-workspace="slides"] [data-canvas2] .selected-shape-actions {
+  position: absolute; z-index: 5; margin: 0;
+  top: var(--slides-props-top, 38px); height: 40px;
+  left: var(--slides-props-left, 560px); right: var(--slides-props-right, 64px);
+  display: flex; align-items: center; pointer-events: none;
+}
+.canvas2-workspace[data-workspace="slides"] [data-canvas2] .selected-shape-actions .Island {
+  position: relative; pointer-events: auto;
+  width: auto; max-width: 100%; height: 40px; max-height: 40px;
+  padding: 0 4px; border-radius: 0; background: transparent; box-shadow: none;
+  /* Si no cabe se desliza, y se nota: barra fina (antes oculta, y lo último quedaba cortado sin saberlo). */
+  overflow-x: auto; overflow-y: hidden; scrollbar-width: thin;
+}
+.canvas2-workspace[data-workspace="slides"] [data-canvas2] .selected-shape-actions .panelColumn {
+  /* Botones de 28 px (32 de serie): con una flecha, la fila entera cabe en 1440. */
+  --default-button-size: 1.75rem;
+  display: flex; flex-direction: row; align-items: center; gap: 6px;
+  width: max-content; height: 40px;
+}
+.canvas2-workspace[data-workspace="slides"] [data-canvas2] .selected-shape-actions .panelColumn > * {
+  flex-shrink: 0; margin: 0;
+}
+.canvas2-workspace[data-workspace="slides"] [data-canvas2] .selected-shape-actions fieldset {
+  margin: 0; padding: 0; border: 0; display: flex; align-items: center;
+}
+/* Como en Slides: controles sin rótulo encima; el nombre va en el `title`. */
+/* Con un menú del espacio abierto, las opciones nativas se apartan: viven en
+   la capa de Excalidraw, por encima de la del espacio, y tapaban el menú. */
+.canvas2-workspace[data-workspace="slides"] [data-canvas2][data-slides-menu] .selected-shape-actions { visibility: hidden; }
+.canvas2-workspace[data-workspace="slides"] [data-canvas2] .selected-shape-actions :is(legend, h3),
+.canvas2-workspace[data-workspace="slides"] [data-canvas2] .selected-shape-actions .color-picker__top-picks {
+  display: none;
+}
+/* La opacidad: Excalidraw la pinta con el rótulo encima, el deslizador debajo
+   con relleno y el número flotando por debajo. En esta fila de 40 px saltaba de
+   línea y salía cortada. Aquí va en línea: sin rótulo a la vista (sigue para
+   los lectores de pantalla), deslizador corto y el número al lado. */
+.canvas2-workspace[data-workspace="slides"] [data-canvas2] .selected-shape-actions .control-label:has(.range-wrapper) {
+  display: flex; align-items: center; height: 40px; margin: 0; font-size: 0;
+}
+.canvas2-workspace[data-workspace="slides"] [data-canvas2] .selected-shape-actions .range-wrapper {
+  display: flex; align-items: center; gap: 8px; width: 104px; height: 40px; padding: 0;
+}
+.canvas2-workspace[data-workspace="slides"] [data-canvas2] .selected-shape-actions .range-wrapper .range-input {
+  flex: 1; min-width: 0; margin: 0;
+  /* El tramo vacío del carril es `--button-bg`, el mismo color que esta barra: no se veía. */
+  --button-bg: color-mix(in srgb, currentColor 18%, transparent);
+}
+.canvas2-workspace[data-workspace="slides"] [data-canvas2] .selected-shape-actions .range-wrapper :is(.value-bubble, .zero-label) {
+  position: static; transform: none; min-width: 3ch; font-size: 12px; text-align: right;
+}
+.canvas2-workspace[data-workspace="slides"] [data-canvas2] .selected-shape-actions .range-wrapper .value-bubble:empty { display: none; }
+.canvas2-workspace[data-workspace="slides"] [data-canvas2] .selected-shape-actions .range-wrapper .value-bubble:not(:empty) + .zero-label { display: none; }
+
+/* ── Capas de Presentación ─────────────────────────────────────────────────── */
+.canvas2-slides {
+  position: absolute; inset: 0; z-index: 3; pointer-events: none;
+  color: var(--workspace-fg); font-size: 14px;
+  --slides-heading: "Newsreader", Georgia, serif;
+}
+.canvas2-slides > * { pointer-events: auto; }
+/* Los botones del espacio heredan letra y color. Los de los paneles (los del
+   host: Comentarios, IA…) no: traen su propio estilo y esto lo pisaría. */
+.canvas2-slides button:not(.canvas2-slides-panel-body *) { font: inherit; color: inherit; }
+.canvas2-slides-visually-hidden {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+/* Máscara: tapa las diapositivas vecinas con el color de la mesa. La capa no
+   coge el puntero; sus franjas, sí. */
+.canvas2-slides > .canvas2-slides-mask-layer { position: absolute; inset: 0; pointer-events: none; }
+.canvas2-slides-mask { position: absolute; background: var(--slides-stage, #efece6); pointer-events: auto; }
+/* El recuadro que se arrastra desde la franja: como el de Excalidraw, encima de todo y sin coger clics. */
+.canvas2-slides-marquee { position: absolute; pointer-events: none; border: 1px solid var(--color-selection, #4a47b1); background: color-mix(in srgb, var(--color-selection, #4a47b1) 8%, transparent); }
+
+/* Botones comunes. */
+.canvas2-slides-icon-btn {
+  width: 32px; height: 32px; flex: none; display: inline-grid; place-items: center;
+  padding: 0; border: 0; border-radius: 8px; background: transparent; cursor: pointer;
+}
+.canvas2-slides-icon-btn:hover { background: color-mix(in srgb, var(--workspace-fg) 7%, transparent); }
+.canvas2-slides-icon-btn[aria-pressed="true"] { background: var(--workspace-border); }
+.canvas2-slides-text-btn {
+  height: 32px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; cursor: pointer; white-space: nowrap;
+}
+.canvas2-slides-text-btn:hover { background: color-mix(in srgb, var(--workspace-fg) 7%, transparent); }
+.canvas2-slides-text-btn[aria-pressed="true"] { background: var(--workspace-border); }
+.canvas2-slides-primary {
+  height: 40px; border: 0; border-radius: 20px; background: var(--workspace-accent); color: var(--workspace-accent-fg) !important;
+  font-weight: 500 !important; cursor: pointer;
+}
+.canvas2-slides-secondary {
+  height: 32px; padding: 0 14px; border: 1px solid var(--workspace-border); border-radius: 16px;
+  background: var(--workspace-bg); font-weight: 500 !important; font-size: 13.5px !important; cursor: pointer;
+}
+.canvas2-slides-secondary:hover { background: var(--workspace-hover); }
+.canvas2-slides :is(button, textarea, input):focus-visible { outline: 2px solid var(--workspace-accent); outline-offset: 2px; }
+
+/* ── Menús (fila superior) ─────────────────────────────────────────────────── */
+.canvas2-slides-menubar {
+  position: absolute; top: 0; left: 0; right: 0; height: 34px;
+  display: flex; align-items: center; gap: 2px; padding: 0 20px;
+  background: var(--workspace-bg); min-width: 0;
+}
+.canvas2-slides-menubar > button { flex: none; }
+.canvas2-slides-menubar > button {
+  height: 28px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; cursor: pointer;
+}
+.canvas2-slides-menubar > button:hover,
+.canvas2-slides-menubar > button[aria-expanded="true"] { background: var(--workspace-hover); }
+.canvas2-slides-title {
+  font: 500 18px var(--slides-heading); margin-right: 14px;
+  flex: 0 1 auto; min-width: 0; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.canvas2-slides-status {
+  margin-left: auto; padding-right: 12px; font-size: 12.5px; color: var(--workspace-sub);
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* «▶ Presentar ▾»: píldora con borde, como en la maqueta. */
+.canvas2-slides-present-btn {
+  position: relative; display: flex; align-items: stretch; height: 28px; flex: none;
+  border: 1px solid color-mix(in srgb, var(--workspace-fg) 18%, transparent); border-radius: 14px;
+}
+.canvas2-slides-present-btn > button {
+  display: inline-flex; align-items: center; gap: 7px; border: 0; background: transparent; cursor: pointer;
+}
+.canvas2-slides-present-main { padding: 0 10px 0 12px; border-radius: 14px 0 0 14px; font-weight: 500 !important; }
+.canvas2-slides-present-caret { width: 26px; justify-content: center; border-radius: 0 14px 14px 0; }
+.canvas2-slides-present-btn > button:hover,
+.canvas2-slides-present-caret[aria-expanded="true"] { background: var(--workspace-hover); }
+.canvas2-slides-present-split { width: 1px; background: color-mix(in srgb, var(--workspace-fg) 18%, transparent); }
+.canvas2-slides-present-btn .canvas2-slides-menu { min-width: 280px; }
+
+/* Menú desplegable (barra de menús, barra de herramientas, clic derecho). */
+.canvas2-slides-menu {
+  min-width: 260px; max-width: 380px; padding: 6px 0; z-index: 30;
+  background: var(--workspace-bg); border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(17, 17, 17, .14), 0 1px 2px rgba(17, 17, 17, .08);
+}
+.canvas2-slides-menu > button,
+.canvas2-slides-menu-subwrap > button {
+  display: flex; align-items: center; gap: 12px; width: 100%; height: 36px; padding: 0 16px;
+  border: 0; background: transparent; text-align: left; cursor: pointer; white-space: nowrap;
+}
+.canvas2-slides-menu button:is(:hover, :focus-visible, [aria-expanded="true"]):not(:disabled) { background: var(--workspace-hover); outline: none; }
+.canvas2-slides-menu button:disabled { color: var(--workspace-sub); cursor: default; }
+.canvas2-slides-menu-icon { width: 18px; height: 18px; flex: none; display: grid; place-items: center; }
+.canvas2-slides-menu-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.canvas2-slides-menu-end { margin-left: auto; padding-left: 16px; color: var(--workspace-sub); font-size: 12.5px; }
+.canvas2-slides-menu-sep { height: 1px; margin: 6px 0; background: var(--workspace-border); }
+.canvas2-slides-menu-subwrap { position: relative; }
+.canvas2-slides-submenu { position: absolute; left: calc(100% - 6px); top: -6px; }
+/* Sin sitio a la derecha (Organizar › Alinear en una ventana justa), a la izquierda. */
+.canvas2-slides-submenu[data-flip] { left: auto; right: calc(100% - 6px); }
+
+/* ── Barra de herramientas (píldora) ───────────────────────────────────────── */
+.canvas2-slides-toolbar {
+  position: absolute; left: 0; right: 0; top: 34px; height: 52px; padding: 4px 16px 0;
+  background: var(--workspace-bg);
+}
+.canvas2-slides-toolbar[data-menus-hidden] { top: 0; }
+.canvas2-slides-pill {
+  height: 40px; display: flex; align-items: center; gap: 2px; padding: 0 8px;
+  border-radius: 20px; background: var(--workspace-hover);
+}
+.canvas2-slides-pill-fixed { display: flex; align-items: center; gap: 2px; flex: none; }
+.canvas2-slides-pill-context { display: flex; align-items: center; min-width: 0; overflow: hidden; }
+.canvas2-slides-pill-context-item { display: inline-flex; align-items: center; }
+.canvas2-slides-pill-end { margin-left: auto; }
+.canvas2-slides-divider { width: 1px; height: 20px; margin: 0 6px; flex: none; background: color-mix(in srgb, var(--workspace-fg) 14%, transparent); }
+.canvas2-slides-divider--tight { margin: 0; }
+.canvas2-slides-split { display: inline-flex; align-items: center; }
+.canvas2-slides-caret-btn {
+  width: 16px; height: 32px; display: grid; place-items: center; padding: 0; margin-left: -4px;
+  border: 0; border-radius: 6px; background: transparent; cursor: pointer;
+}
+.canvas2-slides-caret-btn:hover { background: color-mix(in srgb, var(--workspace-fg) 7%, transparent); }
+.canvas2-slides-zoom-btn {
+  height: 32px; display: inline-flex; align-items: center; gap: 6px; padding: 0 8px;
+  border: 0; border-radius: 8px; background: transparent; cursor: pointer;
+}
+.canvas2-slides-zoom-btn:hover { background: color-mix(in srgb, var(--workspace-fg) 7%, transparent); }
+
+/* ── Tira de diapositivas ──────────────────────────────────────────────────── */
+.canvas2-slides-filmstrip {
+  position: absolute; left: 0; bottom: 0; top: var(--slides-top, 86px); width: 224px;
+  display: flex; flex-direction: column; background: var(--workspace-bg);
+}
+.canvas2-slides-filmstrip-list {
+  flex: 1; min-height: 0; overflow-y: auto; margin: 0; padding: 12px 18px 12px 6px;
+  list-style: none; display: flex; flex-direction: column; gap: 14px; scrollbar-width: thin;
+}
+.canvas2-slides-filmstrip-item { position: relative; display: flex; gap: 8px; align-items: flex-start; }
+.canvas2-slides-filmstrip-item[data-drop-before]::before,
+.canvas2-slides-filmstrip-item[data-drop-after]::after {
+  content: ""; position: absolute; left: 28px; right: 0; height: 2px; border-radius: 1px; background: var(--workspace-accent);
+}
+.canvas2-slides-filmstrip-item[data-drop-before]::before { top: -8px; }
+.canvas2-slides-filmstrip-item[data-drop-after]::after { bottom: -8px; }
+.canvas2-slides-filmstrip-number {
+  width: 20px; flex: none; padding-top: 2px; text-align: right; font-size: 12px; color: var(--workspace-sub);
+  font-variant-numeric: tabular-nums;
+}
+.canvas2-slides-thumb {
+  position: relative; display: block; width: 168px; padding: 0; overflow: hidden; cursor: pointer;
+  border: 1px solid var(--workspace-border); border-radius: 3px; background: #fff;
+}
+.canvas2-slides-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.canvas2-slides-thumb[aria-current="true"] { outline: 2px solid var(--workspace-accent); outline-offset: 2px; border-color: transparent; }
+.canvas2-slides-thumb[data-skipped] img { opacity: .4; }
+.canvas2-slides-thumb-skip {
+  position: absolute; right: 4px; bottom: 4px; width: 24px; height: 24px; display: grid; place-items: center;
+  border-radius: 12px; background: var(--workspace-bg); color: var(--workspace-fg);
+}
+.canvas2-slides-filmstrip-foot {
+  height: 44px; flex: none; display: flex; align-items: center; gap: 4px; padding: 0 10px;
+  border-top: 1px solid var(--workspace-hover);
+}
+.canvas2-slides-filmstrip-show { position: absolute; left: 10px; bottom: 6px; background: var(--workspace-bg); }
+
+/* ── Notas del orador ──────────────────────────────────────────────────────── */
+.canvas2-slides-notes-wrap {
+  position: absolute; bottom: 0; display: flex; flex-direction: column; align-items: center;
+  pointer-events: none !important;
+}
+.canvas2-slides-notes-handle { width: 64px; height: 3px; margin: 12px 0; flex: none; border-radius: 2px; background: color-mix(in srgb, var(--workspace-fg) 18%, transparent); }
+.canvas2-slides-notes { display: block; max-width: calc(100% - 32px); pointer-events: auto; }
+.canvas2-slides-notes textarea {
+  display: block; width: 100%; height: 60px; padding: 19px 20px; resize: none;
+  border: 0; border-radius: 12px; background: var(--workspace-bg); color: var(--workspace-fg);
+  font: inherit; font-size: 14px; line-height: 1.4;
+}
+.canvas2-slides-notes textarea::placeholder { color: var(--workspace-sub); }
+.canvas2-slides-notes textarea:focus { outline: none; box-shadow: 0 0 0 1px var(--workspace-border); }
+/* Vacías, atenuadas para no competir con la diapositiva; enteras si tienen texto, al escribir o con el ratón encima. */
+.canvas2-slides-notes { transition: opacity 150ms; }
+.canvas2-slides-notes:has(textarea:placeholder-shown):not(:hover, :focus-within) { opacity: .45; }
+@media (prefers-reduced-motion: reduce) { .canvas2-slides-notes { transition: none; } }
+
+/* ── Vista de cuadrícula ───────────────────────────────────────────────────── */
+.canvas2-slides-grid {
+  position: absolute; left: 0; bottom: 0; top: var(--slides-top, 86px); right: var(--slides-right, 68px);
+  overflow-y: auto; padding: 24px 40px; background: var(--slides-stage, #efece6);
+}
+.canvas2-slides-grid-head { display: flex; align-items: center; margin-bottom: 20px; }
+.canvas2-slides-grid-head h2 { margin: 0; font: 500 22px var(--slides-heading); }
+.canvas2-slides-grid-head .canvas2-slides-secondary { margin-left: auto; }
+.canvas2-slides-grid-list {
+  margin: 0; padding: 0; list-style: none;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 28px 24px;
+}
+.canvas2-slides-grid-list li { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.canvas2-slides-grid-list .canvas2-slides-thumb { width: 100%; border: 0; box-shadow: var(--workspace-shadow); }
+.canvas2-slides-grid-list .canvas2-slides-thumb[aria-current="true"] { outline-offset: 3px; }
+.canvas2-slides-grid-number { font-size: 12.5px; color: var(--workspace-sub); }
+
+/* ── Tira de paneles y panel abierto (derecha) ─────────────────────────────── */
+.canvas2-slides-rail {
+  position: absolute; right: 0; bottom: 0; top: var(--slides-top, 86px); width: 68px;
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 0;
+  background: var(--workspace-bg); border-left: 1px solid var(--workspace-border);
+}
+.canvas2-slides-rail > button {
+  width: 64px; min-height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  padding: 4px 2px; border: 0; border-radius: 8px; background: transparent; cursor: pointer;
+  font-size: 10px !important; font-weight: 500 !important; letter-spacing: -.01em;
+}
+.canvas2-slides-rail > button svg { width: 20px; height: 20px; }
+.canvas2-slides-rail > button > span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.canvas2-slides-rail > button:hover { background: var(--workspace-hover); }
+.canvas2-slides-rail > button[aria-pressed="true"] { background: var(--workspace-border); }
+.canvas2-slides-rail-end { margin-top: auto; }
+
+.canvas2-slides-panel {
+  position: absolute; right: 68px; bottom: 0; top: var(--slides-top, 86px); width: 336px;
+  display: flex; flex-direction: column; background: var(--workspace-bg); border-left: 1px solid var(--workspace-border);
+}
+.canvas2-slides-panel-head { display: flex; align-items: center; gap: 10px; padding: 18px 16px 12px 20px; flex: none; }
+.canvas2-slides-panel-head h2 { margin: 0; font: 500 24px var(--slides-heading); }
+.canvas2-slides-panel-head .canvas2-slides-icon-btn { margin-left: auto; }
+.canvas2-slides-panel-icon { display: grid; place-items: center; }
+.canvas2-slides-panel-body { flex: 1; min-height: 0; overflow: auto; padding: 4px 20px 20px; }
+.canvas2-slides-panel-foot {
+  flex: none; display: flex; flex-direction: column; gap: 6px; padding: 14px 20px 18px;
+  border-top: 1px solid var(--workspace-hover); text-align: center; font-size: 12.5px; color: var(--workspace-sub);
+}
+
+/* Transición. */
+.canvas2-slides-transition { display: flex; flex-direction: column; gap: 16px; }
+.canvas2-slides-transition [role="radiogroup"] { display: flex; flex-direction: column; gap: 4px; }
+.canvas2-slides-radio { display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 0 10px; border-radius: 8px; cursor: pointer; }
+.canvas2-slides-radio:hover { background: var(--workspace-hover); }
+.canvas2-slides-radio input { accent-color: var(--workspace-accent); margin: 0; }
+
+/* El selector de modo del host (Ver · Comentar · Editar) al pie de la tira de
+   paneles: en el borde derecho no pisa las notas ni un panel abierto. */
+.canvas2-workspace[data-workspace="slides"] .canvas2-mode-tools { right: 16px !important; z-index: 5; }
+.canvas2-workspace[data-workspace="slides"]:has(.canvas2-mode-tools) .canvas2-slides-rail { padding-bottom: 140px; }
+
+/* ── Presentar (va en <body>, fuera del espacio: colores propios) ──────────── */
+.canvas2-slides-present {
+  position: fixed; inset: 0; z-index: 2147483000; background: #000; color: #f7f4ed; outline: none;
+  font-family: "Polimake Funnel Sans", "Funnel Sans", system-ui, sans-serif; font-size: 14px;
+}
+.canvas2-slides-present button { font: inherit; color: inherit; }
+.canvas2-slides-present-stage {
+  position: absolute; inset: 0; display: block; padding: 0; border: 0; background: transparent; cursor: none;
+}
+.canvas2-slides-present:not([data-idle]) .canvas2-slides-present-stage { cursor: default; }
+.canvas2-slides-present-slide { position: absolute; inset: 0; display: block; }
+.canvas2-slides-present-slide svg { display: block; width: 100%; height: 100%; }
+.canvas2-slides-present-slide[data-transition="fade"] { animation: canvas2-slides-fade .45s ease both; }
+@keyframes canvas2-slides-fade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .canvas2-slides-present-slide[data-transition="fade"] { animation: none; }
+}
+.canvas2-slides-present-end {
+  position: absolute; inset: 0; border: 0; background: #000; color: #a39e96; font-size: 16px; cursor: pointer;
+}
+.canvas2-slides-present-hint {
+  position: absolute; top: 20px; right: 24px; height: 30px; display: flex; align-items: center; padding: 0 12px;
+  border-radius: 15px; background: rgba(28, 27, 25, .86); font-size: 12.5px; color: #e7e2d9;
+  transition: opacity .3s;
+}
+.canvas2-slides-present-bar {
+  position: absolute; left: 24px; bottom: 24px; height: 44px; display: flex; align-items: center; gap: 2px; padding: 0 6px;
+  border-radius: 12px; background: rgba(28, 27, 25, .86); transition: opacity .3s;
+}
+.canvas2-slides-present[data-idle] :is(.canvas2-slides-present-bar, .canvas2-slides-present-hint) { opacity: 0; }
+.canvas2-slides-present-bar button {
+  height: 36px; min-width: 36px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 10px;
+  border: 0; border-radius: 8px; background: transparent; cursor: pointer;
+}
+.canvas2-slides-present-bar button:hover:not(:disabled),
+.canvas2-slides-present-bar button[aria-pressed="true"] { background: #3a3833; }
+.canvas2-slides-present-bar button:disabled { opacity: .4; cursor: default; }
+.canvas2-slides-present-count { min-width: 56px; text-align: center; font-variant-numeric: tabular-nums; }
+.canvas2-slides-present-sep { width: 1px; height: 20px; margin: 0 6px; background: #3a3833; }
+.canvas2-slides-present-notes {
+  position: absolute; left: 24px; right: 24px; bottom: 84px; padding: 16px 20px; border-radius: 12px;
+  background: rgba(28, 27, 25, .92); display: flex; flex-direction: column; gap: 6px;
+}
+.canvas2-slides-present-notes > span { font-size: 11.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #a39e96; }
+.canvas2-slides-present-notes p { margin: 0; font-size: 16px; white-space: pre-wrap; }
+.canvas2-slides-present-blocked {
+  position: absolute; left: 50%; top: 24px; transform: translateX(-50%); margin: 0; padding: 8px 14px;
+  border-radius: 10px; background: rgba(28, 27, 25, .92); color: #e3a33a;
+}
+
+/* Al mirar se ve la interfaz entera: lo que editaría, apagado. */
+.canvas2-slides-pill button:disabled,
+.canvas2-slides-rail > button:disabled { opacity: 0.4; cursor: default; background: none; }

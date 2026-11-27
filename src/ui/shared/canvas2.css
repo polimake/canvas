@@ -106,11 +106,17 @@
   padding: 10px 14px; box-shadow: 0 3px 16px #00000012;
 }
 .canvas2-workspace[data-workspace="design"] [data-canvas2]:not([data-canvas2-narrow]) .selected-shape-actions .panelColumn {
-  display: flex; flex-direction: row; align-items: center; gap: 18px; width: max-content;
+  display: flex; flex-direction: row; align-items: center; gap: 12px; width: max-content;
 }
 .canvas2-workspace[data-workspace="design"] [data-canvas2]:not([data-canvas2-narrow]) .selected-shape-actions .panelColumn > * { flex-shrink: 0; margin: 0; }
 .canvas2-workspace[data-workspace="design"] [data-canvas2]:not([data-canvas2-narrow]) .selected-shape-actions :is(legend, h3) {
   margin: 0 0 6px; font-size: 10px; font-weight: 500; opacity: .7;
+}
+/* «Opacidad» es un `label` con el deslizador dentro, no una `legend`: salía más grande y más oscuro
+   que los demás rótulos. El texto se iguala; el deslizador y sus números no cambian. */
+.canvas2-workspace[data-workspace="design"] [data-canvas2]:not([data-canvas2-narrow]) .selected-shape-actions .control-label:has(.range-wrapper) {
+  margin: 0; font-size: 10px; font-weight: 500;
+  color: color-mix(in srgb, var(--text-primary-color) 70%, transparent);
 }
 .canvas2-workspace[data-workspace="design"] [data-canvas2]:not([data-canvas2-narrow]) .selected-shape-actions .color-picker__top-picks { display: none; }
 
@@ -277,6 +283,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* Al reordenar, las fichas saltan a su puesto en vez de deslizarse. */
+  [data-canvas2] .canvas2-page-chip { transition: none !important; }
   [data-canvas2] .canvas2-page-insert > span,
   [data-canvas2] .canvas2-page-insert::before,
   [data-canvas2] .canvas2-page-ghost {
@@ -329,9 +337,13 @@
    toda la capa de Excalidraw, y con ella de sus menús: abierto «Más
    herramientas», que cae justo sobre la esquina de la página, se pintaban
    encima de sus entradas. Mientras haya un menú abierto, se apartan. */
-[data-canvas2]:has(.dropdown-menu) [data-testid="canvas2-page-actions"] {
+[data-canvas2]:has(.dropdown-menu) :is([data-testid="canvas2-page-actions"], [data-testid="canvas2-page-labels"]) {
   visibility: hidden;
 }
+[data-canvas2] .canvas2-page-action { transition: background 120ms, color 120ms; }
+/* Sobre la mesa, que va en claro en los dos temas (ver PageActions). */
+[data-canvas2] .canvas2-page-action:not(:disabled):hover { background: rgba(17,17,17,0.06); color: #111111; }
+[data-canvas2] .canvas2-page-action:focus-visible { outline: 2px solid #111111; outline-offset: 1px; }
 
 /* Advanced keeps document colors intact: in the dark theme the canvas is not
    inverted, only the editor chrome around it changes. */
@@ -358,7 +370,7 @@
 
 /* Incluye los diálogos que Excalidraw monta en document.body. */
 .excalidraw {
-  --ui-font: "Funnel Sans", sans-serif !important;
+  --ui-font: "Polimake Funnel Sans", sans-serif !important;
   font-family: var(--ui-font);
 }
 
@@ -378,8 +390,10 @@
    de páginas: los números de atajo bajo cada herramienta y el candado de
    «mantener herramienta». El avanzado conserva su aspecto compacto propio. */
 .canvas2-workspace:not([data-workspace="advanced"]) [data-canvas2] .excalidraw {
-  --ui-font: var(--font-funnel-sans, "Funnel Sans"), "Funnel Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --shadow-island: 0 0 0 1px #e8e7e5;
+  --ui-font: var(--font-funnel-sans, "Polimake Funnel Sans"), "Polimake Funnel Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* Sin filo: una sombra pequeña, la misma en todas las islas (`ISLAND_SHADOW`
+     de theme.ts), para que una isla blanca se vea también sobre blanco. */
+  --shadow-island: 0 1px 2px rgba(17,17,17,0.06), 0 2px 8px rgba(17,17,17,0.06);
   --island-bg-color: #ffffff;
   --icon-fill-color: #6e6962;
   --button-hover-bg: #f3f0ea;
@@ -394,7 +408,7 @@
 }
 .canvas2-workspace:not([data-workspace="advanced"]) [data-canvas2] .excalidraw.theme--dark,
 .canvas2-workspace:not([data-workspace="advanced"]) [data-canvas2][data-canvas2-theme="dark"] .excalidraw {
-  --shadow-island: 0 0 0 1px #34312c;
+  --shadow-island: 0 1px 2px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.25);
   --island-bg-color: #262420;
   --icon-fill-color: #a39e96;
   --button-hover-bg: #282622;
@@ -470,6 +484,114 @@
 }
 [data-canvas2] .canvas2-toolbar-text:focus-visible { outline: 2px solid var(--color-primary, #111111); outline-offset: 1px; }
 
+/* ── Riel de herramientas a la izquierda (vista Excalidraw, escritorio) ──────
+   La píldora de herramientas centrada arriba pasa a una columna en el borde
+   izquierdo, bajo el menú ☰, agrupada con filos (propuesta del 25-11, lienzo
+   «Editor de diseño suelto»): el lienzo gana alto y las herramientas quedan
+   donde se miran en Figma o Canva. Es lo mismo que ya hacía el Avanzado, con
+   el aspecto Cosmos (tarjeta blanca, botones redondos, lo activo en tinta).
+   En móvil Excalidraw tiene su propia barra y no se toca. */
+.canvas2-workspace[data-workspace="excalidraw"] [data-canvas2]:not([data-canvas2-narrow]) .shapes-section > div { position: static !important; }
+.canvas2-workspace[data-workspace="excalidraw"] [data-canvas2]:not([data-canvas2-narrow]) .App-toolbar-container {
+  position: absolute; left: 0; top: 0; z-index: 6;
+}
+.canvas2-workspace[data-workspace="excalidraw"] [data-canvas2]:not([data-canvas2-narrow]) .App-toolbar {
+  /* Sin `overflow`: «Más herramientas» abre su menú DENTRO de la píldora y un
+     recorte lo escondía. Arriba, el hueco del ☰ (ver abajo) y su filo.
+     Sin borde: solo la sombra de isla. */
+  position: relative; border-radius: 24px; padding: 6px; border: 0;
+  box-shadow: var(--shadow-island);
+}
+.canvas2-workspace[data-workspace="excalidraw"] [data-canvas2]:not([data-canvas2-narrow]):not([data-canvas2-readonly]) .App-toolbar { padding-top: 54px; }
+.canvas2-workspace[data-workspace="excalidraw"] [data-canvas2]:not([data-canvas2-narrow]):not([data-canvas2-readonly]) .App-toolbar::before {
+  content: ''; position: absolute; top: 47px; left: 13px; width: 22px; height: 1px; background: #ece9e3;
+}
+.canvas2-workspace[data-workspace="excalidraw"] [data-canvas2][data-canvas2-theme="dark"]:not([data-canvas2-narrow]):not([data-canvas2-readonly]) .App-toolbar::before { background: #34312c; }
+/* El ☰ es el PRIMER botón del riel, antes de la mano: sin tarjeta propia, se
+   pinta sobre el hueco de arriba de la píldora (Excalidraw lo monta en otra
+   columna y no hay forma de meterlo dentro de su barra). */
+.canvas2-workspace[data-workspace="excalidraw"] [data-canvas2]:not([data-canvas2-narrow]) .App-menu_top__left > div:first-child { transform: translate(6px, 6px); }
+.canvas2-workspace[data-workspace="excalidraw"] [data-canvas2]:not([data-canvas2-narrow]) .main-menu-trigger {
+  background: transparent !important; box-shadow: none !important; width: 36px; height: 36px;
+}
+.canvas2-workspace[data-workspace="excalidraw"] [data-canvas2]:not([data-canvas2-narrow]) .main-menu-trigger:hover { background: var(--button-hover-bg, #f3f0ea) !important; }
+/* Su menú se abre a la derecha del riel, no encima de él. */
+.canvas2-workspace[data-workspace="excalidraw"] [data-canvas2]:not([data-canvas2-narrow]) .App-menu_top__left .dropdown-menu:not(.dropdown-menu--mobile) { left: 48px; top: 0; }
+/* El candado de «mantener herramienta» va oculto; su filo se quedaba arriba solo. */
+.canvas2-workspace[data-workspace="excalidraw"] [data-canvas2]:not([data-canvas2-narrow]) .App-toolbar .ToolIcon__lock + .App-toolbar__divider { display: none; }
+.canvas2-workspace[data-workspace="excalidraw"] [data-canvas2]:not([data-canvas2-narrow]) .App-toolbar > .Stack {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+}
+.canvas2-workspace[data-workspace="excalidraw"] [data-canvas2]:not([data-canvas2-narrow]) .App-toolbar :is(.ToolIcon__icon, .App-toolbar__extra-tools-trigger) {
+  width: 36px; height: 36px;
+}
+.canvas2-workspace[data-workspace="excalidraw"] [data-canvas2]:not([data-canvas2-narrow]) :is(.App-toolbar__divider, .canvas2-toolbar-divider) {
+  width: 22px; height: 1px; margin: 5px auto; background: #ece9e3;
+}
+/* La herramienta activa, en tinta: es lo que se mira al dibujar. El trazo del
+   icono sale de `--color-on-primary-container` (Excalidraw lo pone en el SVG),
+   no de `color`: sin pisar esa variable el icono iba en tinta sobre tinta y no
+   se veía (25/11). Se fija en la ficha Y en el SVG. */
+.canvas2-workspace[data-workspace="excalidraw"] [data-canvas2]:not([data-canvas2-narrow]) .App-toolbar .ToolIcon_type_radio:checked + .ToolIcon__icon {
+  background: var(--color-primary, #111111) !important;
+  --icon-fill-color: #ffffff;
+  --color-on-primary-container: #ffffff;
+  color: #ffffff;
+}
+.canvas2-workspace[data-workspace="excalidraw"] [data-canvas2]:not([data-canvas2-narrow]) .App-toolbar .ToolIcon_type_radio:checked + .ToolIcon__icon svg { color: #ffffff !important; }
+/* Oscuro: la tinta es el papel, así que el icono va en negro. */
+.canvas2-workspace[data-workspace="excalidraw"] [data-canvas2][data-canvas2-theme="dark"]:not([data-canvas2-narrow]) .App-toolbar .ToolIcon_type_radio:checked + .ToolIcon__icon {
+  --icon-fill-color: #111111;
+  --color-on-primary-container: #111111;
+  color: #111111;
+}
+.canvas2-workspace[data-workspace="excalidraw"] [data-canvas2][data-canvas2-theme="dark"]:not([data-canvas2-narrow]) .App-toolbar .ToolIcon_type_radio:checked + .ToolIcon__icon svg { color: #111111 !important; }
+/* «Más herramientas» se abre a la derecha del riel, no hacia el centro. */
+.canvas2-workspace[data-workspace="excalidraw"] [data-canvas2]:not([data-canvas2-narrow]) .App-toolbar__extra-tools-dropdown {
+  left: 56px; right: auto; top: auto; bottom: 0; max-height: calc(100cqh - 120px); overflow-y: auto;
+}
+/* Las propiedades de la selección salían bajo el ☰, justo donde va el riel. */
+.canvas2-workspace[data-workspace="excalidraw"] [data-canvas2]:not([data-canvas2-narrow]) .App-menu__left {
+  margin-left: 60px;
+}
+/* Los paneles y acciones del host, en el riel: solo el icono (el nombre va en
+   la etiqueta y al pasar el ratón). */
+.canvas2-workspace[data-workspace="excalidraw"] [data-canvas2]:not([data-canvas2-narrow]) .canvas2-toolbar-text {
+  width: 36px; height: 36px; padding: 0; display: grid; place-items: center; color: var(--icon-fill-color, #6e6962);
+}
+.canvas2-workspace[data-workspace="excalidraw"] [data-canvas2]:not([data-canvas2-narrow]) .canvas2-toolbar-text svg { width: 18px; height: 18px; }
+.canvas2-workspace[data-workspace="excalidraw"] [data-canvas2]:not([data-canvas2-narrow]) .canvas2-toolbar-text[aria-pressed="true"] {
+  background: var(--color-primary, #111111); color: #ffffff;
+}
+/* Oscuro: la tinta es el papel, así que lo de encima va en negro; los filos, en el gris del tema. */
+.canvas2-workspace[data-workspace="excalidraw"] [data-canvas2][data-canvas2-theme="dark"]:not([data-canvas2-narrow]) .canvas2-toolbar-text[aria-pressed="true"] { color: #111111; }
+.canvas2-workspace[data-workspace="excalidraw"] [data-canvas2][data-canvas2-theme="dark"]:not([data-canvas2-narrow]) :is(.App-toolbar__divider, .canvas2-toolbar-divider) { background: #34312c; }
+[data-canvas2] .canvas2-toolbar-label {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}
+.canvas2-workspace:not([data-workspace="excalidraw"]) [data-canvas2] .canvas2-toolbar-label,
+[data-canvas2][data-canvas2-narrow] .canvas2-toolbar-label { position: static; width: auto; height: auto; clip: auto; }
+.canvas2-workspace:not([data-workspace="excalidraw"]) [data-canvas2] .canvas2-toolbar-text svg,
+[data-canvas2][data-canvas2-narrow] .canvas2-toolbar-text svg { display: none; }
+
+/* ── Deshacer y zoom: UNA píldora ─────────────────────────────────────────────
+   Eran dos islas sueltas abajo a la izquierda. Juntas, con deshacer primero y
+   un filo entre los dos grupos. */
+.canvas2-workspace:not([data-workspace="advanced"]) [data-canvas2]:not([data-canvas2-narrow]) .layer-ui__wrapper__footer-left section {
+  display: flex; align-items: center; gap: 0; padding: 0 2px;
+  background: var(--island-bg-color); box-shadow: var(--shadow-island); border-radius: 999px;
+}
+.canvas2-workspace:not([data-workspace="advanced"]) [data-canvas2]:not([data-canvas2-narrow]) .layer-ui__wrapper__footer-left section > :is(.zoom-actions, .undo-redo-buttons) {
+  background: transparent; box-shadow: none; margin: 0;
+}
+.canvas2-workspace:not([data-workspace="advanced"]) [data-canvas2]:not([data-canvas2-narrow]) .layer-ui__wrapper__footer-left section > .undo-redo-buttons {
+  order: -1; display: flex; align-items: center;
+}
+.canvas2-workspace:not([data-workspace="advanced"]) [data-canvas2]:not([data-canvas2-narrow]) .layer-ui__wrapper__footer-left section > .undo-redo-buttons::after {
+  content: ''; width: 1px; height: 18px; margin: 0 4px; background: #ece9e3;
+}
+.canvas2-workspace:not([data-workspace="advanced"]) [data-canvas2][data-canvas2-theme="dark"]:not([data-canvas2-narrow]) .layer-ui__wrapper__footer-left section > .undo-redo-buttons::after { background: #34312c; }
+
 /* ── Móvil de Excalidraw: la fila de abajo ─────────────────────────────────
    Sin nada elegido, la isla inferior de Excalidraw es una franja blanca de
    lado a lado con solo el menú a la izquierda y deshacer/rehacer a la derecha:
@@ -517,10 +639,14 @@
    Iconos en la columna del borde derecho, abajo: los mismos botones que la
    tira de Marca · Página · Capas de arriba (32 px, redondos, sin fondo; gris
    cálido, el activo en tinta). Vive fuera de `.excalidraw`: colores aquí. */
+/* Sin tarjeta: botones sueltos sobre la mesa. Misma columna que la tira de
+   Marca · Página · Capas (48px a 16px del borde, como el riel de la izquierda)
+   y el último botón a la altura de la píldora de deshacer y zoom. */
 [data-canvas2] .canvas2-mode-tools {
-  position: absolute; right: 4px; bottom: 16px; z-index: 4;
-  display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 6px 0;
+  position: absolute; right: 16px; bottom: 16px; z-index: 4; width: 48px;
+  display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 0;
 }
+[data-canvas2] .canvas2-mode-tools[data-narrow] { right: 4px; width: auto; padding: 6px 0; }
 /* Móvil: arriba a la derecha (abajo está la barra de Excalidraw). */
 [data-canvas2] .canvas2-mode-tools[data-narrow] { top: 8px; bottom: auto; }
 /* Editando, ese rincón es de Excalidraw: el final de su barra («Más
@@ -530,7 +656,7 @@
    baja por debajo de las dos; en Ver y Comentar no hay barra y sigue arriba. */
 [data-canvas2]:not([data-canvas2-readonly]) .canvas2-mode-tools[data-narrow] { top: 152px; }
 [data-canvas2] .canvas2-mode-tools button {
-  width: 32px; height: 32px; display: grid; place-items: center; padding: 0;
+  width: 36px; height: 36px; display: grid; place-items: center; padding: 0;
   border: 0; border-radius: 999px; cursor: pointer; background: transparent; color: #6e6962;
   transition: background 120ms, color 120ms;
 }
@@ -538,12 +664,9 @@
 [data-canvas2] .canvas2-mode-tools svg { width: 18px; height: 18px; }
 [data-canvas2] .canvas2-mode-tools button:hover { background: #f3f0ea; color: #111111; }
 [data-canvas2] .canvas2-mode-tools button[aria-pressed="true"] { background: #111111; color: #ffffff; }
-[data-canvas2] .canvas2-mode-tools[data-theme="dark"] button { color: #a39e96; }
-[data-canvas2] .canvas2-mode-tools[data-theme="dark"] button:hover { background: #282622; color: #f7f4ed; }
-[data-canvas2] .canvas2-mode-tools[data-theme="dark"] button[aria-pressed="true"] { background: #f7f4ed; color: #111111; }
+/* Sin tarjeta, sobre la mesa clara: en oscuro van igual que en claro (con los
+   colores del tema oscuro el gris no se leía y el activo, casi blanco, desaparecía). */
 [data-canvas2] .canvas2-mode-tools button:focus-visible { outline: 2px solid #111111; outline-offset: 2px; }
 
-/* Ver y Comentar (solo lectura): fuera el menú de arriba a la izquierda. Solo
-   al editar se ve todo. La descarga sigue en la cabecera del contenido. */
-[data-canvas2][data-canvas2-readonly] .main-menu-trigger,
-[data-canvas2][data-canvas2-readonly] .App-menu_top__left .dropdown-menu { display: none !important; }
+/* Ver y Comentar (solo lectura): el menú de arriba a la izquierda se queda, con
+   lo que no cambia el diseño (espacio de trabajo, exportar, tema, buscar). */

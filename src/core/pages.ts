@@ -9,6 +9,7 @@ import { buildPageBackground, isPageBackground } from './background';
 import { cloneSceneElements } from './components';
 import { PAGE_GAP } from './layout';
 import { renumberedPageName, resolvePageNames, type PageNames } from './pageNames';
+import { framesInDocumentOrder, PAGE_MARKER, pageOrderOf } from './pageModel';
 
 /**
  * "Pages" / artboards on top of Excalidraw's infinite canvas.
@@ -75,49 +76,10 @@ function createId(): string {
 
 type FrameElement = Extract<SceneElement, { type: 'frame' }>;
 
-/**
- * El orden del documento vive en el marco, no en su `x`.
- *
- * Deducirlo de la posición era barato pero frágil: los marcos se pueden
- * arrastrar (Excalidraw dibuja su rótulo y tira de él), así que empujar una
- * página 20 px a la izquierda la colaba delante de su vecina y el siguiente
- * reempaquetado —o la simple recarga, que llama a `relayoutPages`— consolidaba
- * ese cambio de orden que nadie había pedido. Se guarda en `customData`, el
- * mismo canal público que ya usa el papel de fondo (Excalidraw lo devuelve tal
- * cual), y la `x` pasa a ser una CONSECUENCIA del orden en vez de su origen.
- */
-const PAGE_MARKER = 'c2page';
-
-interface PageMarker {
-  index: number;
-}
-
-function pageOrderOf(el: SceneElement): number | null {
-  const raw = (el.customData as { [PAGE_MARKER]?: PageMarker } | undefined)?.[PAGE_MARKER]?.index;
-  return typeof raw === 'number' && Number.isFinite(raw) ? raw : null;
-}
-
-/**
- * Los marcos, en orden de documento.
- *
- * Manda la marca guardada, pero SOLO si la llevan todas: con una sola sin
- * marcar no hay forma de intercalarla entre índices (¿va antes o después de la
- * 3?), así que se cae en bloque a ordenar por `x` —el comportamiento histórico—
- * y el siguiente `packPagesInArray` vuelve a marcarlas todas. Eso cubre a la vez
- * las escenas antiguas (ninguna marcada) y el marco que alguien acaba de dibujar
- * a mano (una sin marcar).
- */
-function framesInArray(elements: readonly SceneElement[]): FrameElement[] {
-  const frames = elements.filter((e): e is FrameElement => e.type === 'frame');
-  const marked = frames.length > 0 && frames.every((f) => pageOrderOf(f) !== null);
-  return frames
-    .slice()
-    .sort(
-      marked
-        ? (a, b) => (pageOrderOf(a) as number) - (pageOrderOf(b) as number)
-        : (a, b) => a.x - b.x,
-    );
-}
+// El orden de las páginas y su lectura viven en pageModel.ts (puro: lo usan
+// también los conversores headless).
+const framesInArray = framesInDocumentOrder;
+export { framesInDocumentOrder };
 
 /** Lado mínimo de una página, en px de escena. */
 const MIN_PAGE_SIDE = 16;
@@ -452,6 +414,42 @@ export function addPage(
   return id;
 }
 
+/**
+ * La página que se está mirando, para el seguimiento del encuadre: la que más
+ * se ve dentro de `bounds` (`[x1, y1, x2, y2]` de escena, lo de
+ * `getVisibleSceneBounds`), salvo que la activa ya se vea entera o tanto como
+ * la que más. Devuelve `null` si no se ve ninguna.
+ *
+ * Antes ganaba siempre la de más área a la vista, y en un empate la primera de
+ * la escena. Con la ventana ancha `goToPage` deja enteras también las vecinas
+ * (al 72 % del alto, una 4:5 ocupa poco más de un tercio del ancho), así que
+ * 150 ms después de saltar a la página 2 la activa volvía a ser la 1: la barra
+ * de la página se iba de esquina y el «¿Eliminar?» recién armado se desarmaba
+ * (`PageActions` lo desarma al cambiar de página) antes de poder pulsarlo.
+ */
+export function pageInView(
+  elements: readonly { id: string; type: string; x: number; y: number; width: number; height: number; isDeleted?: boolean }[],
+  bounds: readonly [number, number, number, number],
+  currentId: string | null | undefined,
+): string | null {
+  const [x1, y1, x2, y2] = bounds;
+  let best: { id: string; area: number } | null = null;
+  let current: { area: number; whole: boolean } | null = null;
+  for (const e of elements) {
+    if (e.type !== 'frame' || e.isDeleted) continue;
+    const w = Math.min(e.x + e.width, x2) - Math.max(e.x, x1);
+    const h = Math.min(e.y + e.height, y2) - Math.max(e.y, y1);
+    if (w <= 0 || h <= 0) continue;
+    const area = w * h;
+    // Un pelo de tolerancia: el encuadre animado no siempre cae en el píxel.
+    if (e.id === currentId) current = { area, whole: area >= e.width * e.height * 0.995 };
+    if (!best || area > best.area) best = { id: e.id, area };
+  }
+  if (!best) return null;
+  if (currentId && current && (current.whole || current.area >= best.area * 0.995)) return currentId;
+  return best.id;
+}
+
 /** Center + zoom the viewport onto a page. */
 /**
  * Cuánto de la pantalla ocupa la página al saltar a ella (0,1–1).
@@ -683,23 +681,53 @@ export function resizePage(
   size: PageSize,
   opts: { scaleContent?: boolean } = {},
 ): void {
+  resizePages(api, [pageId], size, opts);
+}
+
+/**
+ * Cambia el tamaño de VARIAS páginas en UNA entrada de deshacer: el tamaño de
+ * una presentación es de todas sus diapositivas (Archivo › Tamaño), y deshacer
+ * el cambio no puede pedir un Ctrl+Z por diapositiva.
+ */
+export function resizePages(
+  api: ExcalidrawImperativeAPI,
+  pageIds: readonly string[],
+  size: PageSize,
+  opts: { scaleContent?: boolean } = {},
+): void {
+  const before = api.getSceneElements();
+  let next: readonly SceneElement[] = before;
+  for (const id of pageIds) next = resizePageInArray(next, id, size, opts);
+  if (next === before) return;
+  commitElements(api, packPagesInArray(next));
+}
+
+/**
+ * Copia del array con la página `pageId` a `size`. Puro; devuelve el MISMO
+ * array si no hay nada que hacer (página que no existe o tamaño imposible).
+ */
+export function resizePageInArray(
+  elements: readonly SceneElement[],
+  pageId: string,
+  size: PageSize,
+  opts: { scaleContent?: boolean } = {},
+): readonly SceneElement[] {
   const scaleContent = opts.scaleContent ?? true;
-  const elements = api.getSceneElements();
   const frame = elements.find(
     (e): e is FrameElement => e.id === pageId && e.type === 'frame',
   );
-  if (!frame) return;
+  if (!frame) return elements;
   // Un 0 o un NaN aquí NO se recorta como en `addPage`: pedir un tamaño
   // imposible es un error de quien llama, y encoger la página a 16 px sería
   // menos recuperable que no hacer nada.
-  if (!Number.isFinite(size.width) || !Number.isFinite(size.height)) return;
-  if (size.width <= 0 || size.height <= 0) return;
+  if (!Number.isFinite(size.width) || !Number.isFinite(size.height)) return elements;
+  if (size.width <= 0 || size.height <= 0) return elements;
 
   const sx = size.width / frame.width;
   const sy = size.height / frame.height;
   const k = Math.min(sx, sy);
 
-  const resized = elements.map((e) => {
+  return elements.map((e) => {
     if (e.id === pageId && e.type === 'frame') {
       return patchElement(e, { width: size.width, height: size.height });
     }
@@ -734,8 +762,6 @@ export function resizePage(
     }
     return patchElement(e, updates as Partial<SceneElement>);
   });
-
-  commitElements(api, packPagesInArray(resized));
 }
 
 /**

@@ -182,4 +182,30 @@ describe('buildHydratedFiles()', () => {
 
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
+
+  it('dos hidrataciones a la vez de la misma foto no revocan el blob: que ya usa la primera', async () => {
+    vi.useFakeTimers();
+    const revoke = vi.spyOn(URL, 'revokeObjectURL');
+    try {
+      const api = fakeApi({ a: remoto('a', 'https://cdn/x.webp') });
+      // Las dos piden antes de que vuelva ninguna: las dos fallan la caché.
+      let soltar!: () => void;
+      const espera = new Promise<void>((r) => (soltar = r));
+      const fetcher = vi.fn(async () => {
+        await espera;
+        return blobDe('bytes');
+      });
+      const primera = buildHydratedFiles(api, fetcher, PROXY);
+      const segunda = buildHydratedFiles(api, fetcher, PROXY);
+      soltar();
+      const [uno, dos] = await Promise.all([primera, segunda]);
+      vi.runAllTimers();
+      // Las dos usan el mismo enlace, y ese enlace sigue vivo.
+      expect(dos.files.a.dataURL).toBe(uno.files.a.dataURL);
+      expect(revoke).not.toHaveBeenCalledWith(uno.files.a.dataURL);
+    } finally {
+      revoke.mockRestore();
+      vi.useRealTimers();
+    }
+  });
 });

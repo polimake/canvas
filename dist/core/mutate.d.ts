@@ -46,6 +46,22 @@ export declare function asSceneElements(elements: readonly SceneElement[]): Scen
  * `'never'`— en el commit que toca.
  */
 export declare function detachMoved(current: readonly SceneElement[], next: readonly SceneElement[]): readonly SceneElement[];
+/**
+ * Lo borrado se queda en la escena, en su sitio.
+ *
+ * Las operaciones del lienzo arman la escena nueva desde `getSceneElements()`,
+ * que solo trae lo vivo. Sin lo borrado en la lista, `updateScene` lo quita de
+ * verdad, y al deshacer ese borrado Excalidraw lo saca de su copia y lo
+ * recoloca por índice: con dos que vuelven a la vez, el primero toma un índice
+ * nuevo y el segundo cae al otro lado (nightly del 14/11/2026,
+ * `lienzo/parte-8-deshacer`, cadena 5: «Ctrl+Z nº 4 no deja el paso 8 — mismos
+ * elementos en otro orden», tras duplicar una página y borrar dos textos).
+ *
+ * Cada borrado que falta vuelve detrás del que tenía delante en la escena; si
+ * no tenía nada delante, al principio. Es el mismo objeto: no cambia de
+ * versión ni de índice.
+ */
+export declare function keepDeleted(current: readonly SceneElement[], next: readonly SceneElement[]): readonly SceneElement[];
 /** Commit an elements array (optionally with appState) to the scene. */
 export declare function commitElements(api: ExcalidrawImperativeAPI, elements: readonly SceneElement[], capture?: CaptureMode, appState?: Record<string, unknown>): void;
 //# sourceMappingURL=mutate.d.ts.map

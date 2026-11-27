@@ -28,6 +28,12 @@ export declare function registerCustomFonts(faces: readonly CustomFontFace[]): {
  * de alta. Lo usan los presets de texto para nacer en la tipografía de marca.
  */
 export declare function fontFamilyId(name: string): number | null;
+/**
+ * Nombre de la familia de un id (lo inverso de `fontFamilyId`): las de serie y
+ * las registradas. Lo usa la exportación a PowerPoint, que necesita el nombre y
+ * no el número. La clave de la tabla puede ir entre comillas (`fontFamilyCss`).
+ */
+export declare function fontFamilyName(id: number): string | undefined;
 /** Solo para tests: olvida lo registrado en este proceso. */
 export declare function resetFontRegistry(): void;
 //# sourceMappingURL=fontRegistry.d.ts.map

@@ -290,7 +290,7 @@ export function BrandGallery({
                         'linear-gradient(45deg,rgba(128,128,128,.25) 25%,transparent 25%,transparent 75%,rgba(128,128,128,.25) 75%),linear-gradient(45deg,rgba(128,128,128,.25) 25%,transparent 25%,transparent 75%,rgba(128,128,128,.25) 75%)',
                       backgroundSize: '8px 8px',
                       backgroundPosition: '0 0, 4px 4px',
-                      borderRadius: embedded ? 8 : 4,
+                      borderRadius: 0,
                     }}
                   >
                     <img

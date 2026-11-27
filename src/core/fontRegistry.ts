@@ -8,7 +8,7 @@
  * El porqué de todo el mecanismo está en la cabecera de `fonts.ts`.
  */
 import { FONT_FAMILY } from './excal';
-import { customFontFamilyId, fontFamilyAlias, type CustomFontFace } from './fonts';
+import { customFontFamilyId, fontFamilyAlias, fontFamilyCss, type CustomFontFace } from './fonts';
 
 /** Familias que ya hemos dado de alta, para no repetir trabajo ni avisos. */
 const registradas = new Map<string, number>();
@@ -38,9 +38,12 @@ export function registerCustomFont(name: string): RegisteredFont | null {
 
   const id = customFontFamilyId(alias);
   const tabla = FONT_FAMILY as unknown as Record<string, number>;
+  // La clave es lo que Excalidraw pone tal cual en el atajo `font`: entre
+  // comillas si el alias no es un identificador CSS (ver `fontFamilyCss`).
+  const clave = fontFamilyCss(alias);
 
   const ocupante = Object.entries(tabla).find(([, valor]) => valor === id)?.[0];
-  if (ocupante !== undefined && ocupante !== alias) {
+  if (ocupante !== undefined && ocupante !== clave) {
     console.error(
       `[canvas2] la tipografía "${alias}" colisiona con "${ocupante}" (id ${id}); ` +
         'se usará la fuente por defecto. Renombra la familia en el brand kit.',
@@ -48,7 +51,7 @@ export function registerCustomFont(name: string): RegisteredFont | null {
     return null;
   }
 
-  tabla[alias] = id;
+  tabla[clave] = id;
   registradas.set(alias, id);
   return { alias, id };
 }
@@ -78,7 +81,18 @@ export function registerCustomFonts(
 export function fontFamilyId(name: string): number | null {
   const alias = fontFamilyAlias(name);
   const tabla = FONT_FAMILY as unknown as Record<string, number>;
-  return tabla[alias] ?? tabla[name] ?? null;
+  return tabla[fontFamilyCss(alias)] ?? tabla[name] ?? null;
+}
+
+/**
+ * Nombre de la familia de un id (lo inverso de `fontFamilyId`): las de serie y
+ * las registradas. Lo usa la exportación a PowerPoint, que necesita el nombre y
+ * no el número. La clave de la tabla puede ir entre comillas (`fontFamilyCss`).
+ */
+export function fontFamilyName(id: number): string | undefined {
+  const tabla = FONT_FAMILY as unknown as Record<string, number>;
+  const clave = Object.entries(tabla).find(([, valor]) => valor === id)?.[0];
+  return clave?.replace(/^"(.*)"$/, '$1').replace(/\\(.)/g, '$1');
 }
 
 /** Solo para tests: olvida lo registrado en este proceso. */

@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   DEFAULT_LABELS,
+  EN_LABELS,
+  labelsFor,
   mergeLabels,
   textPresetLabel,
   type Canvas2Labels,
@@ -72,6 +74,7 @@ describe('mergeLabels', () => {
       'sizes',
       'workspace',
       'mode',
+      'slides',
     ];
     for (const s of secciones) {
       expect(DEFAULT_LABELS[s], `falta la sección ${s}`).toBeTruthy();
@@ -101,5 +104,49 @@ describe('mergeLabels', () => {
     expect(
       textPresetLabel(mergeLabels({ sizes: { heading: 'Big' }, text: { heading: 'Heading' } }), 'heading'),
     ).toBe('Big');
+  });
+});
+
+describe('los textos de serie en inglés', () => {
+  it('cubren exactamente las mismas claves que los españoles', () => {
+    expect(Object.keys(EN_LABELS).sort()).toEqual(Object.keys(DEFAULT_LABELS).sort());
+    for (const s of Object.keys(DEFAULT_LABELS) as (keyof Canvas2Labels)[]) {
+      expect(Object.keys(EN_LABELS[s]).sort(), s).toEqual(Object.keys(DEFAULT_LABELS[s]).sort());
+      for (const [k, v] of Object.entries(EN_LABELS[s])) {
+        expect(typeof v, `${s}.${k}`).toBe(typeof (DEFAULT_LABELS[s] as Record<string, unknown>)[k]);
+      }
+    }
+  });
+
+  it('no llevan nada escrito en español', () => {
+    for (const s of Object.keys(EN_LABELS) as (keyof Canvas2Labels)[]) {
+      for (const [k, v] of Object.entries(EN_LABELS[s])) {
+        const texto = typeof v === 'function' ? (v as (x: unknown) => string)(k === 'textWith' || k === 'copyName' || k === 'insertLogo' || k === 'applyToSelection' ? 'Logo' : 2) : String(v);
+        expect(texto, `${s}.${k}`).not.toMatch(/[áéíóúñ¿¡]/i);
+      }
+    }
+  });
+
+  it('se eligen por el idioma de Excalidraw; lo demás sigue en español', () => {
+    expect(labelsFor('en')).toBe(EN_LABELS);
+    expect(labelsFor('en-GB')).toBe(EN_LABELS);
+    expect(labelsFor('es-ES')).toBe(DEFAULT_LABELS);
+    expect(labelsFor('de-DE')).toBe(DEFAULT_LABELS);
+    expect(labelsFor(undefined)).toBe(DEFAULT_LABELS);
+    // «en» tiene que ser el idioma, no el principio de otro código.
+    expect(labelsFor('eu-ES')).toBe(DEFAULT_LABELS);
+  });
+
+  it('lo que el host no traduce cae al inglés, no al español', () => {
+    const l = mergeLabels({ dock: { layers: 'Capas del host' } }, 'en');
+    expect(l.dock.layers).toBe('Capas del host');
+    expect(l.dock.brand).toBe('Brand');
+    expect(l.layers.empty).toBe(EN_LABELS.layers.empty);
+    expect(mergeLabels(null, 'en')).toBe(EN_LABELS);
+  });
+
+  it('las páginas nuevas en inglés se siguen renumerando', () => {
+    expect(EN_LABELS.pages.defaultName(3)).toBe('Page 3');
+    expect(isDefaultPageName(EN_LABELS.pages.defaultName(3))).toBe(true);
   });
 });

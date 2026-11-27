@@ -44,7 +44,16 @@ function pageFingerprint(api: ExcalidrawImperativeAPI, pageId: string): string {
 
 export function usePageThumbnails(
   api: ExcalidrawImperativeAPI | null,
-  opts?: { enabled?: boolean; files?: FilesMap },
+  opts?: {
+    enabled?: boolean;
+    files?: FilesMap;
+    /**
+     * Lado mayor de la miniatura, en px. 64 para los chips de la tira de
+     * páginas; la tira de diapositivas del espacio Presentación las pinta a
+     * ~170 px y pide el doble para pantallas densas.
+     */
+    width?: number;
+  },
 ): Record<string, string> {
   const [thumbs, setThumbs] = useState<Record<string, string>>({});
   /** pageId → huella con la que se generó la miniatura viva. */
@@ -52,6 +61,7 @@ export function usePageThumbnails(
   const urlsRef = useRef<Record<string, string>>({});
   const enabled = opts?.enabled ?? true;
   const files = opts?.files;
+  const width = opts?.width ?? THUMB_WIDTH;
 
   /**
    * Identidad ESTABLE del mapa de ficheros, por sus claves.
@@ -113,7 +123,7 @@ export function usePageThumbnails(
         try {
           const blob = await exportScenePng(api, {
             pageId: page.id,
-            maxWidthOrHeight: THUMB_WIDTH,
+            maxWidthOrHeight: width,
             background: true,
             ...(files ? { files } : {}),
           });
@@ -152,7 +162,7 @@ export function usePageThumbnails(
     };
     // `filesToken` y no `files`: el host publica un objeto nuevo en cada
     // captura, y con su identidad este efecto se reiniciaría cada 10 segundos.
-  }, [api, enabled, filesToken]);
+  }, [api, enabled, filesToken, width]);
 
   useEffect(
     () => () => {

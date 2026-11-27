@@ -2,7 +2,7 @@ import { type ExcalidrawImperativeAPI } from '../../core/excal';
 import type { FilesMap } from '../hooks/pageThumbnails';
 import type { SvgFontFace } from '../../core/svgFonts';
 import { type PartialLabels } from '../shared/labels';
-import type { CanvasWorkspace } from '../workspaces/types';
+import { type CanvasWorkspace } from '../workspaces/types';
 /**
  * Menú principal del editor: acciones de DOCUMENTO —convertir en páginas,
  * insertar texto, guardar como componente y exportar.
@@ -49,8 +49,21 @@ export interface CanvasMenuProps {
     fontFaces?: readonly SvgFontFace[];
     /** "Guardar página como componente" — la subida la hace el host. */
     onSaveComponent?: () => void;
+    /**
+     * El tema del lienzo, elegido aquí y guardado por el host. Sin él, no hay
+     * grupo: el tema lo manda el host por `theme` y Excalidraw no lo cambia.
+     */
+    themeChoice?: CanvasThemeChoice;
     /** Textos, inyectados por el host (ver labels.ts). */
     labels?: PartialLabels;
+    /** Idioma de los textos al exportar a PowerPoint (`es-ES`). */
+    lang?: string;
 }
-export declare function CanvasMenu({ pages: pageMode, workspace, onWorkspaceChange, api, activePageId, viewMode, hydrateFiles, fontFaces, onSaveComponent, labels: labelsProp, }: CanvasMenuProps): import("react").JSX.Element;
+/** «Como la app», claro u oscuro: lo que elige la persona, no el tema pintado. */
+export type CanvasThemeChoiceValue = 'app' | 'light' | 'dark';
+export interface CanvasThemeChoice {
+    value: CanvasThemeChoiceValue;
+    onChange: (value: CanvasThemeChoiceValue) => void;
+}
+export declare function CanvasMenu({ pages: pageMode, workspace, onWorkspaceChange, api, activePageId, viewMode, hydrateFiles, fontFaces, onSaveComponent, themeChoice, labels: labelsProp, lang, }: CanvasMenuProps): import("react").JSX.Element;
 //# sourceMappingURL=CanvasMenu.d.ts.map

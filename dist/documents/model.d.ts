@@ -8,7 +8,7 @@ export interface ImportNote {
 }
 export interface DocumentElement {
     id: string;
-    kind: 'text' | 'rectangle' | 'ellipse' | 'image';
+    kind: 'text' | 'rectangle' | 'ellipse' | 'diamond' | 'image' | 'line';
     name?: string;
     x: number;
     y: number;
@@ -23,7 +23,36 @@ export interface DocumentElement {
     fill?: string;
     stroke?: string;
     strokeWidth?: number;
+    strokeStyle?: 'solid' | 'dashed' | 'dotted';
+    /** 0–100. */
+    opacity?: number;
+    rounded?: boolean;
+    /** Groups the element belongs to, innermost first. */
+    groupIds?: string[];
+    /** `line`: outline relative to x/y. Closed when the last point repeats the first. */
+    points?: [number, number][];
+    arrowStart?: boolean;
+    arrowEnd?: boolean;
+    /** Text: x/y/width/height are its box; these place the text inside it. */
+    textAlign?: 'left' | 'center' | 'right';
+    verticalAlign?: 'top' | 'middle' | 'bottom';
+    inset?: {
+        left: number;
+        top: number;
+        right: number;
+        bottom: number;
+    };
+    lineHeight?: number;
     assetId?: string;
+    /** Image: fractions of the source removed from each side. */
+    crop?: {
+        left: number;
+        top: number;
+        right: number;
+        bottom: number;
+    };
+    flipH?: boolean;
+    flipV?: boolean;
 }
 export interface DocumentPage {
     id: string;
@@ -33,6 +62,10 @@ export interface DocumentPage {
     background?: string;
     elements: DocumentElement[];
     notes?: string;
+    /** Skipped when presenting (PowerPoint `show="0"`). */
+    hidden?: boolean;
+    /** How the slide enters when presenting. Anything PowerPoint has beyond a fade arrives as a fade. */
+    transition?: 'fade';
     /** Searchable source text when the page is represented by a rendered preview. */
     extractedText?: string;
 }
@@ -42,6 +75,8 @@ export interface DocumentAsset {
     mimeType: string;
     /** Original bytes; upload separately. Never embedded into the scene JSON. */
     bytes: Uint8Array;
+    width?: number;
+    height?: number;
 }
 export interface ImportDocument {
     format: DocumentFormat;
@@ -49,6 +84,8 @@ export interface ImportDocument {
     assets: DocumentAsset[];
     warnings: ImportNote[];
 }
+/** Height a text will take, from an average glyph width: no font metrics here. */
+export declare function estimateTextHeight(text: string, fontSize: number, lineHeight: number, width: number): number;
 export interface ParseLimits {
     maxFileBytes?: number;
     maxExpandedBytes?: number;

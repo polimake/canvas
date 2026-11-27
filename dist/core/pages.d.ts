@@ -1,6 +1,7 @@
 import { type ExcalidrawImperativeAPI, type SceneElement, type SceneElements } from './excal';
 import { type CaptureMode } from './mutate';
 import { type PageNames } from './pageNames';
+import { framesInDocumentOrder } from './pageModel';
 /**
  * "Pages" / artboards on top of Excalidraw's infinite canvas.
  *
@@ -38,6 +39,7 @@ export interface PageSizePreset extends PageSize {
     label: string;
 }
 export declare const PAGE_SIZE_PRESETS: PageSizePreset[];
+export { framesInDocumentOrder };
 /**
  * PURE: re-pack pages flush left → right, preserving `order` (default: current
  * document order) and anchoring the strip at the current leftmost x and at the
@@ -139,6 +141,28 @@ export declare function addPage(api: ExcalidrawImperativeAPI, pageSize?: PageSiz
     capture?: CaptureMode;
     names?: PageNames;
 }): string;
+/**
+ * La página que se está mirando, para el seguimiento del encuadre: la que más
+ * se ve dentro de `bounds` (`[x1, y1, x2, y2]` de escena, lo de
+ * `getVisibleSceneBounds`), salvo que la activa ya se vea entera o tanto como
+ * la que más. Devuelve `null` si no se ve ninguna.
+ *
+ * Antes ganaba siempre la de más área a la vista, y en un empate la primera de
+ * la escena. Con la ventana ancha `goToPage` deja enteras también las vecinas
+ * (al 72 % del alto, una 4:5 ocupa poco más de un tercio del ancho), así que
+ * 150 ms después de saltar a la página 2 la activa volvía a ser la 1: la barra
+ * de la página se iba de esquina y el «¿Eliminar?» recién armado se desarmaba
+ * (`PageActions` lo desarma al cambiar de página) antes de poder pulsarlo.
+ */
+export declare function pageInView(elements: readonly {
+    id: string;
+    type: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    isDeleted?: boolean;
+}[], bounds: readonly [number, number, number, number], currentId: string | null | undefined): string | null;
 export declare function goToPage(api: ExcalidrawImperativeAPI, pageId: string, opts?: {
     coverage?: number;
 }): void;
@@ -229,6 +253,21 @@ export declare function movePage(api: ExcalidrawImperativeAPI, pageId: string, d
 export declare function resizePage(api: ExcalidrawImperativeAPI, pageId: string, size: PageSize, opts?: {
     scaleContent?: boolean;
 }): void;
+/**
+ * Cambia el tamaño de VARIAS páginas en UNA entrada de deshacer: el tamaño de
+ * una presentación es de todas sus diapositivas (Archivo › Tamaño), y deshacer
+ * el cambio no puede pedir un Ctrl+Z por diapositiva.
+ */
+export declare function resizePages(api: ExcalidrawImperativeAPI, pageIds: readonly string[], size: PageSize, opts?: {
+    scaleContent?: boolean;
+}): void;
+/**
+ * Copia del array con la página `pageId` a `size`. Puro; devuelve el MISMO
+ * array si no hay nada que hacer (página que no existe o tamaño imposible).
+ */
+export declare function resizePageInArray(elements: readonly SceneElement[], pageId: string, size: PageSize, opts?: {
+    scaleContent?: boolean;
+}): readonly SceneElement[];
 /**
  * Duplicate a page and its contents, inserting the copy right AFTER the
  * source (pages to the right shift over) — one undo entry.
