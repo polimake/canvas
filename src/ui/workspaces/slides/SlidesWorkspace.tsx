@@ -24,7 +24,7 @@ import { SlidesIcon } from './icons';
 import { SlideMask } from './SlideMask';
 import {
   canDeleteSlide, deleteSlide, duplicateSlide, moveSlide, newSlide, resizeAllSlides,
-  runCanvasKey, selectAllInSlide, shortcutLabel, toggleSkip,
+  runCanvasKey, selectAllInSlide, selectionWithoutFrames, shortcutLabel, toggleSkip,
 } from './slideCommands';
 import './slides.css';
 
@@ -172,6 +172,12 @@ export function SlidesWorkspace(props: SlidesWorkspaceProps) {
     const fallback = deck.slides[Math.min(lastIndex.current, deck.slides.length - 1)];
     if (fallback) onActiveChange(fallback.id);
   }, [api, deck.slides, activeIndex, activePageId, onActiveChange]);
+  // Las diapositivas son fijas: si algo selecciona un marco, se suelta en el
+  // acto (sin marco seleccionado no hay nada que arrastrar ni encoger).
+  useEffect(() => api.onChange(() => {
+    const next = selectionWithoutFrames(api.getAppState().selectedElementIds ?? {}, api.getSceneElements());
+    if (next) api.updateScene({ appState: { selectedElementIds: next }, captureUpdate: CaptureUpdateAction.NEVER });
+  }), [api]);
   // Una presentación tiene un solo tamaño: la diapositiva nueva sale como la activa.
   const newSize: PageSize = active ? { width: active.width, height: active.height } : pageSize ?? DEFAULT_PAGE_SIZE;
   const root = () => rootRef.current;

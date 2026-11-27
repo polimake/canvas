@@ -7277,6 +7277,15 @@ function selectAllInSlide(api, pageId) {
     captureUpdate: CaptureUpdateAction.NEVER
   });
 }
+function selectionWithoutFrames(selected, elements) {
+  const ids = Object.keys(selected).filter((id) => selected[id]);
+  if (!ids.length) return null;
+  const frames2 = new Set(elements.filter((e) => e.type === "frame").map((e) => e.id));
+  if (!ids.some((id) => frames2.has(id))) return null;
+  const next = {};
+  for (const id of ids) if (!frames2.has(id)) next[id] = true;
+  return next;
+}
 function canDeleteSlide(pages) {
   return pages.length > 1;
 }
@@ -7404,6 +7413,10 @@ function SlidesWorkspace(props) {
     const fallback = deck.slides[Math.min(lastIndex.current, deck.slides.length - 1)];
     if (fallback) onActiveChange(fallback.id);
   }, [api, deck.slides, activeIndex, activePageId, onActiveChange]);
+  useEffect(() => api.onChange(() => {
+    const next = selectionWithoutFrames(api.getAppState().selectedElementIds ?? {}, api.getSceneElements());
+    if (next) api.updateScene({ appState: { selectedElementIds: next }, captureUpdate: CaptureUpdateAction.NEVER });
+  }), [api]);
   const newSize = active ? { width: active.width, height: active.height } : pageSize ?? DEFAULT_PAGE_SIZE;
   const root = () => rootRef.current;
   useLayoutEffect(() => {
@@ -9756,4 +9769,4 @@ export {
   adoptStrayFramesInArray as y,
   alignToPage as z
 };
-//# sourceMappingURL=LibraryPanel-B8kpWoGv.js.map
+//# sourceMappingURL=LibraryPanel-yBaan-iM.js.map

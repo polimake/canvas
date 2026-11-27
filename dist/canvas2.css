@@ -1207,6 +1207,10 @@
 }
 .canvas2-slides-notes textarea::placeholder { color: var(--workspace-sub); }
 .canvas2-slides-notes textarea:focus { outline: none; box-shadow: 0 0 0 1px var(--workspace-border); }
+/* Vacías, atenuadas para no competir con la diapositiva; enteras si tienen texto, al escribir o con el ratón encima. */
+.canvas2-slides-notes { transition: opacity 150ms; }
+.canvas2-slides-notes:has(textarea:placeholder-shown):not(:hover, :focus-within) { opacity: .45; }
+@media (prefers-reduced-motion: reduce) { .canvas2-slides-notes { transition: none; } }
 
 /* ── Vista de cuadrícula ───────────────────────────────────────────────────── */
 .canvas2-slides-grid {

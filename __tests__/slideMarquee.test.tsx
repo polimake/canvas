@@ -110,3 +110,14 @@ describe('SlideMask: el recuadro desde la franja', () => {
     expect(Object.keys(state().selectedElementIds as object)).toEqual(['a']);
   });
 });
+
+describe('selectionWithoutFrames: las diapositivas son fijas', () => {
+  it('quita los marcos de la selección y deja lo demás', async () => {
+    const { selectionWithoutFrames } = await import('../src/ui/workspaces/slides/slideCommands.js');
+    const elements = [{ id: 'p1', type: 'frame' }, { id: 'a', type: 'rectangle' }];
+    expect(selectionWithoutFrames({ p1: true, a: true }, elements)).toEqual({ a: true });
+    expect(selectionWithoutFrames({ p1: true }, elements)).toEqual({});
+    expect(selectionWithoutFrames({ a: true }, elements)).toBeNull();
+    expect(selectionWithoutFrames({}, elements)).toBeNull();
+  });
+});

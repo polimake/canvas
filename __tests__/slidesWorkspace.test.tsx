@@ -2,7 +2,7 @@
 import { useEffect, type ReactNode, type ButtonHTMLAttributes } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { excalMock, fakeApi, frame } from './helpers';
+import { excalMock, fakeApi, frame, member } from './helpers';
 
 let engine = fakeApi([]);
 const mounted = vi.fn();
@@ -148,7 +148,9 @@ describe('espacio Presentación', () => {
     expect(screen.queryByRole('button', { name: 'Fondo' })).toBeNull();
     act(() => { engine.api.updateScene({ appState: { activeTool: { type: 'selection' } } }); });
     expect(screen.getByRole('button', { name: 'Tema' })).toBeTruthy();
-    act(() => { engine.setSelected(['p1']); });
+    // Algo de DENTRO de la diapositiva: el marco no se deja seleccionar (es fijo).
+    act(() => { engine.api.updateScene({ elements: [...engine.get(), member('caja', 'p1', 100, 100, 200, 200)] }); });
+    act(() => { engine.setSelected(['caja']); });
     expect(screen.queryByRole('button', { name: 'Tema' })).toBeNull();
   });
 
