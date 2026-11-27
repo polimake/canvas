@@ -27,6 +27,16 @@ export declare function resizeAllSlides(api: ExcalidrawImperativeAPI, size: Page
  * lo bloqueado; mirar no entra en el historial.
  */
 export declare function selectAllInSlide(api: ExcalidrawImperativeAPI, pageId: string | null): void;
+/**
+ * La selección sin los marcos de las diapositivas. En Presentación las
+ * diapositivas son fijas: seleccionar un marco (un clic en su borde o en su
+ * nombre) dejaba arrastrarlo o encogerlo sin querer, y la diapositiva se
+ * descolocaba. Devuelve null si no había ningún marco. Pura.
+ */
+export declare function selectionWithoutFrames(selected: Readonly<Record<string, boolean>>, elements: ReadonlyArray<{
+    id: string;
+    type: string;
+}>): Record<string, true> | null;
 export declare function canDeleteSlide(pages: readonly PageInfo[]): boolean;
 /**
  * Lanza un atajo de teclado de Excalidraw como si se hubiera pulsado: deshacer,

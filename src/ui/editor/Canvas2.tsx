@@ -12,7 +12,6 @@ import {
   type SceneElement,
 } from '../../core/excal';
 import { PageNavigator } from '../navigation/PageNavigator';
-import { LooseWarning } from '../overlays/LooseWarning';
 import { VideoFramePicker } from '../overlays/VideoFramePicker';
 import { CanvasMenu, type CanvasThemeChoice } from '../navigation/CanvasMenu';
 import { PageActions } from '../navigation/PageActions';
@@ -1278,20 +1277,6 @@ export function Canvas2Editor({
         releaseVideoSrc={releaseVideoSrc}
         onPickFrame={onPickVideoFrame}
       />
-      {/* Aviso de elementos fuera de toda página. Va aquí y no dentro del
-          navegador de páginas porque habla del documento entero, no de una. */}
-      {/* También en Presentación: lo que se suelta fuera de la diapositiva queda
-          tapado por la máscara, y el aviso es la forma de traerlo de vuelta. */}
-      {pages && (
-        <LooseWarning
-          api={api}
-          activePageId={activePageId}
-          theme={theme}
-          viewMode={viewMode}
-          narrow={narrow}
-          labels={L}
-        />
-      )}
       {/* En Presentación la tira de páginas es la de diapositivas (SlidesWorkspace). */}
       {pages && api && !slidesActive && (
         <PageNavigator
