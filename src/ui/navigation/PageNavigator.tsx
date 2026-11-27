@@ -17,7 +17,8 @@ import { PANEL_FONT, palette } from '../shared/theme';
 import { FitAllIcon, LockIcon, PlusIcon } from '../shared/icons';
 import { mergeLabels, type PartialLabels } from '../shared/labels';
 import { displayPageName } from '../../core/pageNames';
-import { DragPreview, hideNativeDragImage, type DragGrab } from '../overlays/DragPreview';
+import { DragPreview, type DragGrab } from '../overlays/DragPreview';
+import { startPointerDrag } from '../shared/pointerDrag';
 
 export interface PageNavigatorProps {
   api: ExcalidrawImperativeAPI;
@@ -182,10 +183,10 @@ export function PageNavigator({
   const dragIndex = draggingId ? pages.findIndex((p) => p.id === draggingId) : -1;
 
   /** Puesto final para un puntero en `clientX`: cuántas de las DEMÁS fichas quedan a su izquierda. */
-  const indexAt = (clientX: number): number => {
+  const indexAt = (clientX: number, from: number): number => {
     let j = 0;
     slotsRef.current.forEach((slot, k) => {
-      if (k !== dragIndex && slot.center < clientX) j++;
+      if (k !== from && slot.center < clientX) j++;
     });
     return j;
   };
@@ -274,31 +275,6 @@ export function PageNavigator({
           // lo que sale de su caja y la primera salía cortada por la izquierda.
           padding: 3,
         }}
-        // El destino se decide en el carril entero (no ficha a ficha): sirve
-        // también soltar en el hueco entre dos o más allá de la última.
-        // `dragenter` también se acepta: sin eso Chrome no da el carril por
-        // destino válido y nunca manda el `drop` (solo `dragend`).
-        onDragEnter={(e) => {
-          if (draggingId) e.preventDefault();
-        }}
-        onDragOver={(e) => {
-          if (!draggingId) return;
-          e.preventDefault();
-          e.dataTransfer.dropEffect = 'move';
-          const j = indexAt(e.clientX);
-          setDropIndex((prev) => (prev === j ? prev : j));
-        }}
-        onDrop={(e) => {
-          if (!draggingId) return;
-          e.preventDefault();
-          const j = dropIndex ?? indexAt(e.clientX);
-          const id = draggingId;
-          endDrag();
-          if (j !== dragIndex) {
-            movePageTo(api, id, j);
-            select(id);
-          }
-        }}
       >
       {pages.map((page, index) => {
         const isActive = page.id === activeId;
@@ -373,49 +349,59 @@ export function PageNavigator({
             tabIndex={0}
             className="canvas2-page-chip"
             title={displayPageName(page.name, L.pages)}
-            draggable={!viewMode && !isRenaming}
-            onDragStart={(e) => {
-              setDraggingId(page.id);
-              e.dataTransfer.effectAllowed = 'move';
-              // Firefox no inicia el arrastre sin datos en el portapapeles.
-              e.dataTransfer.setData('text/plain', page.id);
-              // Dónde está cada ficha AHORA (antes de que nada se deslice).
-              slotsRef.current = pages.map((p) => {
-                const r = chipRefs.current.get(p.id)?.getBoundingClientRect();
-                return r ? { left: r.left, center: r.left + r.width / 2 } : { left: 0, center: 0 };
+            // Con punteros, no con el arrastre HTML5: en el escritorio la ventana
+            // se queda los `dragover` y reordenar no hacía nada (desktop#371).
+            onPointerDown={(e) => {
+              if (viewMode || isRenaming) return;
+              const chip = e.currentTarget;
+              let over = index;
+              startPointerDrag(e, {
+                onStart: (x, y) => {
+                  setDraggingId(page.id);
+                  // Dónde está cada ficha AHORA (antes de que nada se deslice).
+                  slotsRef.current = pages.map((p) => {
+                    const r = chipRefs.current.get(p.id)?.getBoundingClientRect();
+                    return r ? { left: r.left, center: r.left + r.width / 2 } : { left: 0, center: 0 };
+                  });
+                  setDropIndex(index);
+                  // Foto de la miniatura que YA se ve (decodificada): la tarjeta
+                  // que sigue al cursor la usa en vez de volver a pedir el `blob:`.
+                  const img = chip.querySelector('img');
+                  let snap: string | null = null;
+                  if (img && img.complete && img.naturalWidth > 0) {
+                    try {
+                      const canvas = document.createElement('canvas');
+                      canvas.width = THUMB_W * 2;
+                      canvas.height = Math.round(canvas.width * (img.naturalHeight / img.naturalWidth));
+                      canvas.getContext('2d')?.drawImage(img, 0, 0, canvas.width, canvas.height);
+                      snap = canvas.toDataURL('image/png');
+                    } catch {
+                      // Un lienzo contaminado no se puede leer: sin foto, ficha lisa.
+                      snap = null;
+                    }
+                  }
+                  setGrabThumb(snap);
+                  // Mismo gesto que arrastrar contenido en el calendario: se
+                  // levanta una tarjeta propia que sigue al puntero.
+                  const box = chip.getBoundingClientRect();
+                  setGrab({ x: x - box.left, y: y - box.top, width: box.width, height: box.height });
+                },
+                // El destino se decide en el carril entero (no ficha a ficha): sirve
+                // también soltar en el hueco entre dos o más allá de la última.
+                onMove: (x) => {
+                  over = indexAt(x, index);
+                  setDropIndex((prev) => (prev === over ? prev : over));
+                },
+                onDrop: () => {
+                  endDrag();
+                  if (over !== index) {
+                    movePageTo(api, page.id, over);
+                    select(page.id);
+                  }
+                },
+                onCancel: endDrag,
               });
-              setDropIndex(index);
-              // Foto de la miniatura que YA se ve (decodificada): la tarjeta
-              // que sigue al cursor la usa en vez de volver a pedir el `blob:`.
-              const img = e.currentTarget.querySelector('img');
-              let snap: string | null = null;
-              if (img && img.complete && img.naturalWidth > 0) {
-                try {
-                  const canvas = document.createElement('canvas');
-                  canvas.width = THUMB_W * 2;
-                  canvas.height = Math.round(canvas.width * (img.naturalHeight / img.naturalWidth));
-                  canvas.getContext('2d')?.drawImage(img, 0, 0, canvas.width, canvas.height);
-                  snap = canvas.toDataURL('image/png');
-                } catch {
-                  // Un lienzo contaminado no se puede leer: sin foto, ficha lisa.
-                  snap = null;
-                }
-              }
-              setGrabThumb(snap);
-              // Mismo gesto que arrastrar contenido en el calendario: se esconde
-              // el fantasma del navegador y se levanta una tarjeta propia.
-              const box = e.currentTarget.getBoundingClientRect();
-              setGrab({
-                x: e.clientX - box.left,
-                y: e.clientY - box.top,
-                width: box.width,
-                height: box.height,
-              });
-              hideNativeDragImage(e);
             }}
-            // Soltar lo recoge el carril (arriba); aquí solo se limpia si el
-            // arrastre acaba fuera de la tira o se cancela con Escape.
-            onDragEnd={endDrag}
             onClick={() => select(page.id)}
             onDoubleClick={(e) => {
               if (viewMode) return;
