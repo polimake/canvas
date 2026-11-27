@@ -10,6 +10,22 @@ import { isPageBackground } from './pageModel';
  */
 export { isPageBackground };
 /**
+ * La mesa: lo que se ve alrededor de las páginas. En claro, el papel cálido del
+ * escenario del Studio; en oscuro, el gris cálido de las islas del cromo oscuro.
+ * La escena con páginas se pinta siempre en claro (ver `sceneTheme` en
+ * Canvas2), así que sin esto la mesa salía crema con todo el cromo en oscuro.
+ * Es un color de la VISTA: lo guardado y lo exportado llevan siempre la clara
+ * (`mesaGuardada`), para que cambiar el tema no toque el diseño.
+ */
+export declare const MESA: {
+    readonly light: "#efece6";
+    readonly dark: "#1c1a17";
+};
+/** La mesa de ese tema. */
+export declare function mesaDelTema(theme: 'light' | 'dark' | undefined): string;
+/** El fondo tal como se guarda o se exporta: la mesa oscura vuelve a la clara. */
+export declare function mesaGuardada<T extends string | undefined>(color: T): T | typeof MESA.light;
+/**
  * Build the background "paper" element for a page: a locked, full-bleed,
  * SHARP-CORNERED rectangle (roughness 0, no roundness) with a hairline border.
  * Pages read as straight-edged sheets — Excalidraw's own frame outline (which

@@ -59,6 +59,12 @@ export interface SlidesWorkspaceProps {
     /** El panel abierto del editor (`Canvas2`), el mismo en todos los espacios. */
     openPanel?: string | null;
     onOpenPanelChange?: (id: string | null) => void;
+    /**
+     * El color de la mesa que pinta el lienzo (claro u oscuro, según el tema).
+     * Llega por aquí y no leyendo `appState`: al cambiar de tema, el lienzo
+     * cambia su fondo sin repintar esto y la máscara se quedaba con el anterior.
+     */
+    mesa?: string;
 }
 /**
  * El espacio «Presentación»: el lienzo de siempre con la distribución de Slides.

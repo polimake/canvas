@@ -80,6 +80,12 @@ export interface SlidesWorkspaceProps {
   /** El panel abierto del editor (`Canvas2`), el mismo en todos los espacios. */
   openPanel?: string | null;
   onOpenPanelChange?: (id: string | null) => void;
+  /**
+   * El color de la mesa que pinta el lienzo (claro u oscuro, según el tema).
+   * Llega por aquí y no leyendo `appState`: al cambiar de tema, el lienzo
+   * cambia su fondo sin repintar esto y la máscara se quedaba con el anterior.
+   */
+  mesa?: string;
 }
 
 // Medidas de la maqueta aprobada (px de pantalla).
@@ -115,7 +121,7 @@ export function SlidesWorkspace(props: SlidesWorkspaceProps) {
   const {
     api, rootRef, activePageId, onActiveChange, panels, labels, pageSize,
     thumbnailFiles, hydrateFiles, fontFaces, viewMode, workspace, onWorkspaceChange, workspaces,
-    onSaveComponent, host, lang,
+    onSaveComponent, host, lang, mesa,
   } = props;
   const L = labels.slides;
   const deck = useDeck(api, labels.pages);
@@ -549,7 +555,7 @@ export function SlidesWorkspace(props: SlidesWorkspaceProps) {
         ['--slides-left' as string]: `${leftW}px`,
         ['--slides-right' as string]: `${rightW}px`,
         // La máscara y la cuadrícula, del color de la mesa que pinta el lienzo.
-        ['--slides-stage' as string]: api.getAppState().viewBackgroundColor,
+        ['--slides-stage' as string]: mesa ?? api.getAppState().viewBackgroundColor,
       }}>
 
       {view === 'slide' && (

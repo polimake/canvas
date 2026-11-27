@@ -7,6 +7,7 @@ import {
   type SceneElement,
 } from './excal';
 import { restoreScene, type StoredScene } from './serialize';
+import { mesaGuardada } from './background';
 import {
   appendFontFacesToSvg,
   buildFontFaceCss,
@@ -79,7 +80,8 @@ function exportAppState(api: ExcalidrawImperativeAPI, opts?: ExportOptions) {
   return {
     exportBackground: opts?.background ?? true,
     exportWithDarkMode: opts?.darkMode ?? false,
-    viewBackgroundColor: api.getAppState().viewBackgroundColor,
+    // La mesa oscura es de la vista: lo exportado lleva la clara.
+    viewBackgroundColor: mesaGuardada(api.getAppState().viewBackgroundColor),
   };
 }
 
@@ -221,8 +223,9 @@ export async function exportStoredSceneSvg(
     .slice()
     .sort((a, b) => a.x - b.x);
 
-  const viewBackgroundColor = (scene.appState as { viewBackgroundColor?: string } | undefined)
-    ?.viewBackgroundColor;
+  const viewBackgroundColor = mesaGuardada(
+    (scene.appState as { viewBackgroundColor?: string } | undefined)?.viewBackgroundColor,
+  );
 
   return sinRuidoDeFuentes<SVGSVGElement>(() =>
     exportToSvg({
@@ -279,8 +282,9 @@ export async function exportStoredScenePng(
     .slice()
     .sort((a, b) => a.x - b.x);
 
-  const viewBackgroundColor = (scene.appState as { viewBackgroundColor?: string } | undefined)
-    ?.viewBackgroundColor;
+  const viewBackgroundColor = mesaGuardada(
+    (scene.appState as { viewBackgroundColor?: string } | undefined)?.viewBackgroundColor,
+  );
 
   return sinRuidoDeFuentes<Blob>(() =>
     exportToBlob({

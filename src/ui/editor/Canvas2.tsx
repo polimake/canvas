@@ -31,7 +31,7 @@ import type { FilesMap } from '../hooks/pageThumbnails';
 import { addPage, createBlankScene, goToPage, listPages, pageInView, relayoutPages, type PageSize } from '../../core/pages';
 import { commitElements } from '../../core/mutate';
 import { indexDuplicates } from '../../core/duplicate';
-import { ensurePagePapers, hasRaisedPaper } from '../../core/background';
+import { ensurePagePapers, hasRaisedPaper, mesaDelTema, mesaGuardada } from '../../core/background';
 import { resolveBrandKit, type BrandKitInput, type Canvas2Brand } from '../../core/brand';
 import { buildFontFaceCss, dedupeFontFaces, type CustomFontFace } from '../../core/fonts';
 import { fontFamilyId, registerCustomFonts } from '../../core/fontRegistry';
@@ -579,6 +579,16 @@ export function Canvas2Editor({
 
   const apiRef = useRef<ExcalidrawImperativeAPI | null>(null);
   const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null);
+  // La mesa sigue al tema también con el diseño abierto (Ajustes o el menú ☰).
+  // Solo si hay mesa nuestra: un fondo que no es una de las dos no se toca.
+  useEffect(() => {
+    if (!api || !pages) return;
+    const ahora = api.getAppState().viewBackgroundColor;
+    const quiere = mesaDelTema(theme);
+    if (ahora !== quiere && mesaGuardada(ahora) === mesaDelTema('light')) {
+      api.updateScene({ appState: { viewBackgroundColor: quiere } });
+    }
+  }, [api, pages, theme]);
   // Nuestro cromo flotante (tira de páginas, dock) se coloca por píxeles sobre
   // el lienzo, así que tiene que saber cuándo Excalidraw ha cambiado a su
   // distribución de móvil y ha puesto sus propias islas justo ahí. Ver narrow.ts.
@@ -699,7 +709,7 @@ export function Canvas2Editor({
         ...brandDefaults(brand),
         ...(base?.appState ?? {}),
         // La mesa: papel cálido (el escenario del Studio), no el gris acero de antes.
-        ...(pages ? { viewBackgroundColor: '#efece6' } : {}),
+        ...(pages ? { viewBackgroundColor: mesaDelTema(theme) } : {}),
       },
     } as Canvas2Scene;
   });
@@ -1186,7 +1196,9 @@ export function Canvas2Editor({
           // elements array AND every version, so nothing to persist. The array
           // alone is not enough: an arrow-key nudge mutates in place—same
           // array, new versions—and was never emitted (`sceneGate.ts`).
-          const bg = appState.viewBackgroundColor;
+          // La mesa oscura es solo de la vista: se guarda la clara, y cambiar de
+          // tema no cuenta como cambio del diseño.
+          const bg = mesaGuardada(appState.viewBackgroundColor);
           const gate = sceneChange(lastEmittedRef.current, elements, bg);
           if (!gate) return;
           lastEmittedRef.current = gate;
@@ -1342,6 +1354,7 @@ export function Canvas2Editor({
           workspace={workspace}
           onWorkspaceChange={changeWorkspace}
           workspaces={CANVAS_WORKSPACES}
+          mesa={mesaDelTema(theme)}
           onSaveComponent={onSaveComponent}
           host={slidesHost}
           lang={langCode}

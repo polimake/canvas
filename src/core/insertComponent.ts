@@ -1,6 +1,7 @@
 import type { ExcalidrawImperativeAPI, SceneElement } from './excal';
 import type { FileEntry } from './media';
 import { commitElements } from './mutate';
+import { mesaGuardada } from './background';
 import { goToPage, packPagesInArray, pageElementsInOrder, renumberPagesInArray } from './pages';
 import { buildPersistableFiles } from './media';
 import type { CustomFontFace } from './fonts';
@@ -104,7 +105,7 @@ export function extractPageForComponent(
   return {
     editorConfig: {
       elements: scoped as SceneElement[],
-      appState: { viewBackgroundColor: api.getAppState().viewBackgroundColor },
+      appState: { viewBackgroundColor: mesaGuardada(api.getAppState().viewBackgroundColor) },
       files: persistable.files as Record<string, FileEntry>,
       ...(fonts?.length ? { fonts: [...fonts] } : {}),
     },

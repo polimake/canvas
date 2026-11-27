@@ -65,7 +65,7 @@ export { insertPagesIntoScene, type IncomingPages } from './core/insertPages';
 export { getPageNotes, setPageNotes, isPageSkipped, setPageSkipped, getPageTransition, setPageTransition } from './core/slideMeta';
 export { TEXT_PRESETS, insertTextPreset, contrastTextColor } from './core/text';
 export type { TextPreset, TextPresetKey } from './core/text';
-export { getPageBackground, setPageBackgroundColor, ensurePagePapers, fitPagePapersInArray, isPageBackground, } from './core/background';
+export { getPageBackground, setPageBackgroundColor, ensurePagePapers, fitPagePapersInArray, isPageBackground, MESA, mesaGuardada, } from './core/background';
 export { insertVideo, setVideoPoster, isVideoElement, getVideoMeta, getSelectedVideo, VIDEO_MARKER, } from './core/video';
 export type { VideoMeta, InsertVideoOptions } from './core/video';
 //# sourceMappingURL=index.d.ts.map

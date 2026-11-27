@@ -1,4 +1,4 @@
-import { P as PAGE_GAP } from "./layout-BEpoNps2.js";
+import { P as PAGE_GAP } from "./layout-L5bQ5REv.js";
 import { dedupeFontFaces, normalizeFontName, customFontFamilyId, normalizeFontSrc, fontFamilyAlias } from "../fonts.js";
 const PSD_IMAGE_MARKER = "psdImage";
 const PAPER_COLOR$1 = "#ffffff";
@@ -1277,4 +1277,4 @@ export {
   resetIdCounter as r,
   splitPostScriptFont as s
 };
-//# sourceMappingURL=legacy-BS2a1q37.js.map
+//# sourceMappingURL=legacy-DAAEWkHb.js.map
