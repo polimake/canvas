@@ -2,9 +2,9 @@ import { jsxs, jsx, Fragment as Fragment$1 } from "react/jsx-runtime";
 import { useState, useRef, useEffect, Fragment, useMemo, useCallback, useId, useLayoutEffect, useReducer } from "react";
 import "@excalidraw/excalidraw/index.css";
 import { CaptureUpdateAction, newElementWith, convertToExcalidrawElements, restore, serializeAsJSON, exportToCanvas, exportToBlob, exportToSvg, FONT_FAMILY, MainMenu, viewportCoordsToSceneCoords, useI18n, getVisibleSceneBounds, Excalidraw, getNonDeletedElements } from "@excalidraw/excalidraw";
-import { i as isPageBackground, B as BG_MARKER$1, g as pageOrderOf, P as PAGE_MARKER, h as framesInDocumentOrder, s as sceneToDocument, f as documentToPptx, n as notesOf, t as transitionOf, j as isSkippedFrame, S as SLIDE_NOTES_KEY, a as SLIDE_SKIP_KEY, b as SLIDE_TRANSITION_KEY, k as SLIDE_TRANSITIONS } from "./documentToPptx-CMWe-xWo.js";
+import { i as isPageBackground, B as BG_MARKER$1, g as pageOrderOf, P as PAGE_MARKER, h as framesInDocumentOrder, s as sceneToDocument, f as documentToPptx, n as notesOf, t as transitionOf, j as isSkippedFrame, S as SLIDE_NOTES_KEY, a as SLIDE_SKIP_KEY, b as SLIDE_TRANSITION_KEY, k as SLIDE_TRANSITIONS } from "./documentToPptx-CsrYYM5a.js";
 import { cloneSceneElements } from "../components.js";
-import { P as PAGE_GAP } from "./layout-BEpoNps2.js";
+import { P as PAGE_GAP } from "./layout-L5bQ5REv.js";
 import { fontFormatHint, buildFontFaceCss, fontFamilyAlias, fontFamilyCss, customFontFamilyId, normalizeFontSrc, dedupeFontFaces } from "../fonts.js";
 import { createPortal, flushSync } from "react-dom";
 const CAPTURE = {
@@ -141,6 +141,13 @@ function sendMemberToBack(api, elementId, pageId) {
   const currentBottomFirst = api.getSceneElements().filter((e) => e.frameId === pageId).map((e) => e.id);
   const ordered = [elementId, ...currentBottomFirst.filter((id) => id !== elementId)];
   return reorderPageMembers(api, pageId, ordered);
+}
+const MESA = { light: "#efece6", dark: "#1c1a17" };
+function mesaDelTema(theme) {
+  return theme === "dark" ? MESA.dark : MESA.light;
+}
+function mesaGuardada(color2) {
+  return color2 === MESA.dark ? MESA.light : color2;
 }
 function buildPageBackground(pageId, bounds, color2) {
   const skeleton = [
@@ -805,7 +812,8 @@ function exportAppState(api, opts) {
   return {
     exportBackground: (opts == null ? void 0 : opts.background) ?? true,
     exportWithDarkMode: (opts == null ? void 0 : opts.darkMode) ?? false,
-    viewBackgroundColor: api.getAppState().viewBackgroundColor
+    // La mesa oscura es de la vista: lo exportado lleva la clara.
+    viewBackgroundColor: mesaGuardada(api.getAppState().viewBackgroundColor)
   };
 }
 function exportScenePng(api, opts) {
@@ -866,7 +874,9 @@ async function exportStoredSceneSvg(scene, opts) {
   const restored = restoreScene(scene);
   const elements = restored.elements ?? [];
   const pages = elements.filter((e) => e.type === "frame").slice().sort((a, b) => a.x - b.x);
-  const viewBackgroundColor = (_a = scene.appState) == null ? void 0 : _a.viewBackgroundColor;
+  const viewBackgroundColor = mesaGuardada(
+    (_a = scene.appState) == null ? void 0 : _a.viewBackgroundColor
+  );
   return sinRuidoDeFuentes(
     () => exportToSvg({
       elements,
@@ -885,7 +895,9 @@ async function exportStoredScenePng(scene, opts) {
   const restored = restoreScene(scene);
   const elements = restored.elements ?? [];
   const pages = elements.filter((e) => e.type === "frame").slice().sort((a, b) => a.x - b.x);
-  const viewBackgroundColor = (_a = scene.appState) == null ? void 0 : _a.viewBackgroundColor;
+  const viewBackgroundColor = mesaGuardada(
+    (_a = scene.appState) == null ? void 0 : _a.viewBackgroundColor
+  );
   return sinRuidoDeFuentes(
     () => exportToBlob({
       elements,
@@ -7411,7 +7423,8 @@ function SlidesWorkspace(props) {
     workspaces,
     onSaveComponent,
     host,
-    lang
+    lang,
+    mesa
   } = props;
   const L = labels.slides;
   const deck = useDeck(api, labels.pages);
@@ -7848,7 +7861,7 @@ function SlidesWorkspace(props) {
         ["--slides-left"]: `${leftW}px`,
         ["--slides-right"]: `${rightW}px`,
         // La máscara y la cuadrícula, del color de la mesa que pinta el lienzo.
-        ["--slides-stage"]: api.getAppState().viewBackgroundColor
+        ["--slides-stage"]: mesa ?? api.getAppState().viewBackgroundColor
       },
       children: [
         view === "slide" && /* @__PURE__ */ jsx(
@@ -9021,6 +9034,14 @@ ${css}` : css;
   }, [fuentes]);
   const apiRef = useRef(null);
   const [api, setApi] = useState(null);
+  useEffect(() => {
+    if (!api || !pages) return;
+    const ahora = api.getAppState().viewBackgroundColor;
+    const quiere = mesaDelTema(theme);
+    if (ahora !== quiere && mesaGuardada(ahora) === mesaDelTema("light")) {
+      api.updateScene({ appState: { viewBackgroundColor: quiere } });
+    }
+  }, [api, pages, theme]);
   const rootRef = useRef(null);
   const narrow = useIsNarrow(rootRef);
   const slidesActive = workspace === "slides" && Boolean(pages) && !narrow;
@@ -9080,7 +9101,7 @@ ${css}` : css;
         ...brandDefaults(brand),
         ...(base == null ? void 0 : base.appState) ?? {},
         // La mesa: papel cálido (el escenario del Studio), no el gris acero de antes.
-        ...pages ? { viewBackgroundColor: "#efece6" } : {}
+        ...pages ? { viewBackgroundColor: mesaDelTema(theme) } : {}
       }
     };
   });
@@ -9425,7 +9446,7 @@ ${css}` : css;
                     }
                   }
                   if (!onSceneChange) return;
-                  const bg = appState.viewBackgroundColor;
+                  const bg = mesaGuardada(appState.viewBackgroundColor);
                   const gate = sceneChange(lastEmittedRef.current, elements, bg);
                   if (!gate) return;
                   lastEmittedRef.current = gate;
@@ -9562,6 +9583,7 @@ ${css}` : css;
                 workspace,
                 onWorkspaceChange: changeWorkspace,
                 workspaces: CANVAS_WORKSPACES,
+                mesa: mesaDelTema(theme),
                 onSaveComponent,
                 host: slidesHost,
                 lang: langCode,
@@ -9705,88 +9727,90 @@ function LibraryPanel({
   );
 }
 export {
-  extendToPage as $,
-  captureThumbnail as A,
+  exportStoredScenePng as $,
+  adoptStrayFramesInArray as A,
   BrandGallery as B,
   Canvas2 as C,
   DEFAULT_LABELS as D,
   EN_LABELS as E,
-  cascadePoints as F,
-  clusterLooseElements as G,
-  contrastTextColor as H,
+  alignToPage as F,
+  captureThumbnail as G,
+  cascadePoints as H,
   ImageLoadError as I,
-  convertToPages as J,
-  createBlankScene as K,
+  clusterLooseElements as J,
+  contrastTextColor as K,
   LayersPanel as L,
   ModeSwitch as M,
-  dataUrlToBlob as N,
-  deletePage as O,
+  convertToPages as N,
+  createBlankScene as O,
   PANEL_FONT as P,
-  displayPageName as Q,
-  downloadBlob as R,
-  duplicatePage as S,
+  dataUrlToBlob as Q,
+  deletePage as R,
+  displayPageName as S,
   TEXT_PRESETS as T,
-  ensurePagePapers as U,
+  downloadBlob as U,
   VideoFramePicker as V,
-  exportScenePdf as W,
-  exportScenePng as X,
-  exportSceneSvg as Y,
-  exportStoredScenePng as Z,
-  exportStoredSceneSvg as _,
+  duplicatePage as W,
+  ensurePagePapers as X,
+  exportScenePdf as Y,
+  exportScenePng as Z,
+  exportSceneSvg as _,
   Canvas2Editor as a,
-  externalizeInlineImages as a0,
-  findInlineImageIds as a1,
-  fitAllPages as a2,
-  fitPagePapersInArray as a3,
-  focusLayer as a4,
-  fontFamilyId as a5,
-  getPageBackground as a6,
-  getPageNotes as a7,
-  getPageSize as a8,
-  getPageTransition as a9,
-  reorderPageMembers as aA,
-  replaceImageFromUrl as aB,
-  resizePage as aC,
-  resolveBrandKit as aD,
-  resolveInsertPageId as aE,
-  restoreScene as aF,
-  sendMemberToBack as aG,
-  serializeScene as aH,
-  setAsBackground as aI,
-  setPageBackgroundColor as aJ,
-  setPageLocked as aK,
-  setPageNotes as aL,
-  setPageSkipped as aM,
-  setPageTransition as aN,
-  setVideoPoster as aO,
-  storedScenePageCount as aP,
-  usePageThumbnails as aQ,
-  getSelectedVideo as aa,
-  getVideoMeta as ab,
-  hasUploadsInFlight as ac,
-  hideNativeDragImage as ad,
-  imageAtScenePoint as ae,
-  insertImageFromBlob as af,
-  insertImageFromUrl as ag,
-  insertImageWithPreview as ah,
-  insertPagesIntoScene as ai,
-  insertTextPreset as aj,
-  insertVideo as ak,
-  isInlineDataUrl as al,
-  isPageLocked as am,
-  isPageSkipped as an,
-  isVideoElement as ao,
-  listPages as ap,
-  looseElements as aq,
-  movePage as ar,
-  movePageTo as as,
-  paginateSceneInArray as at,
-  parseScene as au,
-  patchElement as av,
-  registerCustomFont as aw,
-  registerCustomFonts as ax,
-  relayoutPages as ay,
-  renamePage as az,
+  exportStoredSceneSvg as a0,
+  extendToPage as a1,
+  externalizeInlineImages as a2,
+  findInlineImageIds as a3,
+  fitAllPages as a4,
+  fitPagePapersInArray as a5,
+  focusLayer as a6,
+  fontFamilyId as a7,
+  getPageBackground as a8,
+  getPageNotes as a9,
+  relayoutPages as aA,
+  renamePage as aB,
+  reorderPageMembers as aC,
+  replaceImageFromUrl as aD,
+  resizePage as aE,
+  resolveBrandKit as aF,
+  resolveInsertPageId as aG,
+  restoreScene as aH,
+  sendMemberToBack as aI,
+  serializeScene as aJ,
+  setAsBackground as aK,
+  setPageBackgroundColor as aL,
+  setPageLocked as aM,
+  setPageNotes as aN,
+  setPageSkipped as aO,
+  setPageTransition as aP,
+  setVideoPoster as aQ,
+  storedScenePageCount as aR,
+  usePageThumbnails as aS,
+  getPageSize as aa,
+  getPageTransition as ab,
+  getSelectedVideo as ac,
+  getVideoMeta as ad,
+  hasUploadsInFlight as ae,
+  hideNativeDragImage as af,
+  imageAtScenePoint as ag,
+  insertImageFromBlob as ah,
+  insertImageFromUrl as ai,
+  insertImageWithPreview as aj,
+  insertPagesIntoScene as ak,
+  insertTextPreset as al,
+  insertVideo as am,
+  isInlineDataUrl as an,
+  isPageLocked as ao,
+  isPageSkipped as ap,
+  isVideoElement as aq,
+  listPages as ar,
+  looseElements as as,
+  movePage as at,
+  movePageTo as au,
+  paginateSceneInArray as av,
+  parseScene as aw,
+  patchElement as ax,
+  registerCustomFont as ay,
+  registerCustomFonts as az,
   CanvasMenu as b,
   DesignPanel as c,
   DragPreview as d,
@@ -9795,22 +9819,22 @@ export {
   PageNavigator as g,
   pageElementsInOrder as h,
   buildPersistableFiles as i,
-  packPagesInArray as j,
-  commitElements as k,
+  mesaGuardada as j,
+  packPagesInArray as k,
   labelsFor as l,
   mergeLabels as m,
-  goToPage as n,
-  DEFAULT_PAGE_SIZE as o,
+  commitElements as n,
+  goToPage as o,
   palette as p,
-  EMPTY_BRAND as q,
+  DEFAULT_PAGE_SIZE as q,
   renumberPagesInArray as r,
-  MEDIA_DROP_TYPE as s,
-  PAGE_ALIGNMENTS as t,
-  PAGE_SIZE_PRESETS as u,
-  VIDEO_MARKER as v,
-  addPage as w,
-  adoptLooseIntoPage as x,
-  adoptStrayFramesInArray as y,
-  alignToPage as z
+  EMPTY_BRAND as s,
+  MEDIA_DROP_TYPE as t,
+  MESA as u,
+  PAGE_ALIGNMENTS as v,
+  PAGE_SIZE_PRESETS as w,
+  VIDEO_MARKER as x,
+  addPage as y,
+  adoptLooseIntoPage as z
 };
-//# sourceMappingURL=LibraryPanel-BkLhA0Ee.js.map
+//# sourceMappingURL=LibraryPanel-QkeWaUFV.js.map

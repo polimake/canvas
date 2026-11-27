@@ -243,6 +243,9 @@ export {
   // ya la aplica; se exporta para quien trate una escena sin montar el editor.
   fitPagePapersInArray,
   isPageBackground,
+  // La mesa de alrededor de las páginas: oscura en la vista, clara al guardar.
+  MESA,
+  mesaGuardada,
 } from './core/background';
 
 // Vídeo en el lienzo: un póster que recuerda de qué vídeo salió, para poder
