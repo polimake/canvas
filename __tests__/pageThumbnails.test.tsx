@@ -117,6 +117,57 @@ describe('usePageThumbnails', () => {
     expect(exportScenePng).toHaveBeenCalledTimes(1);
   });
 
+  /**
+   * #342: una diapositiva con una foto VINCULADA (por URL, la sirve
+   * `http_local`) salía en blanco. Ningún host pasaba `files`, así que se
+   * rasterizaba la URL tal cual —Excalidraw la carga sin `crossOrigin`— y
+   * `toBlob()` moría con «Tainted canvases may not be exported».
+   */
+  it('una página con foto por URL rasteriza con el mapa que hidrata el host', async () => {
+    const photo = { id: 'img1', type: 'image', fileId: 'f1', frameId: 'a', version: 1 };
+    const { api } = fakeApi([frame('a', 0, 0, 500, 500), photo], {
+      f1: { id: 'f1', dataURL: 'http://127.0.0.1:4545/fichero?ruta=foto.jpg', mimeType: 'image/jpeg' },
+    });
+    const hydrated = { f1: { id: 'f1', dataURL: 'blob:hidratada', mimeType: 'image/jpeg' } };
+    const hydrate = vi.fn(async () => hydrated);
+    // Como el exportador de verdad: con la URL remota, el canvas se contamina.
+    exportScenePng.mockImplementation(async (_api: unknown, opts: { files?: unknown }) => {
+      if (opts.files !== hydrated) throw new DOMException('Tainted canvases may not be exported.', 'SecurityError');
+      return blob();
+    });
+
+    const { result } = renderHook(() => usePageThumbnails(api as never, { enabled: true, hydrate }));
+
+    await waitFor(() => expect(Object.keys(result.current)).toHaveLength(1));
+    expect(hydrate).toHaveBeenCalledTimes(1);
+  });
+
+  it('no pide hidratar si las fotos de la página ya van incrustadas', async () => {
+    const photo = { id: 'img1', type: 'image', fileId: 'f1', frameId: 'a', version: 1 };
+    const { api } = fakeApi([frame('a', 0, 0, 500, 500), photo], {
+      f1: { id: 'f1', dataURL: 'data:image/png;base64,AAAA', mimeType: 'image/png' },
+    });
+    const hydrate = vi.fn(async () => ({}));
+    const { result } = renderHook(() => usePageThumbnails(api as never, { enabled: true, hydrate }));
+
+    await waitFor(() => expect(Object.keys(result.current)).toHaveLength(1));
+    expect(hydrate).not.toHaveBeenCalled();
+    expect(exportScenePng.mock.calls[0][1]).not.toHaveProperty('files');
+  });
+
+  it('rehace la miniatura cuando el fichero de la foto llega después que el elemento', async () => {
+    const photo = { id: 'img1', type: 'image', fileId: 'f1', frameId: 'a', version: 1 };
+    const { api } = fakeApi([frame('a', 0, 0, 500, 500), photo]);
+    renderHook(() => usePageThumbnails(api as never, { enabled: true }));
+    await waitFor(() => expect(exportScenePng).toHaveBeenCalledTimes(1));
+
+    api.addFiles([{ id: 'f1', dataURL: 'data:image/png;base64,AAAA', mimeType: 'image/png' }]);
+    await act(async () => {
+      vi.advanceTimersByTime(1_000);
+    });
+    await waitFor(() => expect(exportScenePng).toHaveBeenCalledTimes(2));
+  });
+
   it('apagado no rasteriza nada', async () => {
     const { api } = fakeApi([frame('a', 0, 0, 500, 500)]);
     renderHook(() => usePageThumbnails(api as never, { enabled: false }));

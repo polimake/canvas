@@ -34,12 +34,42 @@ const DEBOUNCE_MS = 600;
  */
 export type FilesMap = NonNullable<ExportOptions['files']>;
 
+type FileLike = { dataURL?: unknown };
+
+function pageElements(api: ExcalidrawImperativeAPI, pageId: string) {
+  return api.getSceneElements().filter((e) => e.id === pageId || e.frameId === pageId);
+}
+
+/** El fichero de una imagen, si la escena ya lo tiene. */
+function fileOf(api: ExcalidrawImperativeAPI, el: unknown): FileLike | undefined {
+  const { type, fileId } = el as { type?: string; fileId?: string | null };
+  if (type !== 'image' || !fileId) return undefined;
+  return (api.getFiles() as Record<string, FileLike> | undefined)?.[fileId];
+}
+
 function pageFingerprint(api: ExcalidrawImperativeAPI, pageId: string): string {
-  return api
-    .getSceneElements()
-    .filter((e) => e.id === pageId || e.frameId === pageId)
-    .map((e) => `${e.id}:${e.version}`)
+  // Si el fichero de una imagen llega DESPUÉS que su elemento, la huella cambia
+  // y la miniatura se rehace con la foto.
+  return pageElements(api, pageId)
+    .map((e) => {
+      const { type, fileId } = e as { type?: string; fileId?: string | null };
+      const pending = type === 'image' && fileId && !fileOf(api, e) ? '?' : '';
+      return `${e.id}:${e.version}${pending}`;
+    })
     .join(',');
+}
+
+/**
+ * Si la página lleva alguna foto por URL (`http:`/`https:`: una foto vinculada
+ * que sirve `http_local`, una de Media). Excalidraw la carga sin `crossOrigin`,
+ * así que rasterizarla tal cual contamina el canvas y `toBlob()` muere con
+ * SecurityError (#342). Un `data:` o un `blob:` no contaminan.
+ */
+function pageNeedsHydration(api: ExcalidrawImperativeAPI, pageId: string): boolean {
+  return pageElements(api, pageId).some((e) => {
+    const url = fileOf(api, e)?.dataURL;
+    return typeof url === 'string' && !url.startsWith('data:') && !url.startsWith('blob:');
+  });
 }
 
 export function usePageThumbnails(
@@ -53,6 +83,14 @@ export function usePageThumbnails(
      * ~170 px y pide el doble para pantallas densas.
      */
     width?: number;
+    /**
+     * Cómo pedirle al host el mapa hidratado cuando no lo pasa en `files`: el
+     * mismo `hydrateFiles` del menú de exportar. Se llama solo si una página que
+     * hay que rasterizar lleva fotos por URL, y como mucho una vez por latido.
+     * Sin esto, una diapositiva con una foto vinculada salía en blanco (#342):
+     * ningún host pasaba `files`, así que se rasterizaba la URL tal cual.
+     */
+    hydrate?: () => Promise<FilesMap>;
   },
 ): Record<string, string> {
   const [thumbs, setThumbs] = useState<Record<string, string>>({});
@@ -82,6 +120,8 @@ export function usePageThumbnails(
   // de su identidad, solo de `filesToken`.
   const filesRef = useRef(files);
   filesRef.current = files;
+  const hydrateRef = useRef(opts?.hydrate);
+  hydrateRef.current = opts?.hydrate;
 
   useEffect(() => {
     if (!api || !enabled) return;
@@ -91,6 +131,7 @@ export function usePageThumbnails(
     // y guardaba un objeto nuevo aunque nada cambiase: un render del navegador
     // cada 600 ms. Ahora un tick sin cambios en la escena no hace nada.
     let lastSceneVersion = -1;
+    let lastFilesCount = -1;
     let running = false;
 
     const tick = async () => {
@@ -100,10 +141,25 @@ export function usePageThumbnails(
       const all = api.getSceneElements();
       let sceneVersion = all.length;
       for (const el of all) sceneVersion += el.version;
-      if (sceneVersion === lastSceneVersion) return;
+      // Los ficheros llegan aparte de los elementos: una foto cuyo fichero entra
+      // después también es un cambio (ver `pageFingerprint`).
+      const filesCount = Object.keys(api.getFiles() ?? {}).length;
+      if (sceneVersion === lastSceneVersion && filesCount === lastFilesCount) return;
       running = true;
       let changed = false;
-      const files = filesRef.current;
+      const hostFiles = filesRef.current;
+      /** El mapa hidratado de este latido, pedido al host la primera vez que hace falta. */
+      let hydrated: Promise<FilesMap | undefined> | null = null;
+      const filesFor = (pageId: string): Promise<FilesMap | undefined> => {
+        if (hostFiles) return Promise.resolve(hostFiles);
+        const hydrate = hydrateRef.current;
+        if (!hydrate || !pageNeedsHydration(api, pageId)) return Promise.resolve(undefined);
+        hydrated ??= hydrate().catch((err: unknown) => {
+          console.warn('[canvas2] no se pudieron hidratar las fotos de las miniaturas', err);
+          return undefined;
+        });
+        return hydrated;
+      };
       const pages = listPages(api);
       const live = new Set(pages.map((p) => p.id));
 
@@ -120,7 +176,10 @@ export function usePageThumbnails(
       for (const page of pages) {
         const stamp = `${pageFingerprint(api, page.id)}|${filesToken}`;
         if (stampsRef.current[page.id] === stamp) continue;
+        let files: FilesMap | undefined;
         try {
+          files = await filesFor(page.id);
+          if (cancelled) return;
           const blob = await exportScenePng(api, {
             pageId: page.id,
             maxWidthOrHeight: width,
@@ -151,6 +210,7 @@ export function usePageThumbnails(
       running = false;
       if (cancelled) return;
       lastSceneVersion = sceneVersion;
+      lastFilesCount = filesCount;
       if (changed) setThumbs({ ...urlsRef.current });
     };
 
