@@ -41,6 +41,11 @@ export interface PageNavigatorProps {
   thumbnails?: boolean;
   /** Mapa de ficheros hidratado para poder rasterizar imágenes remotas. */
   thumbnailFiles?: FilesMap;
+  /**
+   * Sin `thumbnailFiles`, cómo pedir el mapa hidratado cuando una página lleva
+   * fotos por URL (el `hydrateFiles` del host). Ver `usePageThumbnails`.
+   */
+  hydrateThumbnailFiles?: () => Promise<FilesMap>;
   /** Tamaño de respaldo para "Añadir página" cuando no hay ninguna de la que heredar. */
   pageSize?: PageSize;
   /** Textos, inyectados por el host (ver labels.ts). */
@@ -78,6 +83,7 @@ export function PageNavigator({
   labels: labelsProp,
   thumbnails = false,
   thumbnailFiles,
+  hydrateThumbnailFiles,
   pageSize,
 }: PageNavigatorProps) {
   // La tira va SIN tarjeta, directamente sobre la mesa (25/11), y la mesa es
@@ -121,7 +127,11 @@ export function PageNavigator({
   /** Se ha intentado crear una página y ha fallado (ver `createPage`). */
   const [addFailed, setAddFailed] = useState(false);
   const chipRefs = useRef(new Map<string, HTMLDivElement>());
-  const pageThumbs = usePageThumbnails(api, { enabled: thumbnails, files: thumbnailFiles });
+  const pageThumbs = usePageThumbnails(api, {
+    enabled: thumbnails,
+    files: thumbnailFiles,
+    hydrate: hydrateThumbnailFiles,
+  });
   const lastElementsRef = useRef<unknown>(null);
 
   // Keep the strip in sync with the scene. onChange fires on every commit

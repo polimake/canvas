@@ -979,8 +979,28 @@ async function exportScenePdf(api, opts) {
 }
 const THUMB_WIDTH = 64;
 const DEBOUNCE_MS = 600;
+function pageElements(api, pageId) {
+  return api.getSceneElements().filter((e) => e.id === pageId || e.frameId === pageId);
+}
+function fileOf(api, el) {
+  var _a;
+  const { type, fileId } = el;
+  if (type !== "image" || !fileId) return void 0;
+  return (_a = api.getFiles()) == null ? void 0 : _a[fileId];
+}
 function pageFingerprint(api, pageId) {
-  return api.getSceneElements().filter((e) => e.id === pageId || e.frameId === pageId).map((e) => `${e.id}:${e.version}`).join(",");
+  return pageElements(api, pageId).map((e) => {
+    const { type, fileId } = e;
+    const pending = type === "image" && fileId && !fileOf(api, e) ? "?" : "";
+    return `${e.id}:${e.version}${pending}`;
+  }).join(",");
+}
+function pageNeedsHydration(api, pageId) {
+  return pageElements(api, pageId).some((e) => {
+    var _a;
+    const url2 = (_a = fileOf(api, e)) == null ? void 0 : _a.dataURL;
+    return typeof url2 === "string" && !url2.startsWith("data:") && !url2.startsWith("blob:");
+  });
 }
 function usePageThumbnails(api, opts) {
   const [thumbs, setThumbs] = useState({});
@@ -992,20 +1012,35 @@ function usePageThumbnails(api, opts) {
   const filesToken = files ? Object.keys(files).sort().join(",") : "";
   const filesRef = useRef(files);
   filesRef.current = files;
+  const hydrateRef = useRef(opts == null ? void 0 : opts.hydrate);
+  hydrateRef.current = opts == null ? void 0 : opts.hydrate;
   useEffect(() => {
     if (!api || !enabled) return;
     let cancelled = false;
     let lastSceneVersion = -1;
+    let lastFilesCount = -1;
     let running = false;
     const tick = async () => {
       if (running || document.visibilityState === "hidden") return;
       const all = api.getSceneElements();
       let sceneVersion = all.length;
       for (const el of all) sceneVersion += el.version;
-      if (sceneVersion === lastSceneVersion) return;
+      const filesCount = Object.keys(api.getFiles() ?? {}).length;
+      if (sceneVersion === lastSceneVersion && filesCount === lastFilesCount) return;
       running = true;
       let changed = false;
-      const files2 = filesRef.current;
+      const hostFiles = filesRef.current;
+      let hydrated = null;
+      const filesFor = (pageId) => {
+        if (hostFiles) return Promise.resolve(hostFiles);
+        const hydrate = hydrateRef.current;
+        if (!hydrate || !pageNeedsHydration(api, pageId)) return Promise.resolve(void 0);
+        hydrated ?? (hydrated = hydrate().catch((err) => {
+          console.warn("[canvas2] no se pudieron hidratar las fotos de las miniaturas", err);
+          return void 0;
+        }));
+        return hydrated;
+      };
       const pages = listPages(api);
       const live = new Set(pages.map((p) => p.id));
       for (const id2 of Object.keys(urlsRef.current)) {
@@ -1019,7 +1054,10 @@ function usePageThumbnails(api, opts) {
       for (const page of pages) {
         const stamp = `${pageFingerprint(api, page.id)}|${filesToken}`;
         if (stampsRef.current[page.id] === stamp) continue;
+        let files2;
         try {
+          files2 = await filesFor(page.id);
+          if (cancelled) return;
           const blob = await exportScenePng(api, {
             pageId: page.id,
             maxWidthOrHeight: width,
@@ -1044,6 +1082,7 @@ function usePageThumbnails(api, opts) {
       running = false;
       if (cancelled) return;
       lastSceneVersion = sceneVersion;
+      lastFilesCount = filesCount;
       if (changed) setThumbs({ ...urlsRef.current });
     };
     void tick();
@@ -1952,6 +1991,7 @@ function PageNavigator({
   labels: labelsProp,
   thumbnails = false,
   thumbnailFiles,
+  hydrateThumbnailFiles,
   pageSize
 }) {
   const c = palette.light;
@@ -1974,7 +2014,11 @@ function PageNavigator({
   const [grab, setGrab] = useState(null);
   const [addFailed, setAddFailed] = useState(false);
   const chipRefs = useRef(/* @__PURE__ */ new Map());
-  const pageThumbs = usePageThumbnails(api, { enabled: thumbnails, files: thumbnailFiles });
+  const pageThumbs = usePageThumbnails(api, {
+    enabled: thumbnails,
+    files: thumbnailFiles,
+    hydrate: hydrateThumbnailFiles
+  });
   const lastElementsRef = useRef(null);
   useEffect(() => {
     const refresh = () => {
@@ -7428,7 +7472,7 @@ function SlidesWorkspace(props) {
   } = props;
   const L = labels.slides;
   const deck = useDeck(api, labels.pages);
-  const thumbs = usePageThumbnails(api, { files: thumbnailFiles, width: 336 });
+  const thumbs = usePageThumbnails(api, { files: thumbnailFiles, width: 336, hydrate: hydrateFiles });
   const [transitionOpen, setTransitionOpen] = useState(false);
   const hostPanel = props.openPanel ?? null;
   useEffect(() => {
@@ -9529,6 +9573,7 @@ ${css}` : css;
                 pageSize,
                 thumbnails: pageThumbnails,
                 thumbnailFiles: pageThumbnailFiles,
+                hydrateThumbnailFiles: hydrateFiles,
                 labels: L
               }
             ),
@@ -9837,4 +9882,4 @@ export {
   addPage as y,
   adoptLooseIntoPage as z
 };
-//# sourceMappingURL=LibraryPanel-QkeWaUFV.js.map
+//# sourceMappingURL=LibraryPanel-B-AOwaw-.js.map

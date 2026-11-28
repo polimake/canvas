@@ -22,6 +22,11 @@ export interface PageNavigatorProps {
     thumbnails?: boolean;
     /** Mapa de ficheros hidratado para poder rasterizar imágenes remotas. */
     thumbnailFiles?: FilesMap;
+    /**
+     * Sin `thumbnailFiles`, cómo pedir el mapa hidratado cuando una página lleva
+     * fotos por URL (el `hydrateFiles` del host). Ver `usePageThumbnails`.
+     */
+    hydrateThumbnailFiles?: () => Promise<FilesMap>;
     /** Tamaño de respaldo para "Añadir página" cuando no hay ninguna de la que heredar. */
     pageSize?: PageSize;
     /** Textos, inyectados por el host (ver labels.ts). */
@@ -33,5 +38,5 @@ export interface PageNavigatorProps {
  * renombrar con doble clic. Todo lo demás vive donde se opera: las acciones de la página en
  * `PageActions`, sobre el lienzo; fondo, tamaño y exportación en `CanvasMenu`.
  */
-export declare function PageNavigator({ api, theme, viewMode, narrow, activeId: controlledActiveId, onActiveChange, labels: labelsProp, thumbnails, thumbnailFiles, pageSize, }: PageNavigatorProps): import("react").JSX.Element;
+export declare function PageNavigator({ api, theme, viewMode, narrow, activeId: controlledActiveId, onActiveChange, labels: labelsProp, thumbnails, thumbnailFiles, hydrateThumbnailFiles, pageSize, }: PageNavigatorProps): import("react").JSX.Element;
 //# sourceMappingURL=PageNavigator.d.ts.map

@@ -125,7 +125,7 @@ export function SlidesWorkspace(props: SlidesWorkspaceProps) {
   } = props;
   const L = labels.slides;
   const deck = useDeck(api, labels.pages);
-  const thumbs = usePageThumbnails(api, { files: thumbnailFiles, width: 336 });
+  const thumbs = usePageThumbnails(api, { files: thumbnailFiles, width: 336, hydrate: hydrateFiles });
 
   // El panel abierto es el del editor (y del host, si lo lleva: Studio abre
   // Comentarios al pulsar una chincheta). «Transición» es solo de aquí.

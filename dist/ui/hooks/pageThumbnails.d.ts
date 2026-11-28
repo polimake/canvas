@@ -19,5 +19,13 @@ export declare function usePageThumbnails(api: ExcalidrawImperativeAPI | null, o
      * ~170 px y pide el doble para pantallas densas.
      */
     width?: number;
+    /**
+     * Cómo pedirle al host el mapa hidratado cuando no lo pasa en `files`: el
+     * mismo `hydrateFiles` del menú de exportar. Se llama solo si una página que
+     * hay que rasterizar lleva fotos por URL, y como mucho una vez por latido.
+     * Sin esto, una diapositiva con una foto vinculada salía en blanco (#342):
+     * ningún host pasaba `files`, así que se rasterizaba la URL tal cual.
+     */
+    hydrate?: () => Promise<FilesMap>;
 }): Record<string, string>;
 //# sourceMappingURL=pageThumbnails.d.ts.map

@@ -1301,6 +1301,7 @@ export function Canvas2Editor({
           pageSize={pageSize}
           thumbnails={pageThumbnails}
           thumbnailFiles={pageThumbnailFiles}
+          hydrateThumbnailFiles={hydrateFiles}
           labels={L}
         />
       )}
